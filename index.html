@@ -59,6 +59,36 @@ nav{max-width:1200px;margin:auto;padding:0 12px 10px;display:flex;gap:8px;overfl
 .parent-readonly{opacity:.8}
 .readonly-note{font-size:11px;color:var(--muted);margin-top:6px}
 .compact-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:10px}
+.mobile-menu-btn{display:none;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:10px 12px;font-weight:800}
+.mobile-nav-panel{display:none}
+.profile-tabs-wrap{position:sticky;top:0;z-index:25;background:rgba(8,16,31,.98);padding-top:6px;margin:0 -2px 12px}
+.profile-tabs button{font-size:12px}
+@media(max-width:700px){
+  header{position:sticky;top:0;z-index:40;background:rgba(8,16,31,.98);backdrop-filter:blur(10px)}
+  .topbar{padding:10px 14px;gap:8px}
+  .brand{gap:8px}
+  .brand .logo{width:38px;height:38px;border-radius:11px}
+  .brand strong{font-size:15px}
+  .brand .muted{font-size:10px}
+  .selector{width:100%;order:4}
+  .selector select{width:100%;padding:9px 10px;font-size:13px}
+  .user-chip{padding:8px 10px;font-size:10px}
+  .mobile-menu-btn{display:inline-flex;align-items:center;justify-content:center}
+  nav#mainNav{display:none!important}
+  .mobile-nav-panel{display:none;padding:8px 12px 12px;border-top:1px solid var(--line);background:#08101f}
+  .mobile-nav-panel.open{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .mobile-nav-panel button{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:12px;padding:10px 8px;font-size:11px;font-weight:800}
+  .mobile-nav-panel button.active{background:linear-gradient(135deg,var(--red),#b91c1c);border-color:transparent}
+  .profile-tabs-wrap{top:0}
+  .profile-tabs{gap:6px;padding:6px 0 8px}
+  .profile-tabs button{padding:8px 10px;font-size:11px}
+  .profile-summary-grid{gap:8px}
+  .profile-summary-card{padding:10px}
+  .profile-summary-card strong{font-size:18px}
+  .player-manage-grid{grid-template-columns:1fr}
+  #profileRosterCard{max-height:280px;overflow:auto}
+}
+
 
 
 
@@ -78,7 +108,7 @@ nav{max-width:1200px;margin:auto;padding:0 12px 10px;display:flex;gap:8px;overfl
 
 <section id="onboardView" class="auth-shell hidden"><div class="auth-card"><div class="logo">M</div><h1>Add Your Player</h1><p class="muted">Create the youth player profile linked to your family account.</p><label>Player first name</label><input id="obFirst"><label>Player last name</label><input id="obLast"><label>Birth date</label><input id="obBirth" type="date"><label>Age group</label><select id="obAge"><option>8U</option><option>9U</option><option>10U</option><option>11U</option><option>12U</option><option>13U</option><option>14U</option><option>15U</option></select><label>Primary position</label><select id="obPosition"><option>Pitcher</option><option>Catcher</option><option>Infielder</option><option>Outfielder</option><option>Utility</option></select><div class="row" style="margin-top:16px"><button class="btn green" onclick="createFamilyPlayer()">Create Player Profile</button><button class="btn secondary" onclick="logout()">Sign Out</button></div></div></section>
 
-<div id="appView" class="app hidden"><header><div class="topbar"><div class="logo">M</div><div class="brand"><h1>Misfits Player Portal</h1><p>Train • Track • Improve</p></div><select id="playerSelect" class="selector" onchange="switchPlayer()"></select><div id="userChip" class="user-chip"></div></div><nav><button class="active" data-page="dashboard">Dashboard</button><button data-page="workouts">Home Workouts</button><button data-page="progress">Progress</button><button data-page="stats">Stats</button><button data-page="media">Media</button><button id="coachTab" data-page="coach">Coach</button><button id="profilesTab" data-page="playerprofiles">Player Profiles</button><button id="gcTab" data-page="gamechanger">GameChanger Import</button><button onclick="logout()">Sign Out</button></nav></header>
+<div id="appView" class="app hidden"><header><div class="topbar"><div class="logo">M</div><div class="brand"><h1>Misfits Player Portal</h1><p>Train • Track • Improve</p></div><select id="playerSelect" class="selector" onchange="switchPlayer()"></select><div id="userChip" class="user-chip"></div></div><nav><button class="active" data-page="dashboard">Dashboard</button><button data-page="workouts">Home Workouts</button><button data-page="progress">Progress</button><button data-page="stats">Stats</button><button data-page="media">Media</button><button id="coachTab" data-page="coach">Coach</button><button id="profilesTab" data-page="playerprofiles">Player Profiles</button><button id="gcTab" data-page="gamechanger">GameChanger Import</button><button onclick="logout()">Sign Out</button></nav><div id="mobileNavPanel" class="mobile-nav-panel"></div></header>
 <main>
 <section id="dashboard" class="page active"><div class="hero"><div class="card hero-card"><span class="pill" id="welcomeRole"></span><h2 style="font-size:30px;margin:14px 0 8px" id="welcomeTitle"></h2><p class="muted">Complete workouts, record games, upload development media, and track progress from any device.</p><div class="row"><button class="btn blue" onclick="showPage('workouts')">Start Workout</button><button class="btn secondary" onclick="showPage('progress')">View Progress</button></div></div><div class="card"><h3>Weekly goal</h3><div class="row space"><span class="muted small">Workout completion</span><strong id="weeklyPercent">0%</strong></div><div class="progress" style="margin:8px 0 18px"><div id="weeklyBar" style="width:0%"></div></div><div class="row space"><span class="muted small">Current streak</span><strong id="streak">0 days</strong></div><div class="note small" style="margin-top:16px">Youth pitchers should follow coach-approved pitch-count and rest guidance. Stop immediately for arm pain.</div></div></div><div class="grid" id="dashStats" style="margin-top:16px"></div><div class="card" style="margin-top:16px"><h3>Recommended today</h3><div id="recommended"></div></div></section>
 <section id="workouts" class="page"><div class="row space"><div><h2>Home Baseball Workouts</h2><p class="muted">Choose a position program and record each completed session.</p></div><select id="workoutFilter" style="width:auto" onchange="renderWorkouts()"><option>All</option><option>Pitching</option><option>Catching</option><option>Batting</option><option>Fielding</option></select></div><div id="workoutGrid" class="workout-grid"></div></section>
@@ -112,7 +142,7 @@ nav{max-width:1200px;margin:auto;padding:0 12px 10px;display:flex;gap:8px;overfl
     </div>
 
     <div class="card" id="profileDetailCard">
-      <div class="row space" style="margin-bottom:10px">
+      <div class="row space" style="margin-bottom:10px"><button id="profileRosterBack" class="mini-btn hidden" onclick="showProfileRoster()">← Roster</button>
         <div>
           <h3 id="profileTitle" style="margin-bottom:2px">Select a player</h3>
           <div id="profileSubtitle" class="muted small"></div>
@@ -122,14 +152,14 @@ nav{max-width:1200px;margin:auto;padding:0 12px 10px;display:flex;gap:8px;overfl
       <div id="profileEditor" class="hidden">
         <div id="profileSummary" class="profile-summary-grid"></div>
 
-        <div class="profile-tabs" id="profileTabs">
+        <div class="profile-tabs-wrap"><div class="profile-tabs" id="profileTabs">
           <button class="active" data-profile-tab="overview" onclick="showProfileTab('overview')">Overview</button>
           <button data-profile-tab="goals" onclick="showProfileTab('goals')">Goals</button>
           <button data-profile-tab="evaluations" onclick="showProfileTab('evaluations')">Evaluations</button>
           <button data-profile-tab="notes" onclick="showProfileTab('notes')">Notes</button>
           <button data-profile-tab="achievements" onclick="showProfileTab('achievements')">Achievements</button>
           <button data-profile-tab="history" onclick="showProfileTab('history')">History</button>
-        </div>
+        </div></div>
 
         <div id="profilePane-overview" class="profile-pane active">
           <h3>Player Info</h3>
@@ -234,9 +264,9 @@ async function loadPlayers(){const {data,error}=await client.from('players').sel
 function renderPlayerSelect(){$('playerSelect').innerHTML=players.map(p=>`<option value="${p.id}" ${currentPlayer?.id===p.id?'selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>`).join('');$('playerSelect').classList.toggle('hidden',!players.length)}
 async function switchPlayer(){currentPlayer=players.find(p=>p.id===$('playerSelect').value)||players[0];localStorage.setItem('misfits-selected-player',currentPlayer.id);await loadPlayerData();renderAll()}
 async function createFamilyPlayer(){const first=$('obFirst').value.trim(),last=$('obLast').value.trim();if(!first||!last)return alert('Enter the player first and last name.');const {data:fam,error:fe}=await client.from('families').insert({family_name:last+' Family',created_by:currentUser.id}).select().single();if(fe)return alert(fe.message);await client.from('family_members').insert({family_id:fam.id,user_id:currentUser.id,member_role:'parent'});const {error:pe}=await client.from('players').insert({family_id:fam.id,first_name:first,last_name:last,birth_date:$('obBirth').value||null,primary_position:$('obPosition').value});if(pe)return alert(pe.message);await loadPlayers();showOnly('appView');await loadPlayerData();renderAll()}
-async function afterLogin(){const {data:{user}}=await client.auth.getUser();if(!user){showOnly('authView');return}currentUser=user;await loadProfile();await maybeRequestCoach();const ok=await loadPlayers();if(!ok)return;showOnly('appView');$('userChip').textContent=`${currentProfile.display_name||currentUser.email} • ${currentProfile.role}`;$('coachTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));$('profilesTab').classList.toggle('hidden',!['parent','coach','admin'].includes(currentProfile.role));$('gcTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));await loadPlayerData();renderAll()}
+async function afterLogin(){const {data:{user}}=await client.auth.getUser();if(!user){showOnly('authView');return}currentUser=user;await loadProfile();await maybeRequestCoach();const ok=await loadPlayers();if(!ok)return;showOnly('appView');$('userChip').textContent=`${currentProfile.display_name||currentUser.email} • ${currentProfile.role}`;$('coachTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));$('profilesTab').classList.toggle('hidden',!['parent','coach','admin'].includes(currentProfile.role));$('gcTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));buildMobileNav();await loadPlayerData();renderAll()}
 async function loadPlayerData(){if(!currentPlayer)return;const [{data:w,error:we},{data:s,error:se}]=await Promise.all([client.from('workout_logs').select('*').eq('player_id',currentPlayer.id).order('completed_on',{ascending:false}),client.from('player_stats').select('*').eq('player_id',currentPlayer.id).order('game_date',{ascending:false})]);if(we)console.warn(we);if(se)console.warn(se);workoutLogs=w||[];statsRows=s||[]}
-function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));$(id).classList.add('active');if(id==='media')renderMedia();if(id==='coach')renderCoach();if(id==='playerprofiles')renderPlayerProfiles();if(id==='gamechanger')renderGC()}
+function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));$(id).classList.add('active');if(id==='media')renderMedia();if(id==='coach')renderCoach();if(id==='playerprofiles'){ $('profileDetailCard')?.classList.remove('hidden'); renderPlayerProfiles(); }if(id==='gamechanger')renderGC()}
 document.querySelectorAll('nav button[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
 function statVal(row,key){return Number(row.stats?.[key]||0)}function totals(){const sum=k=>statsRows.reduce((a,r)=>a+statVal(r,k),0),ab=sum('ab'),hits=sum('hits'),walks=sum('walks');return{games:statsRows.filter(r=>r.source==='manual').length+sum('games'),ab,hits,walks,rbi:sum('rbi'),runs:sum('runs'),sb:sum('sb'),ip:sum('ip'),pso:sum('pso'),er:sum('er'),pitches:sum('pitches'),avg:ab?hits/ab:0,obp:(ab+walks)?(hits+walks)/(ab+walks):0}}
 function renderDashboard(){if(!currentPlayer)return;const t=totals(),weekAgo=new Date(Date.now()-6*86400000).toISOString().slice(0,10),weekly=workoutLogs.filter(x=>x.completed_on>=weekAgo).length,pct=Math.min(100,Math.round(weekly/4*100));$('weeklyPercent').textContent=pct+'%';$('weeklyBar').style.width=pct+'%';const dates=[...new Set(workoutLogs.map(x=>x.completed_on))].sort().reverse();let sn=0,d=new Date();for(let i=0;i<30;i++){const ds=d.toISOString().slice(0,10);if(dates.includes(ds))sn++;else if(i>0)break;d=new Date(d-86400000)}$('streak').textContent=sn+' day'+(sn===1?'':'s');$('welcomeRole').textContent=`${currentPlayer.primary_position||'Player'} • ${currentProfile.role}`;$('welcomeTitle').textContent=`Welcome, ${currentPlayer.preferred_name||currentPlayer.first_name}`;$('dashStats').innerHTML=[['Workouts completed',workoutLogs.length],['Training minutes',workoutLogs.reduce((a,x)=>a+(x.minutes||0),0)],['Games / stat rows',statsRows.length],['Batting AVG',fmt(t.avg)]].map(x=>`<div class="stat"><span class="muted small">${x[0]}</span><strong>${x[1]}</strong></div>`).join('');const preferred=currentPlayer.primary_position==='Pitcher'?'Pitching':currentPlayer.primary_position==='Catcher'?'Catching':currentPlayer.primary_position==='Outfielder'?'Fielding':'Batting';const rec=workouts.find(w=>w.category===preferred)||workouts[0];$('recommended').innerHTML=`<div class="row space"><div><span class="pill">${rec.category}</span><h3 style="margin:10px 0 5px">${rec.title}</h3><p class="muted small">${rec.minutes} minutes • ${rec.level}</p></div><button class="btn blue" onclick="showPage('workouts')">Open Program</button></div>`}
@@ -255,7 +285,42 @@ async function coachRemovePlayer(id){const p=players.find(x=>x.id===id);if(!p||!
 async function renderCoach(){if(!['coach','admin'].includes(currentProfile.role))return;const team=await getMisfitsTeam();const {data:r}=await client.from('team_rosters').select('player_id,jersey_number,status').eq('team_id',team.id).eq('status','active');const rm=Object.fromEntries((r||[]).map(x=>[x.player_id,x]));const rp=players.filter(p=>rm[p.id]);const rows=[];for(const p of rp){p._jersey=rm[p.id]?.jersey_number||'';const [{data:w},{data:s}]=await Promise.all([client.from('workout_logs').select('minutes').eq('player_id',p.id),client.from('player_stats').select('stats,source').eq('player_id',p.id)]);const ss=s||[],ab=ss.reduce((a,r)=>a+Number(r.stats?.ab||0),0),hits=ss.reduce((a,r)=>a+Number(r.stats?.hits||0),0);rows.push(`<tr><td>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</td><td>${esc(p._jersey||'—')}</td><td>${esc(p.primary_position||'—')}</td><td>${(w||[]).length}</td><td>${(w||[]).reduce((a,x)=>a+(x.minutes||0),0)}</td><td>${ss.filter(x=>x.source==='manual').length}</td><td>${fmt(ab?hits/ab:0)}</td><td><button class="btn secondary" onclick="coachEditPlayer('${p.id}')">Edit</button> <button class="btn" onclick="coachRemovePlayer('${p.id}')">Remove</button></td></tr>`)}$('coachBody').innerHTML=rows.join('')||'<tr><td colspan="8">No rostered players visible.</td></tr>'}
 
 
+
+function buildMobileNav(){
+  const panel=$('mobileNavPanel'), nav=$('mainNav');
+  if(!panel||!nav)return;
+  panel.innerHTML='';
+  [...nav.querySelectorAll('button')].forEach(btn=>{
+    if(btn.classList.contains('hidden'))return;
+    const clone=document.createElement('button');
+    clone.textContent=btn.textContent.trim();
+    clone.dataset.page=btn.dataset.page||'';
+    clone.onclick=()=>{showPage(clone.dataset.page);panel.classList.remove('open')};
+    panel.appendChild(clone);
+  });
+  syncMobileNav();
+}
+function syncMobileNav(){
+  const active=document.querySelector('nav#mainNav button.active')?.dataset.page;
+  document.querySelectorAll('#mobileNavPanel button').forEach(b=>b.classList.toggle('active',b.dataset.page===active));
+}
+function toggleMobileNav(){const p=$('mobileNavPanel');if(!p)return;buildMobileNav();p.classList.toggle('open')}
 function canManagePlayers(){return ['coach','admin'].includes(currentProfile?.role)}
+
+function showProfileRoster(){
+  const roster=$('profileRosterCard'), detail=$('profileDetailCard');
+  if(roster)roster.classList.remove('hidden');
+  if(detail)detail.classList.add('hidden');
+  $('profileRosterBack')?.classList.add('hidden');
+}
+function focusProfileDetail(){
+  if(window.innerWidth<=700 && canManagePlayers()){
+    $('profileRosterCard')?.classList.add('hidden');
+    $('profileDetailCard')?.classList.remove('hidden');
+    $('profileRosterBack')?.classList.remove('hidden');
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+}
 function showProfileTab(name){
   document.querySelectorAll('.profile-pane').forEach(x=>x.classList.toggle('active',x.id===`profilePane-${name}`));
   document.querySelectorAll('#profileTabs button').forEach(x=>x.classList.toggle('active',x.dataset.profileTab===name));
@@ -271,7 +336,7 @@ function setProfileEditMode(){
 }
 function profileNotice(msg,type='success'){const el=$('profileMessage');el.textContent=msg;el.className='note small '+type;el.classList.remove('hidden')}
 async function renderPlayerProfiles(){if(!['parent','coach','admin'].includes(currentProfile.role))return;if(!profilePlayer)profilePlayer=currentPlayer||players[0]||null;const editable=canManagePlayers();$('profilePageHeading').textContent=editable?'Player Profiles':'Player Development';$('profilePageSub').textContent=editable?'Manage player details and development.':'Track progress, goals, evaluations, and achievements.';$('profileList').innerHTML=players.map(p=>`<button class="profile-card ${profilePlayer?.id===p.id?'active':''}" onclick="selectProfilePlayer('${p.id}')"><span><strong>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</strong><div class="profile-meta">#${esc(p.jersey_number||'—')} • ${esc(p.primary_position||'Position not set')}</div></span><span>›</span></button>`).join('')||'<div class="muted">No players available.</div>';if(profilePlayer)await loadProfileEditor();setProfileEditMode()}
-async function selectProfilePlayer(id){profilePlayer=players.find(p=>p.id===id)||null;await renderPlayerProfiles();showProfileTab('overview')}
+async function selectProfilePlayer(id){profilePlayer=players.find(p=>p.id===id)||null;await renderPlayerProfiles();showProfileTab('overview');focusProfileDetail()}
 async function loadProfileEditor(){const p=profilePlayer;if(!p)return;$('profileEditor').classList.remove('hidden');$('profileTitle').textContent=`${p.preferred_name||p.first_name} ${p.last_name}`;$('profileSubtitle').textContent=`#${p.jersey_number||'—'} • ${p.primary_position||'Position not set'}`;$('profileAvatar').textContent=(p.preferred_name||p.first_name||'M').slice(0,1).toUpperCase();$('pfFirst').value=p.first_name||'';$('pfLast').value=p.last_name||'';$('pfPreferred').value=p.preferred_name||'';$('pfJersey').value=p.jersey_number||'';$('pfPrimary').value=p.primary_position||'';$('pfSecondary').value=p.secondary_position||'';$('pfBirth').value=p.birth_date||'';$('pfActive').value=String(p.active!==false);$('evalDate').value=today();$('achDate').value=today();await Promise.all([renderGoals(),renderEvaluations(),renderAchievements(),renderDevelopmentNotes(),renderProgressHistory(),renderProfileSummary()])}
 async function savePlayerProfile(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const payload={first_name:$('pfFirst').value.trim(),last_name:$('pfLast').value.trim(),preferred_name:$('pfPreferred').value.trim()||null,jersey_number:$('pfJersey').value.trim()||null,primary_position:$('pfPrimary').value.trim()||null,secondary_position:$('pfSecondary').value.trim()||null,birth_date:$('pfBirth').value||null,active:$('pfActive').value==='true',updated_at:new Date().toISOString()};const {error}=await client.from('players').update(payload).eq('id',profilePlayer.id);if(error)return profileNotice(error.message,'danger');try{const team=await getMisfitsTeam();await client.from('team_rosters').update({jersey_number:payload.jersey_number}).eq('team_id',team.id).eq('player_id',profilePlayer.id)}catch{}await loadPlayers();profilePlayer=players.find(p=>p.id===profilePlayer.id)||profilePlayer;currentPlayer=players.find(p=>p.id===currentPlayer?.id)||currentPlayer;renderPlayerSelect();await renderPlayerProfiles();profileNotice('Player profile saved.')}
 async function addPlayerGoal(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const title=$('goalTitle').value.trim(),description=$('goalDescription').value.trim(),target_date=$('goalTargetDate').value||null;if(!title)return profileNotice('Enter a goal title.','danger');const {error}=await client.from('player_goals').insert({player_id:profilePlayer.id,title,description:description||null,target_date,status:'active'});if(error)return profileNotice(error.message,'danger');$('goalTitle').value='';$('goalDescription').value='';$('goalTargetDate').value='';await Promise.all([renderGoals(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Goal added.')}
