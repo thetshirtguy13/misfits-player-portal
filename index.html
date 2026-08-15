@@ -46,9 +46,23 @@ nav{max-width:1200px;margin:auto;padding:0 12px 10px;display:flex;gap:8px;overfl
 .eval-bar{height:8px;background:#08101f;border-radius:999px;overflow:hidden;margin-top:7px}
 .eval-bar>div{height:100%;background:linear-gradient(90deg,var(--red),var(--blue))}
 .date-chip{font-size:10px;color:var(--muted);white-space:nowrap}
+.profile-topline{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.profile-identity{display:flex;gap:10px;align-items:center}
+.profile-avatar{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;background:linear-gradient(135deg,var(--red),var(--blue));font-weight:900;font-size:20px}
+.profile-tabs{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.profile-tabs::-webkit-scrollbar{display:none}
+.profile-tabs button{white-space:nowrap;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:999px;cursor:pointer;font-weight:700}
+.profile-tabs button.active{background:linear-gradient(135deg,var(--red),#b91c1c);border-color:transparent}
+.profile-pane{display:none}
+.profile-pane.active{display:block}
+.parent-banner{margin-bottom:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(56,189,248,.08)}
+.parent-readonly{opacity:.8}
+.readonly-note{font-size:11px;color:var(--muted);margin-top:6px}
+.compact-card{padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-bottom:10px}
 
 
-@media(max-width:900px){.player-manage-grid{grid-template-columns:1fr}.profile-summary-grid{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr 1fr}.workout-grid,.media-grid{grid-template-columns:1fr}}@media(max-width:600px){main{padding:14px}.profile-summary-grid{grid-template-columns:1fr 1fr}.grid,.form-grid{grid-template-columns:1fr}.topbar{padding:11px}}
+
+@media(max-width:900px){.player-manage-grid{grid-template-columns:1fr}.profile-summary-grid{grid-template-columns:repeat(2,1fr)}.hero{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:1fr 1fr}.workout-grid,.media-grid{grid-template-columns:1fr}}@media(max-width:600px){main{padding:12px}.profile-summary-grid{grid-template-columns:1fr 1fr}.topbar{align-items:flex-start;flex-wrap:wrap}.topbar .brand{min-width:120px}.selector{order:3;max-width:none;width:100%}.user-chip{font-size:11px}.profile-topline{align-items:flex-start}.profile-avatar{width:42px;height:42px}.profile-tabs{position:sticky;top:118px;z-index:12;background:rgba(8,16,31,.96);padding:8px 0}.player-manage-grid{gap:10px}.grid,.form-grid{grid-template-columns:1fr}.topbar{padding:11px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -73,64 +87,119 @@ nav{max-width:1200px;margin:auto;padding:0 12px 10px;display:flex;gap:8px;overfl
 <section id="media" class="page"><h2>Player Media</h2><p class="muted">Private photos and training videos for the selected player.</p><div class="card"><label>Choose image or video</label><input id="mediaFile" type="file" accept="image/*,video/*"><button class="btn green" style="margin-top:12px" onclick="uploadMedia()">Upload</button><p class="small muted">Maximum file size is controlled by your Supabase bucket (currently 50 MB).</p></div><div id="mediaGrid" class="media-grid" style="margin-top:16px"></div></section>
 <section id="coach" class="page"><h2>Coach Dashboard</h2><p class="muted">Manage the Misfits 10U roster.</p><div id="coachMessage" class="note small hidden" style="margin-bottom:14px"></div><div class="card" style="margin-bottom:16px"><h3>Add Player</h3><div class="form-grid"><div><label>First name</label><input id="coachFirst"></div><div><label>Last name</label><input id="coachLast"></div><div><label>Jersey #</label><input id="coachJersey"></div><div><label>Primary position</label><input id="coachPosition" placeholder="Pitcher, Catcher, etc."></div></div><button class="btn green" style="margin-top:14px" onclick="coachAddPlayer()">Add to Misfits 10U</button></div><div class="card"><div class="table-wrap"><table><thead><tr><th>Player</th><th>#</th><th>Position</th><th>Workouts</th><th>Minutes</th><th>Games</th><th>AVG</th><th>Actions</th></tr></thead><tbody id="coachBody"></tbody></table></div></div></section>
 
-<section id="playerprofiles" class="page"><h2>Player Profiles</h2><p class="muted">Manage player details, goals, evaluations, achievements, and development notes.</p>
-<div id="profileMessage" class="note small hidden" style="margin-bottom:14px"></div>
-<div class="player-manage-grid">
-  <div class="card">
-    <h3>Roster</h3>
-    <div id="profileList" class="profile-list"></div>
-  </div>
-  <div class="card">
-    <h3 id="profileTitle">Select a player</h3>
-    <div id="profileEditor" class="hidden"><div id="profileSummary" class="profile-summary-grid"></div>
-      <div class="form-grid two">
-        <div><label>First name</label><input id="pfFirst"></div>
-        <div><label>Last name</label><input id="pfLast"></div>
-        <div><label>Preferred name</label><input id="pfPreferred"></div>
-        <div><label>Jersey #</label><input id="pfJersey"></div>
-        <div><label>Primary position</label><input id="pfPrimary" placeholder="Pitcher, Catcher, etc."></div>
-        <div><label>Secondary position</label><input id="pfSecondary"></div>
-        <div><label>Birth date</label><input id="pfBirth" type="date"></div>
-        <div><label>Active</label><select id="pfActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+
+<section id="playerprofiles" class="page">
+  <div class="profile-topline">
+    <div class="profile-identity">
+      <div class="profile-avatar" id="profileAvatar">M</div>
+      <div>
+        <h2 style="margin:0" id="profilePageHeading">Player Profiles</h2>
+        <div class="muted small" id="profilePageSub">Manage player development.</div>
       </div>
-      <div class="row" style="margin-top:14px"><button class="btn green" onclick="savePlayerProfile()">Save Player</button></div>
-
-      <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
-      <h3>Development Goal</h3>
-      <label>Goal title</label><input id="goalTitle" placeholder="Example: Improve throwing accuracy">
-      <label>Goal details</label><textarea id="goalDescription" rows="3"></textarea><label>Target date</label><input id="goalTargetDate" type="date">
-      <button class="btn blue" style="margin-top:10px" onclick="addPlayerGoal()">Add Goal</button>
-      <div id="goalList" style="margin-top:14px"></div>
-
-      <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
-      <h3>Coach Evaluation</h3>
-      <div class="form-grid two">
-        <div><label>Category</label><input id="evalCategory" placeholder="Hitting, Fielding, Pitching..."></div>
-        <div><label>Score (1-5)</label><input id="evalScore" type="number" min="1" max="5" value="3"></div><div><label>Evaluation date</label><input id="evalDate" type="date"></div>
-      </div>
-      <label>Notes</label><textarea id="evalNotes" rows="3"></textarea>
-      <button class="btn blue" style="margin-top:10px" onclick="addPlayerEvaluation()">Save Evaluation</button>
-      <div id="evaluationList" style="margin-top:14px"></div>
-
-      <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
-      <h3>Development Notes</h3>
-      <label>Coach note</label><textarea id="devNotes" rows="4" placeholder="Mechanics, attitude, focus areas, next steps..."></textarea>
-      <button class="btn blue" style="margin-top:10px" onclick="saveDevelopmentNote()">Save Note</button>
-      <div id="noteHistory" style="margin-top:14px"></div>
-
-      <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
-      <h3>Achievement</h3>
-      <label>Title</label><input id="achTitle" placeholder="Example: 4 workouts completed">
-      <label>Description</label><textarea id="achDescription" rows="2"></textarea><label>Achievement date</label><input id="achDate" type="date">
-      <button class="btn blue" style="margin-top:10px" onclick="addPlayerAchievement()">Add Achievement</button>
-      <div id="achievementList" style="margin-top:14px"></div>
-
-      <hr style="border:0;border-top:1px solid var(--line);margin:22px 0">
-      <h3>Progress History</h3>
-      <div id="progressHistory"></div>
     </div>
   </div>
-</div></section>
+
+  <div id="profileMessage" class="note small hidden" style="margin-bottom:14px"></div>
+  <div id="parentProfileBanner" class="parent-banner hidden">
+    <strong>Player Development</strong>
+    <div class="small muted">View your player's progress, goals, evaluations, achievements, and training history.</div>
+  </div>
+
+  <div class="player-manage-grid">
+    <div class="card" id="profileRosterCard">
+      <h3>Roster</h3>
+      <div id="profileList" class="profile-list"></div>
+    </div>
+
+    <div class="card" id="profileDetailCard">
+      <div class="row space" style="margin-bottom:10px">
+        <div>
+          <h3 id="profileTitle" style="margin-bottom:2px">Select a player</h3>
+          <div id="profileSubtitle" class="muted small"></div>
+        </div>
+      </div>
+
+      <div id="profileEditor" class="hidden">
+        <div id="profileSummary" class="profile-summary-grid"></div>
+
+        <div class="profile-tabs" id="profileTabs">
+          <button class="active" data-profile-tab="overview" onclick="showProfileTab('overview')">Overview</button>
+          <button data-profile-tab="goals" onclick="showProfileTab('goals')">Goals</button>
+          <button data-profile-tab="evaluations" onclick="showProfileTab('evaluations')">Evaluations</button>
+          <button data-profile-tab="notes" onclick="showProfileTab('notes')">Notes</button>
+          <button data-profile-tab="achievements" onclick="showProfileTab('achievements')">Achievements</button>
+          <button data-profile-tab="history" onclick="showProfileTab('history')">History</button>
+        </div>
+
+        <div id="profilePane-overview" class="profile-pane active">
+          <h3>Player Info</h3>
+          <div class="form-grid two" id="profileInfoFields">
+            <div><label>First name</label><input id="pfFirst"></div>
+            <div><label>Last name</label><input id="pfLast"></div>
+            <div><label>Preferred name</label><input id="pfPreferred"></div>
+            <div><label>Jersey #</label><input id="pfJersey"></div>
+            <div><label>Primary position</label><input id="pfPrimary" placeholder="Pitcher, Catcher, etc."></div>
+            <div><label>Secondary position</label><input id="pfSecondary"></div>
+            <div><label>Birth date</label><input id="pfBirth" type="date"></div>
+            <div><label>Active</label><select id="pfActive"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+          </div>
+          <div class="row" style="margin-top:14px" id="saveProfileRow"><button class="btn green" onclick="savePlayerProfile()">Save Player</button></div>
+          <div id="parentReadonlyNote" class="readonly-note hidden">Player information is managed by team staff.</div>
+        </div>
+
+        <div id="profilePane-goals" class="profile-pane">
+          <h3>Development Goals</h3>
+          <div id="goalComposer">
+            <label>Goal title</label><input id="goalTitle" placeholder="Example: Improve throwing accuracy">
+            <label>Goal details</label><textarea id="goalDescription" rows="3"></textarea>
+            <label>Target date</label><input id="goalTargetDate" type="date">
+            <button class="btn blue" style="margin-top:10px" onclick="addPlayerGoal()">Add Goal</button>
+          </div>
+          <div id="goalList" style="margin-top:14px"></div>
+        </div>
+
+        <div id="profilePane-evaluations" class="profile-pane">
+          <h3>Coach Evaluations</h3>
+          <div id="evaluationComposer">
+            <div class="form-grid two">
+              <div><label>Category</label><input id="evalCategory" placeholder="Hitting, Fielding, Pitching..."></div>
+              <div><label>Score (1-5)</label><input id="evalScore" type="number" min="1" max="5" value="3"></div>
+              <div><label>Evaluation date</label><input id="evalDate" type="date"></div>
+            </div>
+            <label>Notes</label><textarea id="evalNotes" rows="3"></textarea>
+            <button class="btn blue" style="margin-top:10px" onclick="addPlayerEvaluation()">Save Evaluation</button>
+          </div>
+          <div id="evaluationList" style="margin-top:14px"></div>
+        </div>
+
+        <div id="profilePane-notes" class="profile-pane">
+          <h3>Development Notes</h3>
+          <div id="noteComposer">
+            <label>Coach note</label><textarea id="devNotes" rows="4" placeholder="Mechanics, attitude, focus areas, next steps..."></textarea>
+            <button class="btn blue" style="margin-top:10px" onclick="saveDevelopmentNote()">Save Note</button>
+          </div>
+          <div id="noteHistory" style="margin-top:14px"></div>
+        </div>
+
+        <div id="profilePane-achievements" class="profile-pane">
+          <h3>Achievements</h3>
+          <div id="achievementComposer">
+            <label>Title</label><input id="achTitle" placeholder="Example: 4 workouts completed">
+            <label>Description</label><textarea id="achDescription" rows="2"></textarea>
+            <label>Achievement date</label><input id="achDate" type="date">
+            <button class="btn blue" style="margin-top:10px" onclick="addPlayerAchievement()">Add Achievement</button>
+          </div>
+          <div id="achievementList" style="margin-top:14px"></div>
+        </div>
+
+        <div id="profilePane-history" class="profile-pane">
+          <h3>Progress History</h3>
+          <div id="progressHistory"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
 <section id="gamechanger" class="page"><h2>GameChanger Import</h2><p class="muted">Upload a GameChanger season-stat CSV and map rows to player profiles.</p><div class="card"><div class="note small">Export stats from GameChanger and upload the CSV here. This portal never asks for your GameChanger password.</div><div class="form-grid two" style="margin-top:16px"><div><label>Stat category</label><select id="gcCategory"><option value="auto">Detect automatically</option><option value="batting">Batting</option><option value="pitching">Pitching</option><option value="fielding">Fielding</option></select></div><div><label>GameChanger CSV</label><input id="gcFile" type="file" accept=".csv,text/csv"></div></div><div class="row" style="margin-top:14px"><button class="btn blue" onclick="previewGC()">Preview Import</button><button class="btn secondary" onclick="downloadGCTemplate()">Download Sample CSV</button></div></div><div id="gcPreviewCard" class="card hidden" style="margin-top:16px"><div class="row space"><div><h3 style="margin-bottom:4px">Import Preview</h3><p id="gcSummary" class="muted small"></p></div><button class="btn green" onclick="confirmGCImport()">Import Stats</button></div><div class="table-wrap"><table><thead><tr><th>CSV Player</th><th>Matched Account</th><th>Category</th><th>Key Stats</th><th>Status</th></tr></thead><tbody id="gcPreviewBody"></tbody></table></div></div><div class="card" style="margin-top:16px"><h3>Import history</h3><div class="table-wrap"><table><thead><tr><th>Date</th><th>File</th><th>Category</th><th>Rows Imported</th></tr></thead><tbody id="gcHistoryBody"></tbody></table></div></div></section>
 </main></div>
 <script>
@@ -165,7 +234,7 @@ async function loadPlayers(){const {data,error}=await client.from('players').sel
 function renderPlayerSelect(){$('playerSelect').innerHTML=players.map(p=>`<option value="${p.id}" ${currentPlayer?.id===p.id?'selected':''}>${esc(p.first_name)} ${esc(p.last_name)}</option>`).join('');$('playerSelect').classList.toggle('hidden',!players.length)}
 async function switchPlayer(){currentPlayer=players.find(p=>p.id===$('playerSelect').value)||players[0];localStorage.setItem('misfits-selected-player',currentPlayer.id);await loadPlayerData();renderAll()}
 async function createFamilyPlayer(){const first=$('obFirst').value.trim(),last=$('obLast').value.trim();if(!first||!last)return alert('Enter the player first and last name.');const {data:fam,error:fe}=await client.from('families').insert({family_name:last+' Family',created_by:currentUser.id}).select().single();if(fe)return alert(fe.message);await client.from('family_members').insert({family_id:fam.id,user_id:currentUser.id,member_role:'parent'});const {error:pe}=await client.from('players').insert({family_id:fam.id,first_name:first,last_name:last,birth_date:$('obBirth').value||null,primary_position:$('obPosition').value});if(pe)return alert(pe.message);await loadPlayers();showOnly('appView');await loadPlayerData();renderAll()}
-async function afterLogin(){const {data:{user}}=await client.auth.getUser();if(!user){showOnly('authView');return}currentUser=user;await loadProfile();await maybeRequestCoach();const ok=await loadPlayers();if(!ok)return;showOnly('appView');$('userChip').textContent=`${currentProfile.display_name||currentUser.email} • ${currentProfile.role}`;$('coachTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));$('profilesTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));$('gcTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));await loadPlayerData();renderAll()}
+async function afterLogin(){const {data:{user}}=await client.auth.getUser();if(!user){showOnly('authView');return}currentUser=user;await loadProfile();await maybeRequestCoach();const ok=await loadPlayers();if(!ok)return;showOnly('appView');$('userChip').textContent=`${currentProfile.display_name||currentUser.email} • ${currentProfile.role}`;$('coachTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));$('profilesTab').classList.toggle('hidden',!['parent','coach','admin'].includes(currentProfile.role));$('gcTab').classList.toggle('hidden',!['coach','admin'].includes(currentProfile.role));await loadPlayerData();renderAll()}
 async function loadPlayerData(){if(!currentPlayer)return;const [{data:w,error:we},{data:s,error:se}]=await Promise.all([client.from('workout_logs').select('*').eq('player_id',currentPlayer.id).order('completed_on',{ascending:false}),client.from('player_stats').select('*').eq('player_id',currentPlayer.id).order('game_date',{ascending:false})]);if(we)console.warn(we);if(se)console.warn(se);workoutLogs=w||[];statsRows=s||[]}
 function showPage(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===id));$(id).classList.add('active');if(id==='media')renderMedia();if(id==='coach')renderCoach();if(id==='playerprofiles')renderPlayerProfiles();if(id==='gamechanger')renderGC()}
 document.querySelectorAll('nav button[data-page]').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
@@ -185,21 +254,36 @@ async function coachEditPlayer(id){const p=players.find(x=>x.id===id);if(!p)retu
 async function coachRemovePlayer(id){const p=players.find(x=>x.id===id);if(!p||!confirm('Remove '+p.first_name+' '+p.last_name+' from Misfits 10U?'))return;try{const team=await getMisfitsTeam();const {error}=await client.from('team_rosters').delete().eq('team_id',team.id).eq('player_id',id);if(error)throw error;await loadPlayers();await renderCoach();renderAll();coachNotice('Player removed from roster.')}catch(e){coachNotice(e.message,'danger')}}
 async function renderCoach(){if(!['coach','admin'].includes(currentProfile.role))return;const team=await getMisfitsTeam();const {data:r}=await client.from('team_rosters').select('player_id,jersey_number,status').eq('team_id',team.id).eq('status','active');const rm=Object.fromEntries((r||[]).map(x=>[x.player_id,x]));const rp=players.filter(p=>rm[p.id]);const rows=[];for(const p of rp){p._jersey=rm[p.id]?.jersey_number||'';const [{data:w},{data:s}]=await Promise.all([client.from('workout_logs').select('minutes').eq('player_id',p.id),client.from('player_stats').select('stats,source').eq('player_id',p.id)]);const ss=s||[],ab=ss.reduce((a,r)=>a+Number(r.stats?.ab||0),0),hits=ss.reduce((a,r)=>a+Number(r.stats?.hits||0),0);rows.push(`<tr><td>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</td><td>${esc(p._jersey||'—')}</td><td>${esc(p.primary_position||'—')}</td><td>${(w||[]).length}</td><td>${(w||[]).reduce((a,x)=>a+(x.minutes||0),0)}</td><td>${ss.filter(x=>x.source==='manual').length}</td><td>${fmt(ab?hits/ab:0)}</td><td><button class="btn secondary" onclick="coachEditPlayer('${p.id}')">Edit</button> <button class="btn" onclick="coachRemovePlayer('${p.id}')">Remove</button></td></tr>`)}$('coachBody').innerHTML=rows.join('')||'<tr><td colspan="8">No rostered players visible.</td></tr>'}
 
+
+function canManagePlayers(){return ['coach','admin'].includes(currentProfile?.role)}
+function showProfileTab(name){
+  document.querySelectorAll('.profile-pane').forEach(x=>x.classList.toggle('active',x.id===`profilePane-${name}`));
+  document.querySelectorAll('#profileTabs button').forEach(x=>x.classList.toggle('active',x.dataset.profileTab===name));
+}
+function setProfileEditMode(){
+  const editable=canManagePlayers();
+  const fields=['pfFirst','pfLast','pfPreferred','pfJersey','pfPrimary','pfSecondary','pfBirth','pfActive'];
+  fields.forEach(id=>{const el=$(id);if(el)el.disabled=!editable});
+  ['saveProfileRow','goalComposer','evaluationComposer','noteComposer','achievementComposer'].forEach(id=>{const el=$(id);if(el)el.classList.toggle('hidden',!editable)});
+  $('parentReadonlyNote')?.classList.toggle('hidden',editable);
+  $('parentProfileBanner')?.classList.toggle('hidden',editable);
+  $('profileRosterCard')?.classList.toggle('hidden',!editable && players.length<=1);
+}
 function profileNotice(msg,type='success'){const el=$('profileMessage');el.textContent=msg;el.className='note small '+type;el.classList.remove('hidden')}
-async function renderPlayerProfiles(){if(!['coach','admin'].includes(currentProfile.role))return;if(!profilePlayer)profilePlayer=currentPlayer||players[0]||null;$('profileList').innerHTML=players.map(p=>`<button class="profile-card ${profilePlayer?.id===p.id?'active':''}" onclick="selectProfilePlayer('${p.id}')"><span><strong>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</strong><div class="profile-meta">#${esc(p.jersey_number||'—')} • ${esc(p.primary_position||'Position not set')}</div></span><span>›</span></button>`).join('')||'<div class="muted">No players available.</div>';if(profilePlayer)await loadProfileEditor()}
-async function selectProfilePlayer(id){profilePlayer=players.find(p=>p.id===id)||null;await renderPlayerProfiles()}
-async function loadProfileEditor(){const p=profilePlayer;if(!p)return;$('profileEditor').classList.remove('hidden');$('profileTitle').textContent=`${p.preferred_name||p.first_name} ${p.last_name}`;$('pfFirst').value=p.first_name||'';$('pfLast').value=p.last_name||'';$('pfPreferred').value=p.preferred_name||'';$('pfJersey').value=p.jersey_number||'';$('pfPrimary').value=p.primary_position||'';$('pfSecondary').value=p.secondary_position||'';$('pfBirth').value=p.birth_date||'';$('pfActive').value=String(p.active!==false);$('evalDate').value=today();$('achDate').value=today();await Promise.all([renderGoals(),renderEvaluations(),renderAchievements(),renderDevelopmentNotes(),renderProgressHistory(),renderProfileSummary()])}
-async function savePlayerProfile(){if(!profilePlayer)return;const payload={first_name:$('pfFirst').value.trim(),last_name:$('pfLast').value.trim(),preferred_name:$('pfPreferred').value.trim()||null,jersey_number:$('pfJersey').value.trim()||null,primary_position:$('pfPrimary').value.trim()||null,secondary_position:$('pfSecondary').value.trim()||null,birth_date:$('pfBirth').value||null,active:$('pfActive').value==='true',updated_at:new Date().toISOString()};const {error}=await client.from('players').update(payload).eq('id',profilePlayer.id);if(error)return profileNotice(error.message,'danger');try{const team=await getMisfitsTeam();await client.from('team_rosters').update({jersey_number:payload.jersey_number}).eq('team_id',team.id).eq('player_id',profilePlayer.id)}catch{}await loadPlayers();profilePlayer=players.find(p=>p.id===profilePlayer.id)||profilePlayer;currentPlayer=players.find(p=>p.id===currentPlayer?.id)||currentPlayer;renderPlayerSelect();await renderPlayerProfiles();profileNotice('Player profile saved.')}
-async function addPlayerGoal(){if(!profilePlayer)return;const title=$('goalTitle').value.trim(),description=$('goalDescription').value.trim(),target_date=$('goalTargetDate').value||null;if(!title)return profileNotice('Enter a goal title.','danger');const {error}=await client.from('player_goals').insert({player_id:profilePlayer.id,title,description:description||null,target_date,status:'active'});if(error)return profileNotice(error.message,'danger');$('goalTitle').value='';$('goalDescription').value='';$('goalTargetDate').value='';await Promise.all([renderGoals(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Goal added.')}
-async function setGoalStatus(id,status){const {error}=await client.rpc('set_player_goal_status',{p_goal_id:id,p_status:status});if(error)return profileNotice(error.message,'danger');await Promise.all([renderGoals(),renderProfileSummary(),renderProgressHistory()]);profileNotice(status==='completed'?'Goal completed.':status==='paused'?'Goal paused.':'Goal reopened.')}
-async function renderGoals(){const {data,error}=await client.from('player_goals').select('*').eq('player_id',profilePlayer.id).order('created_at',{ascending:false});if(error){$('goalList').innerHTML=`<div class="note danger small">${esc(error.message)}</div>`;return}const rows=data||[];$('goalList').innerHTML=rows.length?rows.map(x=>`<div class="goal-card"><div class="goal-head"><div><strong>${esc(x.title)}</strong><div class="profile-meta">${esc(x.description||'')}</div></div><span class="goal-status ${esc(x.status||'active')}">${esc(x.status||'active')}</span></div><div class="profile-meta" style="margin-top:7px">${x.target_date?`Target: ${esc(x.target_date)}`:'No target date'}${x.completed_at?` • Completed ${esc(x.completed_at.slice(0,10))}`:''}</div><div class="goal-actions">${x.status!=='completed'?`<button class="mini-btn green" onclick="setGoalStatus('${x.id}','completed')">Complete</button>`:''}${x.status!=='paused'&&x.status!=='completed'?`<button class="mini-btn yellow" onclick="setGoalStatus('${x.id}','paused')">Pause</button>`:''}${x.status!=='active'?`<button class="mini-btn blue" onclick="setGoalStatus('${x.id}','active')">Reopen</button>`:''}</div></div>`).join(''):'<div class="muted small">No goals yet.</div>'}
-async function addPlayerEvaluation(){if(!profilePlayer)return;const category=$('evalCategory').value.trim(),score=Number($('evalScore').value),notes=$('evalNotes').value.trim(),evaluation_date=$('evalDate').value||today();if(!category||score<1||score>5)return profileNotice('Enter a category and score from 1 to 5.','danger');const {error}=await client.from('player_evaluations').insert({player_id:profilePlayer.id,category,score,notes:notes||null,evaluation_date,evaluated_by:currentUser.id});if(error)return profileNotice(error.message,'danger');$('evalCategory').value='';$('evalScore').value=3;$('evalNotes').value='';$('evalDate').value=today();await Promise.all([renderEvaluations(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Evaluation saved.')}
+async function renderPlayerProfiles(){if(!['parent','coach','admin'].includes(currentProfile.role))return;if(!profilePlayer)profilePlayer=currentPlayer||players[0]||null;const editable=canManagePlayers();$('profilePageHeading').textContent=editable?'Player Profiles':'Player Development';$('profilePageSub').textContent=editable?'Manage player details and development.':'Track progress, goals, evaluations, and achievements.';$('profileList').innerHTML=players.map(p=>`<button class="profile-card ${profilePlayer?.id===p.id?'active':''}" onclick="selectProfilePlayer('${p.id}')"><span><strong>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</strong><div class="profile-meta">#${esc(p.jersey_number||'—')} • ${esc(p.primary_position||'Position not set')}</div></span><span>›</span></button>`).join('')||'<div class="muted">No players available.</div>';if(profilePlayer)await loadProfileEditor();setProfileEditMode()}
+async function selectProfilePlayer(id){profilePlayer=players.find(p=>p.id===id)||null;await renderPlayerProfiles();showProfileTab('overview')}
+async function loadProfileEditor(){const p=profilePlayer;if(!p)return;$('profileEditor').classList.remove('hidden');$('profileTitle').textContent=`${p.preferred_name||p.first_name} ${p.last_name}`;$('profileSubtitle').textContent=`#${p.jersey_number||'—'} • ${p.primary_position||'Position not set'}`;$('profileAvatar').textContent=(p.preferred_name||p.first_name||'M').slice(0,1).toUpperCase();$('pfFirst').value=p.first_name||'';$('pfLast').value=p.last_name||'';$('pfPreferred').value=p.preferred_name||'';$('pfJersey').value=p.jersey_number||'';$('pfPrimary').value=p.primary_position||'';$('pfSecondary').value=p.secondary_position||'';$('pfBirth').value=p.birth_date||'';$('pfActive').value=String(p.active!==false);$('evalDate').value=today();$('achDate').value=today();await Promise.all([renderGoals(),renderEvaluations(),renderAchievements(),renderDevelopmentNotes(),renderProgressHistory(),renderProfileSummary()])}
+async function savePlayerProfile(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const payload={first_name:$('pfFirst').value.trim(),last_name:$('pfLast').value.trim(),preferred_name:$('pfPreferred').value.trim()||null,jersey_number:$('pfJersey').value.trim()||null,primary_position:$('pfPrimary').value.trim()||null,secondary_position:$('pfSecondary').value.trim()||null,birth_date:$('pfBirth').value||null,active:$('pfActive').value==='true',updated_at:new Date().toISOString()};const {error}=await client.from('players').update(payload).eq('id',profilePlayer.id);if(error)return profileNotice(error.message,'danger');try{const team=await getMisfitsTeam();await client.from('team_rosters').update({jersey_number:payload.jersey_number}).eq('team_id',team.id).eq('player_id',profilePlayer.id)}catch{}await loadPlayers();profilePlayer=players.find(p=>p.id===profilePlayer.id)||profilePlayer;currentPlayer=players.find(p=>p.id===currentPlayer?.id)||currentPlayer;renderPlayerSelect();await renderPlayerProfiles();profileNotice('Player profile saved.')}
+async function addPlayerGoal(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const title=$('goalTitle').value.trim(),description=$('goalDescription').value.trim(),target_date=$('goalTargetDate').value||null;if(!title)return profileNotice('Enter a goal title.','danger');const {error}=await client.from('player_goals').insert({player_id:profilePlayer.id,title,description:description||null,target_date,status:'active'});if(error)return profileNotice(error.message,'danger');$('goalTitle').value='';$('goalDescription').value='';$('goalTargetDate').value='';await Promise.all([renderGoals(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Goal added.')}
+async function setGoalStatus(id,status){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');const {error}=await client.rpc('set_player_goal_status',{p_goal_id:id,p_status:status});if(error)return profileNotice(error.message,'danger');await Promise.all([renderGoals(),renderProfileSummary(),renderProgressHistory()]);profileNotice(status==='completed'?'Goal completed.':status==='paused'?'Goal paused.':'Goal reopened.')}
+async function renderGoals(){const {data,error}=await client.from('player_goals').select('*').eq('player_id',profilePlayer.id).order('created_at',{ascending:false});if(error){$('goalList').innerHTML=`<div class="note danger small">${esc(error.message)}</div>`;return}const rows=data||[];$('goalList').innerHTML=rows.length?rows.map(x=>`<div class="goal-card"><div class="goal-head"><div><strong>${esc(x.title)}</strong><div class="profile-meta">${esc(x.description||'')}</div></div><span class="goal-status ${esc(x.status||'active')}">${esc(x.status||'active')}</span></div><div class="profile-meta" style="margin-top:7px">${x.target_date?`Target: ${esc(x.target_date)}`:'No target date'}${x.completed_at?` • Completed ${esc(x.completed_at.slice(0,10))}`:''}</div>${canManagePlayers()?`<div class="goal-actions">${x.status!=='completed'?`<button class="mini-btn green" onclick="setGoalStatus('${x.id}','completed')">Complete</button>`:''}${x.status!=='paused'&&x.status!=='completed'?`<button class="mini-btn yellow" onclick="setGoalStatus('${x.id}','paused')">Pause</button>`:''}${x.status!=='active'?`<button class="mini-btn blue" onclick="setGoalStatus('${x.id}','active')">Reopen</button>`:''}</div>`:''}</div>`).join(''):'<div class="muted small">No goals yet.</div>'}
+async function addPlayerEvaluation(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const category=$('evalCategory').value.trim(),score=Number($('evalScore').value),notes=$('evalNotes').value.trim(),evaluation_date=$('evalDate').value||today();if(!category||score<1||score>5)return profileNotice('Enter a category and score from 1 to 5.','danger');const {error}=await client.from('player_evaluations').insert({player_id:profilePlayer.id,category,score,notes:notes||null,evaluation_date,evaluated_by:currentUser.id});if(error)return profileNotice(error.message,'danger');$('evalCategory').value='';$('evalScore').value=3;$('evalNotes').value='';$('evalDate').value=today();await Promise.all([renderEvaluations(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Evaluation saved.')}
 async function renderEvaluations(){const {data,error}=await client.from('player_evaluations').select('*').eq('player_id',profilePlayer.id).neq('category','Development Note').order('evaluation_date',{ascending:false}).order('created_at',{ascending:false});if(error){$('evaluationList').innerHTML=`<div class="note danger small">${esc(error.message)}</div>`;return}const rows=data||[];$('evaluationList').innerHTML=rows.length?rows.map(x=>`<div class="history-item"><div class="row space"><strong>${esc(x.category)} • ${esc(x.score)}/5</strong><span class="date-chip">${esc(x.evaluation_date||x.created_at?.slice(0,10)||'')}</span></div><div class="eval-bar"><div style="width:${Math.max(0,Math.min(100,Number(x.score||0)*20))}%"></div></div><div class="profile-meta" style="margin-top:7px">${esc(x.notes||'')}</div></div>`).join(''):'<div class="muted small">No evaluations yet.</div>'}
-async function addPlayerAchievement(){if(!profilePlayer)return;const title=$('achTitle').value.trim(),description=$('achDescription').value.trim(),achieved_at=$('achDate').value||today();if(!title)return profileNotice('Enter an achievement title.','danger');const {error}=await client.from('player_achievements').insert({player_id:profilePlayer.id,title,description:description||null,achieved_at});if(error)return profileNotice(error.message,'danger');$('achTitle').value='';$('achDescription').value='';$('achDate').value=today();await Promise.all([renderAchievements(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Achievement added.')}
+async function addPlayerAchievement(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const title=$('achTitle').value.trim(),description=$('achDescription').value.trim(),achieved_at=$('achDate').value||today();if(!title)return profileNotice('Enter an achievement title.','danger');const {error}=await client.from('player_achievements').insert({player_id:profilePlayer.id,title,description:description||null,achieved_at});if(error)return profileNotice(error.message,'danger');$('achTitle').value='';$('achDescription').value='';$('achDate').value=today();await Promise.all([renderAchievements(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Achievement added.')}
 async function renderAchievements(){const {data,error}=await client.from('player_achievements').select('*').eq('player_id',profilePlayer.id).order('achieved_at',{ascending:false}).order('created_at',{ascending:false});if(error){$('achievementList').innerHTML=`<div class="note danger small">${esc(error.message)}</div>`;return}const rows=data||[];$('achievementList').innerHTML=rows.length?rows.map(x=>`<div class="history-item"><div class="row space"><strong>${esc(x.title)}</strong><span class="date-chip">${esc(x.achieved_at||x.created_at?.slice(0,10)||'')}</span></div><div class="profile-meta">${esc(x.description||'')}</div></div>`).join(''):'<div class="muted small">No achievements yet.</div>'}
 
 async function renderProfileSummary(){if(!profilePlayer)return;const pid=profilePlayer.id;const [{data:g},{data:e},{data:a},{data:w}]=await Promise.all([client.from('player_goals').select('status').eq('player_id',pid),client.from('player_evaluations').select('score,category').eq('player_id',pid).neq('category','Development Note'),client.from('player_achievements').select('id').eq('player_id',pid),client.from('workout_logs').select('id').eq('player_id',pid)]);const goals=g||[],evals=(e||[]).filter(x=>Number.isFinite(Number(x.score))),avg=evals.length?(evals.reduce((s,x)=>s+Number(x.score||0),0)/evals.length).toFixed(1):'—';$('profileSummary').innerHTML=[['Active goals',goals.filter(x=>(x.status||'active')==='active').length],['Completed goals',goals.filter(x=>x.status==='completed').length],['Eval average',avg==='—'?'—':avg+'/5'],['Achievements',(a||[]).length]].map(x=>`<div class="profile-summary-card"><span>${x[0]}</span><strong>${x[1]}</strong></div>`).join('')}
-async function saveDevelopmentNote(){if(!profilePlayer)return;const note=$('devNotes').value.trim();if(!note)return profileNotice('Enter a development note.','danger');const {error}=await client.from('player_evaluations').insert({player_id:profilePlayer.id,category:'Development Note',score:3,notes:note,evaluated_by:currentUser.id});if(error)return profileNotice(error.message,'danger');$('devNotes').value='';await renderDevelopmentNotes();profileNotice('Development note saved.')}
+async function saveDevelopmentNote(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const note=$('devNotes').value.trim();if(!note)return profileNotice('Enter a development note.','danger');const {error}=await client.from('player_evaluations').insert({player_id:profilePlayer.id,category:'Development Note',score:3,notes:note,evaluated_by:currentUser.id});if(error)return profileNotice(error.message,'danger');$('devNotes').value='';await renderDevelopmentNotes();profileNotice('Development note saved.')}
 async function renderDevelopmentNotes(){const {data,error}=await client.from('player_evaluations').select('*').eq('player_id',profilePlayer.id).eq('category','Development Note').order('created_at',{ascending:false});$('noteHistory').innerHTML=error?`<div class="note danger small">${esc(error.message)}</div>`:(data||[]).length?(data||[]).map(x=>`<div class="history-item"><strong>${new Date(x.created_at).toLocaleDateString()}</strong><div class="profile-meta">${esc(x.notes||'')}</div></div>`).join(''):'<div class="muted small">No development notes yet.</div>'}
 async function renderProgressHistory(){const pid=profilePlayer.id;const [{data:w},{data:s},{data:g},{data:e},{data:a}]=await Promise.all([client.from('workout_logs').select('created_at,minutes,workout_title').eq('player_id',pid).order('created_at',{ascending:false}).limit(10),client.from('player_stats').select('created_at,stats,source').eq('player_id',pid).order('created_at',{ascending:false}).limit(10),client.from('player_goals').select('created_at,title,status,completed_at').eq('player_id',pid).order('created_at',{ascending:false}).limit(10),client.from('player_evaluations').select('created_at,evaluation_date,category,score').eq('player_id',pid).order('created_at',{ascending:false}).limit(10),client.from('player_achievements').select('created_at,achieved_at,title').eq('player_id',pid).order('created_at',{ascending:false}).limit(10)]);const items=[];(w||[]).forEach(x=>items.push({d:x.created_at,t:`Workout: ${x.workout_title||'Workout'} • ${x.minutes||0} min`}));(s||[]).forEach(x=>items.push({d:x.created_at,t:`Stats entry${x.source?` • ${x.source}`:''}`}));(g||[]).forEach(x=>items.push({d:x.completed_at||x.created_at,t:`Goal: ${x.title}${x.status?` • ${x.status}`:''}`}));(e||[]).forEach(x=>items.push({d:x.evaluation_date||x.created_at,t:`Evaluation: ${x.category}${x.score!=null?` • ${x.score}/5`:''}`}));(a||[]).forEach(x=>items.push({d:x.achieved_at||x.created_at,t:`Achievement: ${x.title}`}));items.sort((a,b)=>new Date(b.d)-new Date(a.d));$('progressHistory').innerHTML=items.length?items.slice(0,20).map(x=>`<div class="history-item"><strong>${new Date(x.d).toLocaleDateString()}</strong><div class="profile-meta">${esc(x.t)}</div></div>`).join(''):'<div class="muted small">No progress history yet.</div>'}
 function normalizeHeader(x){return String(x||'').trim().toLowerCase().replace(/[%#]/g,'').replace(/[^a-z0-9]+/g,'')}function parseCSV(text){const rows=[];let row=[],field='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i],nn=text[i+1];if(c==='"'&&quoted&&nn==='"'){field+='"';i++}else if(c==='"')quoted=!quoted;else if(c===','&&!quoted){row.push(field);field=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&nn==='\n')i++;row.push(field);field='';if(row.some(v=>String(v).trim()!==''))rows.push(row);row=[]}else field+=c}if(field||row.length){row.push(field);rows.push(row)}if(rows.length<2)return[];const headers=rows[0].map(h=>String(h).trim());return rows.slice(1).map(r=>Object.fromEntries(headers.map((h,i)=>[h,(r[i]??'').trim()]))) }function pick(row,aliases){const keys=Object.keys(row),map=Object.fromEntries(keys.map(k=>[normalizeHeader(k),k]));for(const a of aliases){const k=map[normalizeHeader(a)];if(k!==undefined&&row[k]!=='')return row[k]}return''}function numVal(v){const x=parseFloat(String(v??'').replace(/,/g,'').replace('%',''));return Number.isFinite(x)?x:0}function detectCategory(row){const hs=Object.keys(row).map(normalizeHeader);if(hs.some(h=>['inningspitched','ip','earnedruns','era','pitchcount','pitches'].includes(h)))return'pitching';if(hs.some(h=>['putouts','assists','errors','fieldingpercentage','fpct'].includes(h)))return'fielding';return'batting'}function playerName(row){const direct=pick(row,['Player','Player Name','Name','Athlete']);if(direct)return direct;return(pick(row,['First Name','First'])+' '+pick(row,['Last Name','Last'])).trim()}function cleanName(x){return String(x||'').toLowerCase().replace(/[^a-z0-9]/g,'')}function matchPlayer(name){const target=cleanName(name);return players.find(p=>cleanName(p.first_name+p.last_name)===target)||players.find(p=>{const n=cleanName(p.first_name+p.last_name),parts=target.match(/[a-z]+/g)||[];return parts.length>=2&&parts.every(q=>n.includes(q))})||null}
