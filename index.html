@@ -128,6 +128,60 @@ input,select,textarea,button{max-width:100%}
   .profile-meta{overflow-wrap:anywhere}
 }
 
+
+/* MOBILE PLAYER PICKER */
+.mobile-player-picker{display:none}
+@media(max-width:700px){
+  #profileRosterCard{display:none!important}
+  .mobile-player-picker{
+    display:block;
+    margin-bottom:12px;
+    padding:12px;
+    border:1px solid var(--line);
+    border-radius:14px;
+    background:var(--panel);
+  }
+  .mobile-player-picker label{
+    display:block;
+    font-size:11px;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .mobile-player-picker select{
+    width:100%;
+    padding:11px 12px;
+    border-radius:12px;
+    border:1px solid var(--line);
+    background:#0b1527;
+    color:var(--text);
+  }
+  #profileRosterBack{display:none!important}
+  .profile-tabs-wrap{
+    position:sticky;
+    top:0;
+    z-index:24;
+    background:rgba(8,16,31,.98);
+    margin-left:-4px;
+    margin-right:-4px;
+  }
+  .profile-tabs{
+    display:grid;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+    overflow:visible;
+    padding:8px 4px;
+  }
+  .profile-tabs button{
+    width:100%;
+    min-width:0;
+    white-space:normal;
+    line-height:1.1;
+    padding:9px 6px;
+    font-size:10px;
+    text-align:center;
+  }
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -168,6 +222,12 @@ input,select,textarea,button{max-width:100%}
   <div id="parentProfileBanner" class="parent-banner hidden">
     <strong>Player Development</strong>
     <div class="small muted">View your player's progress, goals, evaluations, achievements, and training history.</div>
+  </div>
+
+  
+  <div id="mobileProfilePicker" class="mobile-player-picker">
+    <label for="mobileProfileSelect">Choose Player</label>
+    <select id="mobileProfileSelect" onchange="selectProfilePlayer(this.value)"></select>
   </div>
 
   <div class="player-manage-grid">
@@ -342,19 +402,8 @@ function syncMobileNav(){
 function toggleMobileNav(){const p=$('mobileNavPanel');if(!p)return;buildMobileNav();p.classList.toggle('open')}
 function canManagePlayers(){return ['coach','admin'].includes(currentProfile?.role)}
 
-function showProfileRoster(){
-  const roster=$('profileRosterCard'), detail=$('profileDetailCard');
-  if(roster)roster.classList.remove('hidden');
-  if(detail)detail.classList.add('hidden');
-  $('profileRosterBack')?.classList.add('hidden');
-}
-function focusProfileDetail(){
-  if(window.innerWidth<=700 && canManagePlayers()){
-    $('profileRosterCard')?.classList.add('hidden');
-    $('profileDetailCard')?.classList.remove('hidden');
-    $('profileRosterBack')?.classList.remove('hidden');
-    window.scrollTo({top:0,behavior:'smooth'});
-  }
+function showProfileRoster(){document.getElementById('mobileProfileSelect')?.focus()}
+function focusProfileDetail(){}
 }
 function showProfileTab(name){
   document.querySelectorAll('.profile-pane').forEach(x=>x.classList.toggle('active',x.id===`profilePane-${name}`));
@@ -370,8 +419,8 @@ function setProfileEditMode(){
   $('profileRosterCard')?.classList.toggle('hidden',!editable && players.length<=1);
 }
 function profileNotice(msg,type='success'){const el=$('profileMessage');el.textContent=msg;el.className='note small '+type;el.classList.remove('hidden')}
-async function renderPlayerProfiles(){if(!['parent','coach','admin'].includes(currentProfile.role))return;if(!profilePlayer)profilePlayer=currentPlayer||players[0]||null;const editable=canManagePlayers();$('profilePageHeading').textContent=editable?'Player Profiles':'Player Development';$('profilePageSub').textContent=editable?'Manage player details and development.':'Track progress, goals, evaluations, and achievements.';$('profileList').innerHTML=players.map(p=>`<button class="profile-card ${profilePlayer?.id===p.id?'active':''}" onclick="selectProfilePlayer('${p.id}')"><span><strong>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</strong><div class="profile-meta">#${esc(p.jersey_number||'—')} • ${esc(p.primary_position||'Position not set')}</div></span><span>›</span></button>`).join('')||'<div class="muted">No players available.</div>';if(profilePlayer)await loadProfileEditor();setProfileEditMode()}
-async function selectProfilePlayer(id){profilePlayer=players.find(p=>p.id===id)||null;await renderPlayerProfiles();showProfileTab('overview');focusProfileDetail()}
+async function renderPlayerProfiles(){if(!['parent','coach','admin'].includes(currentProfile.role))return;if(!profilePlayer)profilePlayer=currentPlayer||players[0]||null;const editable=canManagePlayers();$('profilePageHeading').textContent=editable?'Player Profiles':'Player Development';$('profilePageSub').textContent=editable?'Manage player details and development.':'Track progress, goals, evaluations, and achievements.';$('profileList').innerHTML=players.map(p=>`<button class="profile-card ${profilePlayer?.id===p.id?'active':''}" onclick="selectProfilePlayer('${p.id}')"><span><strong>${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</strong><div class="profile-meta">#${esc(p.jersey_number||'—')} • ${esc(p.primary_position||'Position not set')}</div></span><span>›</span></button>`).join('')||'<div class="muted">No players available.</div>';const mobileSel=$('mobileProfileSelect');if(mobileSel){mobileSel.innerHTML=players.map(p=>`<option value="${p.id}" ${profilePlayer?.id===p.id?'selected':''}>${esc((p.preferred_name||p.first_name)+' '+p.last_name)} • #${esc(p.jersey_number||'—')}</option>`).join('')}if(profilePlayer)await loadProfileEditor();setProfileEditMode()}
+async function selectProfilePlayer(id){profilePlayer=players.find(p=>p.id===id)||null;await renderPlayerProfiles();showProfileTab('overview');if(window.innerWidth<=700)window.scrollTo({top:0,behavior:'smooth'})}
 async function loadProfileEditor(){const p=profilePlayer;if(!p)return;$('profileEditor').classList.remove('hidden');$('profileTitle').textContent=`${p.preferred_name||p.first_name} ${p.last_name}`;$('profileSubtitle').textContent=`#${p.jersey_number||'—'} • ${p.primary_position||'Position not set'}`;$('profileAvatar').textContent=(p.preferred_name||p.first_name||'M').slice(0,1).toUpperCase();$('pfFirst').value=p.first_name||'';$('pfLast').value=p.last_name||'';$('pfPreferred').value=p.preferred_name||'';$('pfJersey').value=p.jersey_number||'';$('pfPrimary').value=p.primary_position||'';$('pfSecondary').value=p.secondary_position||'';$('pfBirth').value=p.birth_date||'';$('pfActive').value=String(p.active!==false);$('evalDate').value=today();$('achDate').value=today();await Promise.all([renderGoals(),renderEvaluations(),renderAchievements(),renderDevelopmentNotes(),renderProgressHistory(),renderProfileSummary()])}
 async function savePlayerProfile(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const payload={first_name:$('pfFirst').value.trim(),last_name:$('pfLast').value.trim(),preferred_name:$('pfPreferred').value.trim()||null,jersey_number:$('pfJersey').value.trim()||null,primary_position:$('pfPrimary').value.trim()||null,secondary_position:$('pfSecondary').value.trim()||null,birth_date:$('pfBirth').value||null,active:$('pfActive').value==='true',updated_at:new Date().toISOString()};const {error}=await client.from('players').update(payload).eq('id',profilePlayer.id);if(error)return profileNotice(error.message,'danger');try{const team=await getMisfitsTeam();await client.from('team_rosters').update({jersey_number:payload.jersey_number}).eq('team_id',team.id).eq('player_id',profilePlayer.id)}catch{}await loadPlayers();profilePlayer=players.find(p=>p.id===profilePlayer.id)||profilePlayer;currentPlayer=players.find(p=>p.id===currentPlayer?.id)||currentPlayer;renderPlayerSelect();await renderPlayerProfiles();profileNotice('Player profile saved.')}
 async function addPlayerGoal(){if(!canManagePlayers())return profileNotice('Coach or admin access is required.','danger');if(!profilePlayer)return;const title=$('goalTitle').value.trim(),description=$('goalDescription').value.trim(),target_date=$('goalTargetDate').value||null;if(!title)return profileNotice('Enter a goal title.','danger');const {error}=await client.from('player_goals').insert({player_id:profilePlayer.id,title,description:description||null,target_date,status:'active'});if(error)return profileNotice(error.message,'danger');$('goalTitle').value='';$('goalDescription').value='';$('goalTargetDate').value='';await Promise.all([renderGoals(),renderProfileSummary(),renderProgressHistory()]);profileNotice('Goal added.')}
