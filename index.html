@@ -156,11 +156,112 @@ input,select,textarea,button{max-width:100%}
 .iq-score-box strong{display:block;font-size:22px;margin-top:3px}
 .iq-progress{height:9px;border-radius:999px;background:#0a1324;overflow:hidden}
 .iq-progress>div{height:100%;background:linear-gradient(90deg,var(--red),var(--blue))}
-.field-diagram{position:relative;aspect-ratio:1/1;max-width:520px;margin:8px auto;background:radial-gradient(circle at 50% 62%,#2f7b4d 0 50%,transparent 50.5%);border:2px solid rgba(255,255,255,.18);border-radius:52% 52% 14% 14%;overflow:hidden}
-.field-diagram:before,.field-diagram:after{content:"";position:absolute;bottom:14%;left:50%;width:42%;height:5%;background:#b98a4c;transform-origin:left center}
-.field-diagram:before{transform:rotate(-45deg)} .field-diagram:after{transform:rotate(225deg)}
-.pos-dot{position:absolute;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#f8f2e8;color:#111827;font-weight:900;border:5px solid #111827;box-shadow:0 0 0 3px rgba(56,189,248,.9)}
-.p-ss{left:24%;top:54%}.p-2b{right:24%;top:54%}.p-3b{left:31%;bottom:18%}.p-1b{right:31%;bottom:18%}.p-p{left:50%;transform:translateX(-50%);bottom:22%}.p-c{left:50%;transform:translateX(-50%);bottom:6%}.p-lf{left:18%;top:18%}.p-cf{left:50%;transform:translateX(-50%);top:10%}.p-rf{right:18%;top:18%}.p-runner{left:50%;transform:translateX(-50%);top:38%;background:#fb923c;color:white;border-color:#fff}
+
+.field-diagram{
+  position:relative;
+  aspect-ratio:1/1;
+  width:min(100%,520px);
+  margin:8px auto;
+  border:2px solid rgba(255,255,255,.18);
+  border-radius:24px;
+  overflow:hidden;
+  background:linear-gradient(180deg,#173a2d 0%,#1d5a3b 100%);
+}
+.field-diagram::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:54%;
+  width:46%;
+  aspect-ratio:1/1;
+  transform:translate(-50%,-50%) rotate(45deg);
+  background:#a97945;
+  border:3px solid rgba(255,255,255,.16);
+}
+.field-diagram::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:54%;
+  width:28%;
+  aspect-ratio:1/1;
+  transform:translate(-50%,-50%) rotate(45deg);
+  background:#2f7b4d;
+  border:2px solid rgba(255,255,255,.14);
+}
+.field-base{
+  position:absolute;
+  width:18px;
+  height:18px;
+  background:#fff7e6;
+  border:2px solid #d7d1c5;
+  transform:translate(-50%,-50%) rotate(45deg);
+  z-index:4;
+  box-shadow:0 2px 5px rgba(0,0,0,.35);
+}
+.base-home{left:50%;top:78%}
+.base-first{left:68%;top:59%}
+.base-second{left:50%;top:40%}
+.base-third{left:32%;top:59%}
+.field-line{
+  position:absolute;
+  height:3px;
+  background:rgba(255,255,255,.75);
+  transform-origin:left center;
+  z-index:2;
+}
+.line-home-first{left:50%;top:78%;width:25.5%;transform:rotate(-45deg)}
+.line-home-third{left:50%;top:78%;width:25.5%;transform:rotate(-135deg)}
+.pos-dot{
+  position:absolute;
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  background:#f8f2e8;
+  color:#111827;
+  font-weight:900;
+  font-size:12px;
+  border:4px solid #111827;
+  box-shadow:0 0 0 3px rgba(56,189,248,.9);
+  z-index:6;
+  transform:translate(-50%,-50%);
+}
+.p-cf{left:50%;top:14%}
+.p-lf{left:24%;top:23%}
+.p-rf{left:76%;top:23%}
+.p-ss{left:39%;top:45%}
+.p-2b{left:61%;top:45%}
+.p-3b{left:29%;top:61%}
+.p-1b{left:71%;top:61%}
+.p-p{left:50%;top:60%}
+.p-c{left:50%;top:85%}
+.p-runner{
+  left:50%;
+  top:40%;
+  background:#fb923c;
+  color:white;
+  border-color:#fff;
+  box-shadow:0 0 0 3px rgba(255,255,255,.65);
+  z-index:7;
+}
+.field-arrows{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  z-index:5;
+  pointer-events:none;
+}
+.field-arrow-line{
+  stroke:#22c55e;
+  stroke-width:2.8;
+  stroke-linecap:round;
+  fill:none;
+  filter:drop-shadow(0 0 3px rgba(34,197,94,.6));
+}
+.field-arrow-head{fill:#22c55e}
 .answer-grid{display:grid;gap:10px}
 .answer-btn{text-align:left;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:14px;padding:14px;font-weight:700;cursor:pointer}
 .answer-btn.correct{border-color:#22c55e;background:rgba(34,197,94,.12)} .answer-btn.wrong{border-color:#ef4444;background:rgba(239,68,68,.12)}
@@ -268,6 +369,23 @@ input,select,textarea,button{max-width:100%}
 .learn-summary>div{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel2)}
 .learn-summary span{display:block;font-size:10px;color:var(--muted)}.learn-summary strong{display:block;font-size:17px;margin-top:3px}
 @media(max-width:700px){.position-focus-banner{align-items:flex-start;flex-direction:column}.learn-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* FIELD MOBILE TUNING */
+@media(max-width:430px){
+  .field-wrap{padding:8px}
+  .pos-dot{width:38px;height:38px;font-size:11px;border-width:3px}
+  .field-base{width:15px;height:15px}
+  .p-cf{top:13%}
+  .p-lf{left:23%;top:22%}
+  .p-rf{left:77%;top:22%}
+  .p-ss{left:38%;top:46%}
+  .p-2b{left:62%;top:46%}
+  .p-3b{left:27%;top:62%}
+  .p-1b{left:73%;top:62%}
+  .p-p{top:59%}
+  .p-c{top:86%}
+}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -472,18 +590,34 @@ input,select,textarea,button{max-width:100%}
     </div>
 
     <div class="field-wrap">
-      <div class="field-diagram" aria-label="baseball field diagram">
-        <div class="pos-dot p-lf">LF</div>
-        <div class="pos-dot p-cf">CF</div>
-        <div class="pos-dot p-rf">RF</div>
-        <div class="pos-dot p-ss">SS</div>
-        <div class="pos-dot p-2b">2B</div>
-        <div class="pos-dot p-3b">3B</div>
-        <div class="pos-dot p-1b">1B</div>
-        <div class="pos-dot p-p">P</div>
-        <div class="pos-dot p-c">C</div>
-        <div class="pos-dot p-runner">R</div>
-      </div>
+      <div class="field-diagram" id="fieldDiagram" aria-label="baseball field diagram">
+        <div class="field-line line-home-first"></div>
+        <div class="field-line line-home-third"></div>
+
+        <div class="field-base base-home" title="Home"></div>
+        <div class="field-base base-first" title="First base"></div>
+        <div class="field-base base-second" title="Second base"></div>
+        <div class="field-base base-third" title="Third base"></div>
+
+        <svg id="fieldArrows" class="field-arrows" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="4.8" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" class="field-arrow-head"></path>
+            </marker>
+          </defs>
+          <line id="movementArrow" x1="50" y1="50" x2="50" y2="50" class="field-arrow-line" marker-end="url(#arrowHead)" style="display:none"></line>
+        </svg>
+
+        <div class="pos-dot p-lf" data-pos="LF">LF</div>
+        <div class="pos-dot p-cf" data-pos="CF">CF</div>
+        <div class="pos-dot p-rf" data-pos="RF">RF</div>
+        <div class="pos-dot p-ss" data-pos="SS">SS</div>
+        <div class="pos-dot p-2b" data-pos="2B">2B</div>
+        <div class="pos-dot p-3b" data-pos="3B">3B</div>
+        <div class="pos-dot p-1b" data-pos="1B">1B</div>
+        <div class="pos-dot p-p" data-pos="P">P</div>
+        <div class="pos-dot p-c" data-pos="C">C</div>
+        <div class="pos-dot p-runner" data-pos="R">R</div></div>
       <div class="field-caption">Field diagram is a learning aid for responsibilities and positioning.</div><div id="fieldInstruction" class="field-instruction">Think through the situation before choosing an answer.</div>
     </div>
 
@@ -632,12 +766,36 @@ function buildPersonalizedIQPool(){
 }
 function updateFieldFocus(q,showMovement=false){
   document.querySelectorAll('.field-diagram .pos-dot').forEach(el=>el.classList.remove('focused','movement-target'));
-  const cls={'P':'p-p','C':'p-c','1B':'p-1b','2B':'p-2b','3B':'p-3b','SS':'p-ss','LF':'p-lf','CF':'p-cf','RF':'p-rf'};
-  if(q?.focus&&cls[q.focus])document.querySelector('.field-diagram .'+cls[q.focus])?.classList.add('focused');
-  if(showMovement&&q?.movement&&cls[q.movement])document.querySelector('.field-diagram .'+cls[q.movement])?.classList.add('movement-target');
+
+  const diagram=$('fieldDiagram');
+  const arrow=$('movementArrow');
+  if(arrow) arrow.style.display='none';
+
+  const focusEl=q?.focus ? diagram?.querySelector(`[data-pos="${q.focus}"]`) : null;
+  const targetEl=q?.movement ? diagram?.querySelector(`[data-pos="${q.movement}"]`) : null;
+
+  if(focusEl) focusEl.classList.add('focused');
+  if(showMovement && targetEl) targetEl.classList.add('movement-target');
+
+  if(showMovement && focusEl && targetEl && arrow && diagram){
+    const d=diagram.getBoundingClientRect();
+    const a=focusEl.getBoundingClientRect();
+    const b=targetEl.getBoundingClientRect();
+
+    const x1=((a.left+a.width/2-d.left)/d.width)*100;
+    const y1=((a.top+a.height/2-d.top)/d.height)*100;
+    const x2=((b.left+b.width/2-d.left)/d.width)*100;
+    const y2=((b.top+b.height/2-d.top)/d.height)*100;
+
+    arrow.setAttribute('x1',x1.toFixed(1));
+    arrow.setAttribute('y1',y1.toFixed(1));
+    arrow.setAttribute('x2',x2.toFixed(1));
+    arrow.setAttribute('y2',y2.toFixed(1));
+    arrow.style.display='block';
+  }
+
   $('fieldInstruction').textContent=q?.instruction||'Think through the situation before choosing an answer.';
 }
-
 function setLearnCategory(cat){
   learnCategory=cat;
   document.querySelectorAll('#learnCategoryRow button').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
