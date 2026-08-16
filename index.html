@@ -156,125 +156,11 @@ input,select,textarea,button{max-width:100%}
 .iq-score-box strong{display:block;font-size:22px;margin-top:3px}
 .iq-progress{height:9px;border-radius:999px;background:#0a1324;overflow:hidden}
 .iq-progress>div{height:100%;background:linear-gradient(90deg,var(--red),var(--blue))}
-
-.field-diagram{
-  position:relative;
-  aspect-ratio:1/1;
-  width:min(100%,520px);
-  margin:8px auto;
-  border:2px solid rgba(255,255,255,.18);
-  border-radius:24px;
-  overflow:hidden;
-  background:linear-gradient(180deg,#173a2d 0%,#1d5a3b 100%);
-}
-.field-diagram::before{
-  content:"";
-  position:absolute;
-  left:50%;
-  top:54%;
-  width:46%;
-  aspect-ratio:1/1;
-  transform:translate(-50%,-50%) rotate(45deg);
-  background:#a97945;
-  border:3px solid rgba(255,255,255,.16);
-}
-.field-diagram::after{
-  content:"";
-  position:absolute;
-  left:50%;
-  top:54%;
-  width:28%;
-  aspect-ratio:1/1;
-  transform:translate(-50%,-50%) rotate(45deg);
-  background:#2f7b4d;
-  border:2px solid rgba(255,255,255,.14);
-}
-.field-base{
-  position:absolute;
-  width:18px;
-  height:18px;
-  background:#fff7e6;
-  border:2px solid #d7d1c5;
-  transform:translate(-50%,-50%) rotate(45deg);
-  z-index:4;
-  box-shadow:0 2px 5px rgba(0,0,0,.35);
-}
-.base-home{left:50%;top:78%}
-.base-first{left:68%;top:59%}
-.base-second{left:50%;top:40%}
-.base-third{left:32%;top:59%}
-.field-line{
-  position:absolute;
-  height:3px;
-  background:rgba(255,255,255,.75);
-  transform-origin:left center;
-  z-index:2;
-}
-.line-home-first{left:50%;top:78%;width:25.5%;transform:rotate(-45deg)}
-.line-home-third{left:50%;top:78%;width:25.5%;transform:rotate(-135deg)}
-.pos-dot{
-  position:absolute;
-  width:44px;
-  height:44px;
-  border-radius:50%;
-  display:grid;
-  place-items:center;
-  background:#f8f2e8;
-  color:#111827;
-  font-weight:900;
-  font-size:12px;
-  border:4px solid #111827;
-  box-shadow:0 0 0 3px rgba(56,189,248,.9);
-  z-index:6;
-  transform:translate(-50%,-50%);
-}
-.p-cf{left:50%;top:14%}
-.p-lf{left:24%;top:23%}
-.p-rf{left:76%;top:23%}
-.p-ss{left:39%;top:45%}
-.p-2b{left:61%;top:45%}
-.p-3b{left:29%;top:61%}
-.p-1b{left:71%;top:61%}
-.p-p{left:50%;top:60%}
-.p-c{left:50%;top:85%}
-.p-runner{
-  left:50%;
-  top:40%;
-  background:#fb923c;
-  color:white;
-  border-color:#fff;
-  box-shadow:0 0 0 3px rgba(255,255,255,.65);
-  z-index:7;
-}
-.field-arrows{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  z-index:5;
-  pointer-events:none;
-}
-.field-arrow-line{
-  stroke:#22c55e;
-  stroke-width:2.8;
-  stroke-linecap:round;
-  fill:none;
-  filter:drop-shadow(0 0 3px rgba(34,197,94,.6));
-}
-.field-arrow-head{fill:#22c55e}
-/* MULTI MOVEMENT ARROWS */
-.field-motion-line{fill:none;stroke:#22c55e;stroke-width:2.2;stroke-linecap:round;stroke-dasharray:5 3;marker-end:url(#arrowHead);filter:drop-shadow(0 0 3px rgba(34,197,94,.65));animation:fieldDash 1s linear infinite}
-.field-motion-line.charge{stroke:#f59e0b;marker-end:url(#arrowHeadGold);filter:drop-shadow(0 0 3px rgba(245,158,11,.65))}
-.field-motion-line.cover{stroke:#22c55e}
-.field-motion-line.pitcher{stroke:#38bdf8;marker-end:url(#arrowHeadBlue)}
-@keyframes fieldDash{to{stroke-dashoffset:-16}}
-.pos-dot.action-player{box-shadow:0 0 0 4px rgba(245,158,11,.9),0 0 20px rgba(245,158,11,.4)}
-.pos-dot.cover-player{box-shadow:0 0 0 4px rgba(34,197,94,.9),0 0 20px rgba(34,197,94,.4)}
-.pos-dot.pitcher-player{box-shadow:0 0 0 4px rgba(56,189,248,.9),0 0 20px rgba(56,189,248,.4)}
-.field-legend{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px;font-size:10px;color:var(--muted)}
-.field-legend span{display:inline-flex;align-items:center;gap:5px}.field-legend i{width:18px;height:3px;border-radius:999px;display:inline-block}
-.field-legend .lg-charge{background:#f59e0b}.field-legend .lg-cover{background:#22c55e}.field-legend .lg-pitcher{background:#38bdf8}
-
+.field-diagram{position:relative;aspect-ratio:1/1;max-width:520px;margin:8px auto;background:radial-gradient(circle at 50% 62%,#2f7b4d 0 50%,transparent 50.5%);border:2px solid rgba(255,255,255,.18);border-radius:52% 52% 14% 14%;overflow:hidden}
+.field-diagram:before,.field-diagram:after{content:"";position:absolute;bottom:14%;left:50%;width:42%;height:5%;background:#b98a4c;transform-origin:left center}
+.field-diagram:before{transform:rotate(-45deg)} .field-diagram:after{transform:rotate(225deg)}
+.pos-dot{position:absolute;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#f8f2e8;color:#111827;font-weight:900;border:5px solid #111827;box-shadow:0 0 0 3px rgba(56,189,248,.9)}
+.p-ss{left:24%;top:54%}.p-2b{right:24%;top:54%}.p-3b{left:31%;bottom:18%}.p-1b{right:31%;bottom:18%}.p-p{left:50%;transform:translateX(-50%);bottom:22%}.p-c{left:50%;transform:translateX(-50%);bottom:6%}.p-lf{left:18%;top:18%}.p-cf{left:50%;transform:translateX(-50%);top:10%}.p-rf{right:18%;top:18%}.p-runner{left:50%;transform:translateX(-50%);top:38%;background:#fb923c;color:white;border-color:#fff}
 .answer-grid{display:grid;gap:10px}
 .answer-btn{text-align:left;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:14px;padding:14px;font-weight:700;cursor:pointer}
 .answer-btn.correct{border-color:#22c55e;background:rgba(34,197,94,.12)} .answer-btn.wrong{border-color:#ef4444;background:rgba(239,68,68,.12)}
@@ -382,23 +268,6 @@ input,select,textarea,button{max-width:100%}
 .learn-summary>div{border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--panel2)}
 .learn-summary span{display:block;font-size:10px;color:var(--muted)}.learn-summary strong{display:block;font-size:17px;margin-top:3px}
 @media(max-width:700px){.position-focus-banner{align-items:flex-start;flex-direction:column}.learn-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
-
-
-/* FIELD MOBILE TUNING */
-@media(max-width:430px){
-  .field-wrap{padding:8px}
-  .pos-dot{width:38px;height:38px;font-size:11px;border-width:3px}
-  .field-base{width:15px;height:15px}
-  .p-cf{top:13%}
-  .p-lf{left:23%;top:22%}
-  .p-rf{left:77%;top:22%}
-  .p-ss{left:38%;top:46%}
-  .p-2b{left:62%;top:46%}
-  .p-3b{left:27%;top:62%}
-  .p-1b{left:73%;top:62%}
-  .p-p{top:59%}
-  .p-c{top:86%}
-}
 
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -603,35 +472,19 @@ input,select,textarea,button{max-width:100%}
     </div>
 
     <div class="field-wrap">
-      <div class="field-diagram" id="fieldDiagram" aria-label="baseball field diagram">
-        <div class="field-line line-home-first"></div>
-        <div class="field-line line-home-third"></div>
-
-        <div class="field-base base-home" title="Home"></div>
-        <div class="field-base base-first" title="First base"></div>
-        <div class="field-base base-second" title="Second base"></div>
-        <div class="field-base base-third" title="Third base"></div>
-
-        <svg id="fieldArrows" class="field-arrows" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="4.8" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#22c55e"></path></marker>
-            <marker id="arrowHeadGold" markerWidth="6" markerHeight="6" refX="4.8" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#f59e0b"></path></marker>
-            <marker id="arrowHeadBlue" markerWidth="6" markerHeight="6" refX="4.8" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#38bdf8"></path></marker>
-          </defs>
-          <g id="movementArrows"></g>
-        </svg>
-
-        <div class="pos-dot p-lf" data-pos="LF">LF</div>
-        <div class="pos-dot p-cf" data-pos="CF">CF</div>
-        <div class="pos-dot p-rf" data-pos="RF">RF</div>
-        <div class="pos-dot p-ss" data-pos="SS">SS</div>
-        <div class="pos-dot p-2b" data-pos="2B">2B</div>
-        <div class="pos-dot p-3b" data-pos="3B">3B</div>
-        <div class="pos-dot p-1b" data-pos="1B">1B</div>
-        <div class="pos-dot p-p" data-pos="P">P</div>
-        <div class="pos-dot p-c" data-pos="C">C</div>
-        <div class="pos-dot p-runner" data-pos="R">R</div></div>
-      <div class="field-caption">Field diagram is a learning aid for responsibilities and positioning.</div><div class="field-legend"><span><i class="lg-charge"></i>Charge</span><span><i class="lg-cover"></i>Cover</span><span><i class="lg-pitcher"></i>Pitcher responsibility</span></div><div id="fieldInstruction" class="field-instruction">Think through the situation before choosing an answer.</div>
+      <div class="field-diagram" aria-label="baseball field diagram">
+        <div class="pos-dot p-lf">LF</div>
+        <div class="pos-dot p-cf">CF</div>
+        <div class="pos-dot p-rf">RF</div>
+        <div class="pos-dot p-ss">SS</div>
+        <div class="pos-dot p-2b">2B</div>
+        <div class="pos-dot p-3b">3B</div>
+        <div class="pos-dot p-1b">1B</div>
+        <div class="pos-dot p-p">P</div>
+        <div class="pos-dot p-c">C</div>
+        <div class="pos-dot p-runner">R</div>
+      </div>
+      <div class="field-caption">Field diagram is a learning aid for responsibilities and positioning.</div><div id="fieldInstruction" class="field-instruction">Think through the situation before choosing an answer.</div>
     </div>
 
     <div id="iqAnswers" class="answer-grid"></div>
@@ -742,7 +595,20 @@ function syncMobileNav(){
 function toggleMobileNav(){const p=$('mobileNavPanel');if(!p)return;buildMobileNav();p.classList.toggle('open')}
 
 
-const iqQuestions=[{"cat":"Defense","pos":["3B","1B","SS","2B","P","C"],"title":"Sacrifice bunt with runner at second","tag":"Defensive Positioning","outs":"0 outs","runner":"Runner on 2nd","level":"10U","prompt":"Runner on second, no outs, and the batter squares early. What should happen behind the charging corners?","answers":["SS covers third and 2B covers first","SS stays at short and 2B stays at second","Pitcher covers third and catcher covers first","All infielders crash toward home"],"correct":0,"explain":"Corners charge. SS replaces the third baseman, 2B replaces the first baseman, the pitcher works the middle, and the catcher directs traffic.","focus":"SS","movement":"3B","instruction":"Bunt rotation: 3B and 1B charge; SS covers third; 2B covers first; P works the middle; C directs.","runnerBase":"2B","moves":[{"from":"3B","toXY":[43,70],"type":"charge"},{"from":"1B","toXY":[57,70],"type":"charge"},{"from":"SS","toBase":"3B","type":"cover"},{"from":"2B","toBase":"1B","type":"cover"},{"from":"P","toXY":[50,68],"type":"pitcher"}]},{"cat":"Cutoffs","pos":["SS","RF","3B","2B"],"title":"Single to right field with runner on first","tag":"Cutoffs & Relays","outs":"1 out","runner":"Runner on 1st","level":"10U","prompt":"The runner is trying to go first-to-third. Who should line up the throw toward third?","answers":["Shortstop","Second baseman","Pitcher","First baseman"],"correct":0,"explain":"The shortstop commonly becomes the cutoff toward third on this play.","focus":"SS","movement":"3B","instruction":"Think about who can line up the right fielder with third base.","runnerBase":"1B"},{"cat":"Defense","pos":["CF","LF","RF"],"title":"Fly ball to left-center","tag":"Communication","outs":"Any","runner":"Any runners","level":"10U","prompt":"The center fielder and left fielder can both catch the ball. Who should normally have priority?","answers":["Center fielder","Left fielder","Shortstop","Whoever calls first"],"correct":0,"explain":"The center fielder generally has priority over the corner outfielders. The key is early, loud communication.","focus":"CF","movement":"CF","instruction":"Outfield priority prevents collisions and dropped balls."},{"cat":"Pitcher","pos":["P","1B"],"title":"Ground ball to first with nobody on","tag":"Pitcher Responsibility","outs":"Any","runner":"Bases empty","level":"10U","prompt":"The first baseman fields a ground ball away from the bag. What is the pitcher\u2019s first responsibility?","answers":["Cover first base","Back up home","Go to third","Stay on the mound"],"correct":0,"explain":"The pitcher should break immediately to cover first so the first baseman has a target.","focus":"P","movement":"1B","instruction":"Pitchers must move as soon as the first baseman leaves the bag.","runnerBase":"none"},{"cat":"Catcher","pos":["C","SS","2B"],"title":"Runner stealing second","tag":"Catcher Responsibility","outs":"Any","runner":"Runner on 1st","level":"10U","prompt":"Before the pitch, what should the middle infielders already know?","answers":["Who covers second and who backs up","Both charge home","Both cover first","Ignore the runner until he goes"],"correct":0,"explain":"Coverage and backup responsibilities should be decided before the pitch so the catcher has a clear target.","focus":"C","movement":"2B","instruction":"The catcher needs a clear target before the pitch starts.","runnerBase":"1B"},{"cat":"Cutoffs","pos":["SS","2B","CF","LF","RF"],"title":"Deep ball in the gap","tag":"Relays","outs":"Any","runner":"Multiple runners","level":"10U","prompt":"What matters most on a long relay play?","answers":["Alignment, target, and communication","Throw home every time","Hold the baseball","Everyone chases the ball"],"correct":0,"explain":"Good relays depend on proper alignment, a clear target, and communication from the infield.","focus":"SS","movement":"2B","instruction":"A relay is about alignment first, then a quick accurate exchange."},{"cat":"Hitting","pos":["Hitter"],"title":"Runner on third, less than two outs","tag":"Situational Hitting","outs":"0 or 1 out","runner":"Runner on 3rd","level":"10U","prompt":"What is a productive offensive goal?","answers":["Put a ball in play that can score the runner","Always swing for a home run","Take every pitch","Bunt with two strikes"],"correct":0,"explain":"A productive ball in play can score the runner without requiring a perfect hit.","focus":"","movement":"","instruction":"Think about the team goal, not just the hitter\u2019s personal result.","runnerBase":"3B"},{"cat":"Pitcher","pos":["P"],"title":"Backing up a throw to third","tag":"Backups","outs":"Any","runner":"Runner advancing","level":"10U","prompt":"Who often has backup responsibility behind third on a throw from the outfield?","answers":["Pitcher","Catcher","First baseman only","Nobody"],"correct":0,"explain":"Pitchers commonly have backup responsibilities behind bases on throws from the outfield.","focus":"P","movement":"3B","instruction":"Pitchers should anticipate where an overthrow could go."},{"cat":"Defense","pos":["1B","2B","SS"],"title":"Rundown between first and second","tag":"Rundowns","outs":"Any","runner":"Runner trapped","level":"10U","prompt":"What is the best defensive priority?","answers":["Few throws, run the runner hard, protect the lead base","Keep throwing back and forth","Everyone crowd the runner","Throw behind every time"],"correct":0,"explain":"Good rundowns use few throws, keep the lead base protected, and make the runner commit.","focus":"2B","movement":"1B","instruction":"Protect the lead base and avoid unnecessary throws."},{"cat":"Defense","pos":["LF","CF","RF"],"title":"Two outs, runner on second, base hit","tag":"Game Awareness","outs":"2 outs","runner":"Runner on 2nd","level":"10U","prompt":"What should the outfielder know before the pitch?","answers":["The likely throw target if the ball is hit to them","Only the batter\u2019s name","The next inning lineup","Nothing until contact"],"correct":0,"explain":"Defenders should know the situation and likely target before the ball is put in play.","focus":"CF","movement":"C","instruction":"Outfielders should know the likely target before the ball is hit.","runnerBase":"2B"},{"cat":"Baserunning","pos":["Runner"],"title":"Ball in the dirt with runner on first","tag":"Baserunning","outs":"Any","runner":"Runner on 1st","level":"10U","prompt":"What should the runner read before trying to advance?","answers":["How far the ball gets away and where the catcher is moving","Only the third-base coach","The scoreboard","Whether the batter likes the pitch"],"correct":0,"explain":"A runner should read the distance of the ball, catcher recovery, and game situation before committing.","focus":"","movement":"","instruction":"Aggressive baserunning still requires a read and a plan.","runnerBase":"1B"},{"cat":"Catcher","pos":["C","P","3B","1B"],"title":"Pop-up near home plate","tag":"Catcher Communication","outs":"Any","runner":"Any runners","level":"10U","prompt":"What is the catcher\u2019s first job on a pop-up around home?","answers":["Find the ball, communicate, and avoid collisions","Run straight to first","Remove the mask and throw it toward the mound","Wait for the pitcher"],"correct":0,"explain":"The catcher needs to locate the ball, communicate clearly, and manage traffic around home plate.","focus":"C","movement":"C","instruction":"The catcher controls traffic around home plate."}];
+const iqQuestions=[{"cat":"Defense","pos":["3B","1B","SS","2B","P","C"],"title":"Sacrifice bunt with runner at second","tag":"Defensive Positioning","outs":"0 outs","runner":"Runner on 2nd","level":"10U","prompt":"Runner on second, no outs, and the batter squares early. What should happen behind the charging corners?","answers":["SS covers third and 2B covers first","SS stays at short and 2B stays at second","Pitcher covers third and catcher covers first","All infielders crash toward home"],"correct":0,"explain":"Corners charge. SS replaces the third baseman, 2B replaces the first baseman, the pitcher works the middle, and the catcher directs traffic.","focus":"SS","movement":"3B","instruction":"Middle infielders replace the bases vacated by the charging corners."},{"cat":"Cutoffs","pos":["SS","RF","3B","2B"],"title":"Single to right field with runner on first","tag":"Cutoffs & Relays","outs":"1 out","runner":"Runner on 1st","level":"10U","prompt":"The runner is trying to go first-to-third. Who should line up the throw toward third?","answers":["Shortstop","Second baseman","Pitcher","First baseman"],"correct":0,"explain":"The shortstop commonly becomes the cutoff toward third on this play.","focus":"SS","movement":"3B","instruction":"Think about who can line up the right fielder with third base."},{"cat":"Defense","pos":["CF","LF","RF"],"title":"Fly ball to left-center","tag":"Communication","outs":"Any","runner":"Any runners","level":"10U","prompt":"The center fielder and left fielder can both catch the ball. Who should normally have priority?","answers":["Center fielder","Left fielder","Shortstop","Whoever calls first"],"correct":0,"explain":"The center fielder generally has priority over the corner outfielders. The key is early, loud communication.","focus":"CF","movement":"CF","instruction":"Outfield priority prevents collisions and dropped balls."},{"cat":"Pitcher","pos":["P","1B"],"title":"Ground ball to first with nobody on","tag":"Pitcher Responsibility","outs":"Any","runner":"Bases empty","level":"10U","prompt":"The first baseman fields a ground ball away from the bag. What is the pitcher\u2019s first responsibility?","answers":["Cover first base","Back up home","Go to third","Stay on the mound"],"correct":0,"explain":"The pitcher should break immediately to cover first so the first baseman has a target.","focus":"P","movement":"1B","instruction":"Pitchers must move as soon as the first baseman leaves the bag."},{"cat":"Catcher","pos":["C","SS","2B"],"title":"Runner stealing second","tag":"Catcher Responsibility","outs":"Any","runner":"Runner on 1st","level":"10U","prompt":"Before the pitch, what should the middle infielders already know?","answers":["Who covers second and who backs up","Both charge home","Both cover first","Ignore the runner until he goes"],"correct":0,"explain":"Coverage and backup responsibilities should be decided before the pitch so the catcher has a clear target.","focus":"C","movement":"2B","instruction":"The catcher needs a clear target before the pitch starts."},{"cat":"Cutoffs","pos":["SS","2B","CF","LF","RF"],"title":"Deep ball in the gap","tag":"Relays","outs":"Any","runner":"Multiple runners","level":"10U","prompt":"What matters most on a long relay play?","answers":["Alignment, target, and communication","Throw home every time","Hold the baseball","Everyone chases the ball"],"correct":0,"explain":"Good relays depend on proper alignment, a clear target, and communication from the infield.","focus":"SS","movement":"2B","instruction":"A relay is about alignment first, then a quick accurate exchange."},{"cat":"Hitting","pos":["Hitter"],"title":"Runner on third, less than two outs","tag":"Situational Hitting","outs":"0 or 1 out","runner":"Runner on 3rd","level":"10U","prompt":"What is a productive offensive goal?","answers":["Put a ball in play that can score the runner","Always swing for a home run","Take every pitch","Bunt with two strikes"],"correct":0,"explain":"A productive ball in play can score the runner without requiring a perfect hit.","focus":"","movement":"","instruction":"Think about the team goal, not just the hitter\u2019s personal result."},{"cat":"Pitcher","pos":["P"],"title":"Backing up a throw to third","tag":"Backups","outs":"Any","runner":"Runner advancing","level":"10U","prompt":"Who often has backup responsibility behind third on a throw from the outfield?","answers":["Pitcher","Catcher","First baseman only","Nobody"],"correct":0,"explain":"Pitchers commonly have backup responsibilities behind bases on throws from the outfield.","focus":"P","movement":"3B","instruction":"Pitchers should anticipate where an overthrow could go."},{"cat":"Defense","pos":["1B","2B","SS"],"title":"Rundown between first and second","tag":"Rundowns","outs":"Any","runner":"Runner trapped","level":"10U","prompt":"What is the best defensive priority?","answers":["Few throws, run the runner hard, protect the lead base","Keep throwing back and forth","Everyone crowd the runner","Throw behind every time"],"correct":0,"explain":"Good rundowns use few throws, keep the lead base protected, and make the runner commit.","focus":"2B","movement":"1B","instruction":"Protect the lead base and avoid unnecessary throws."},{"cat":"Defense","pos":["LF","CF","RF"],"title":"Two outs, runner on second, base hit","tag":"Game Awareness","outs":"2 outs","runner":"Runner on 2nd","level":"10U","prompt":"What should the outfielder know before the pitch?","answers":["The likely throw target if the ball is hit to them","Only the batter\u2019s name","The next inning lineup","Nothing until contact"],"correct":0,"explain":"Defenders should know the situation and likely target before the ball is put in play.","focus":"CF","movement":"C","instruction":"Outfielders should know the likely target before the ball is hit."},{"cat":"Baserunning","pos":["Runner"],"title":"Ball in the dirt with runner on first","tag":"Baserunning","outs":"Any","runner":"Runner on 1st","level":"10U","prompt":"What should the runner read before trying to advance?","answers":["How far the ball gets away and where the catcher is moving","Only the third-base coach","The scoreboard","Whether the batter likes the pitch"],"correct":0,"explain":"A runner should read the distance of the ball, catcher recovery, and game situation before committing.","focus":"","movement":"","instruction":"Aggressive baserunning still requires a read and a plan."},{"cat":"Catcher","pos":["C","P","3B","1B"],"title":"Pop-up near home plate","tag":"Catcher Communication","outs":"Any","runner":"Any runners","level":"10U","prompt":"What is the catcher\u2019s first job on a pop-up around home?","answers":["Find the ball, communicate, and avoid collisions","Run straight to first","Remove the mask and throw it toward the mound","Wait for the pitcher"],"correct":0,"explain":"The catcher needs to locate the ball, communicate clearly, and manage traffic around home plate.","focus":"C","movement":"C","instruction":"The catcher controls traffic around home plate."}
+,{"cat":"Defense","pos":["SS","2B","3B","1B"],"title":"Double-play ball with runner on first","tag":"Double Plays","outs":"0 or 1 out","runner":"Runner on 1st","level":"10U","prompt":"A routine ground ball is hit to the shortstop with fewer than two outs. What is the defense trying to do?","answers":["Get the force at second, then make a controlled throw to first","Throw directly home","Tag the batter-runner before throwing","Hold the ball and wait"],"correct":0,"explain":"On a routine double-play ball, secure the force at second first and make a quick, controlled exchange toward first.","focus":"SS","movement":"2B","instruction":"Get one out first; the second out comes from a clean exchange."}
+,{"cat":"Defense","pos":["3B","SS","2B","1B","C"],"title":"First-and-third steal situation","tag":"First & Third","outs":"Any","runner":"Runners on 1st & 3rd","level":"10U","prompt":"The runner from first breaks for second. What must the defense know before the pitch?","answers":["The team call, who receives the throw, and how the runner at third is protected","Always throw straight through to second","Ignore the runner at third","Have every infielder cover second"],"correct":0,"explain":"First-and-third defense must be called before the pitch. Everyone needs to know the throw target and how the defense will prevent the runner at third from scoring.","focus":"C","movement":"2B","instruction":"Know the team call before the pitch; do not improvise after the runner breaks."}
+,{"cat":"Cutoffs","pos":["LF","SS","3B","C"],"title":"Double down the left-field line","tag":"Cutoffs & Relays","outs":"Any","runner":"Runner on 1st","level":"10U","prompt":"The runner from first is trying to score on a ball down the left-field line. What should the relay player do?","answers":["Get in line with the outfielder and home, listen for the target, and make a quick relay","Stand on second base no matter what","Run all the way to the outfield wall","Cut every throw even when it is on line"],"correct":0,"explain":"The relay player gets aligned between the outfielder and the intended base, listens for communication, and keeps the throw moving.","focus":"SS","movement":"C","instruction":"Move into the throwing lane early and listen for the target."}
+,{"cat":"Defense","pos":["RF","CF","2B","1B"],"title":"Base hit to right with nobody on","tag":"Outfield Backups","outs":"Any","runner":"Bases empty","level":"10U","prompt":"After the right fielder fields a clean single, what should the other defenders be doing?","answers":["Move to cutoff and backup responsibilities instead of watching the play","All run toward the baseball","Stay exactly where they started","Only the pitcher moves"],"correct":0,"explain":"Every defender has somewhere to go. Infielders establish cutoff positions and other defenders move into backup responsibilities.","focus":"2B","movement":"1B","instruction":"A defender without the ball still has a job."}
+,{"cat":"Baserunning","pos":["Runner"],"title":"Fly ball with runner on third","tag":"Tagging Up","outs":"0 or 1 out","runner":"Runner on 3rd","level":"10U","prompt":"A fly ball is hit deep enough to the outfield. What should the runner at third do before leaving the base?","answers":["Tag the base and leave after the catch while reading the coach","Leave as soon as the ball is hit","Run halfway and never return","Wait until the throw reaches the infield"],"correct":0,"explain":"With fewer than two outs, the runner must tag legally before advancing after a caught fly ball.","focus":"","movement":"","instruction":"Know the outs and be ready to tag before the pitch."}
+,{"cat":"Baserunning","pos":["Runner"],"title":"Ground ball with runner on second","tag":"Baserunning Reads","outs":"0 outs","runner":"Runner on 2nd","level":"10U","prompt":"A ground ball is hit directly in front of the runner to the shortstop. What is the safest read?","answers":["Make sure the ball gets through or the fielder commits before advancing","Run to third immediately on every ground ball","Return all the way to first","Stop halfway between bases"],"correct":0,"explain":"On a ground ball in front of the runner, advancing blindly can create an easy out at third. Read the ball and defender before committing.","focus":"SS","movement":"3B","instruction":"On balls in front of you, read before you advance."}
+,{"cat":"Catcher","pos":["C","P","3B","1B"],"title":"Passed ball with runner on third","tag":"Catcher & Pitcher","outs":"Any","runner":"Runner on 3rd","level":"10U","prompt":"The ball gets away from the catcher and the runner breaks home. What should happen?","answers":["Pitcher covers home while the catcher retrieves the ball and communicates","Pitcher stays on the mound","First baseman covers home","Shortstop chases the ball"],"correct":0,"explain":"When the catcher must leave home to retrieve a loose ball, the pitcher should move quickly to cover the plate and give the catcher a target.","focus":"P","movement":"C","instruction":"Pitcher and catcher work together on loose balls around home."}
+,{"cat":"Pitcher","pos":["P","C","2B","SS"],"title":"Comebacker with runner on first","tag":"Pitcher Fielding","outs":"0 or 1 out","runner":"Runner on 1st","level":"10U","prompt":"The pitcher fields a firm ground ball cleanly with a possible force at second. What comes first?","answers":["Secure the ball, find the force target, and make a controlled throw","Spin and throw without locating the base","Always throw to first","Hold the ball until every runner stops"],"correct":0,"explain":"The pitcher must field the ball first, then make the team’s planned play. A clean force at second may start a double play.","focus":"P","movement":"2B","instruction":"Field it first, then make the planned play."}
+,{"cat":"Hitting","pos":["Hitter"],"title":"Runner on second with nobody out","tag":"Situational Hitting","outs":"0 outs","runner":"Runner on 2nd","level":"10U","prompt":"What approach gives the offense a chance to advance the runner while still having a quality at-bat?","answers":["Use the whole field and execute the team approach for the situation","Try to pull every pitch regardless of location","Swing at the first pitch no matter where it is","Take every pitch until two strikes"],"correct":0,"explain":"Situational hitting is about executing the team approach while still making a good swing decision. The exact plan can depend on the coach and game situation.","focus":"","movement":"","instruction":"Have a plan before stepping into the box."}
+,{"cat":"Defense","pos":["CF","RF","LF","SS","2B"],"title":"Ball over an outfielder's head","tag":"Communication & Backup","outs":"Any","runner":"Any runners","level":"10U","prompt":"An outfielder turns and runs for a deep ball. What should nearby defenders do?","answers":["Communicate, back up the play, and prepare the relay","Stand still so they do not get in the way","All chase the same ball","Go directly to the dugout side fence"],"correct":0,"explain":"Deep balls require communication, backup coverage, and a relay plan. Defenders who cannot catch the ball still move to useful positions.","focus":"CF","movement":"SS","instruction":"Back up the play and build the relay before the throw is needed."}
+,{"cat":"Defense","pos":["1B","P","2B","RF"],"title":"Overthrow at first base","tag":"Backups","outs":"Any","runner":"Batter-runner","level":"10U","prompt":"Who should be moving behind first base when a throw may get away?","answers":["A defender with assigned backup responsibility","Nobody because the play ends at first","The catcher on every play","The shortstop from the other side of the field"],"correct":0,"explain":"Backups limit extra bases when a throw gets away. The exact defender depends on where the ball is hit and the team’s defensive system.","focus":"RF","movement":"1B","instruction":"Good defenses plan for the overthrow before it happens."}
+,{"cat":"Defense","pos":["SS","2B","3B","1B"],"title":"Rundown between third and home","tag":"Rundowns","outs":"Any","runner":"Runner trapped","level":"10U","prompt":"Which base should the defense protect while running the trapped runner?","answers":["Protect the lead base and force the runner back when possible","Give up home plate to shorten the rundown","Have everyone stand next to the runner","Throw as many times as possible"],"correct":0,"explain":"Rundown fundamentals emphasize protecting the lead base, closing distance, and using as few throws as possible.","focus":"3B","movement":"C","instruction":"Do not surrender the lead base during a rundown."}
+];
 let learnCategory='All';
 let iqPool=[...iqQuestions];
 let iqIndex=0,iqScoreValue=0,iqStreakValue=0,iqCorrectValue=0,iqAnswered=false;
@@ -778,58 +644,13 @@ function buildPersonalizedIQPool(){
   $('summaryQuestions').textContent=iqPool.length;
 }
 function updateFieldFocus(q,showMovement=false){
-  const diagram=$('fieldDiagram');
-  if(!diagram)return;
-  document.querySelectorAll('.field-diagram .pos-dot').forEach(el=>el.classList.remove('focused','movement-target','action-player','cover-player','pitcher-player'));
-
-  const arrowGroup=$('movementArrows');
-  if(arrowGroup)arrowGroup.innerHTML='';
-
-  const coord={
-    LF:[24,23],CF:[50,14],RF:[76,23],SS:[39,45],"2B":[61,45],"3B":[29,61],"1B":[71,61],P:[50,60],C:[50,85],
-    HOME:[50,78],FIRST:[68,59],SECOND:[50,40],THIRD:[32,59]
-  };
-  const baseTarget={"1B":coord.FIRST,"2B":coord.SECOND,"3B":coord.THIRD,"HOME":coord.HOME};
-
-  // Put the orange runner at the correct base for the situation.
-  const runner=diagram.querySelector('[data-pos="R"]');
-  if(runner){
-    const rb=q?.runnerBase;
-    if(!rb||rb==='none'){runner.style.display='none'}
-    else{
-      runner.style.display='grid';
-      const pt=baseTarget[rb]||coord[rb]||[50,40];
-      // Offset slightly upward so the base remains visible.
-      runner.style.left=pt[0]+'%';runner.style.top=(pt[1]-4)+'%';
-    }
-  }
-
-  const focusEl=q?.focus ? diagram.querySelector(`[data-pos="${q.focus}"]`) : null;
-  if(focusEl)focusEl.classList.add('focused');
-
-  if(showMovement && Array.isArray(q?.moves) && arrowGroup){
-    q.moves.forEach(m=>{
-      const start=coord[m.from];
-      const end=m.toXY || baseTarget[m.toBase] || coord[m.toPos];
-      if(!start||!end)return;
-      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('x1',start[0]);line.setAttribute('y1',start[1]);line.setAttribute('x2',end[0]);line.setAttribute('y2',end[1]);
-      line.setAttribute('class',`field-motion-line ${m.type||'cover'}`);
-      arrowGroup.appendChild(line);
-      const player=diagram.querySelector(`[data-pos="${m.from}"]`);
-      if(player)player.classList.add(m.type==='charge'?'action-player':m.type==='pitcher'?'pitcher-player':'cover-player');
-    });
-  }else if(showMovement && q?.movement && arrowGroup){
-    const start=coord[q.focus],end=baseTarget[q.movement]||coord[q.movement];
-    if(start&&end){
-      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-      line.setAttribute('x1',start[0]);line.setAttribute('y1',start[1]);line.setAttribute('x2',end[0]);line.setAttribute('y2',end[1]);
-      line.setAttribute('class','field-motion-line cover');arrowGroup.appendChild(line);
-    }
-  }
-
+  document.querySelectorAll('.field-diagram .pos-dot').forEach(el=>el.classList.remove('focused','movement-target'));
+  const cls={'P':'p-p','C':'p-c','1B':'p-1b','2B':'p-2b','3B':'p-3b','SS':'p-ss','LF':'p-lf','CF':'p-cf','RF':'p-rf'};
+  if(q?.focus&&cls[q.focus])document.querySelector('.field-diagram .'+cls[q.focus])?.classList.add('focused');
+  if(showMovement&&q?.movement&&cls[q.movement])document.querySelector('.field-diagram .'+cls[q.movement])?.classList.add('movement-target');
   $('fieldInstruction').textContent=q?.instruction||'Think through the situation before choosing an answer.';
 }
+
 function setLearnCategory(cat){
   learnCategory=cat;
   document.querySelectorAll('#learnCategoryRow button').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
@@ -898,6 +719,25 @@ const developmentMetrics=[
 ];
 
 function syncBottomNav(id){document.querySelectorAll('#appBottomNav button').forEach(b=>b.classList.toggle('active',b.dataset.bottomPage===id))}
+function renderIQQuestion(){
+  const q=iqQuestions[iqIndex];
+  iqAnswered=false;
+  $('iqQuestionLabel').textContent=`Question ${iqIndex+1} of ${iqQuestions.length}`;
+  $('iqProgressBar').style.width=`${((iqIndex+1)/iqQuestions.length)*100}%`;
+  $('iqScore').textContent=iqScoreValue;$('iqStreak').textContent=iqStreakValue;$('iqCorrect').textContent=iqCorrectValue;
+  $('iqTag').textContent=q.tag;$('iqTitle').textContent=q.title;$('iqPrompt').textContent=q.prompt;
+  $('iqFeedback').classList.add('hidden');$('iqNextBtn').classList.add('hidden');updateFieldFocus(q,false);$('summaryBestStreak').textContent=iqBestStreak;
+  $('iqAnswers').innerHTML=q.answers.map((a,i)=>`<button class="answer-btn" onclick="answerIQ(${i})">${esc(a)}</button>`).join('');
+}
+function answerIQ(i){
+  if(iqAnswered)return;iqAnswered=true;const q=iqQuestions[iqIndex];const buttons=[...document.querySelectorAll('#iqAnswers .answer-btn')];
+  buttons[q.correct]?.classList.add('correct');
+  if(i===q.correct){iqCorrectValue++;iqStreakValue++;iqBestStreak=Math.max(iqBestStreak,iqStreakValue);iqScoreValue+=150;$('iqFeedback').className='note success';$('iqFeedback').innerHTML=`<strong>Good baseball decision</strong><div style="margin-top:6px">${esc(q.explain)}</div><div style="margin-top:8px;font-weight:900">+150 IQ points</div>`}
+  else{iqStreakValue=0;buttons[i]?.classList.add('wrong');$('iqFeedback').className='note danger';$('iqFeedback').innerHTML=`<strong>Review the situation</strong><div style="margin-top:6px">${esc(q.explain)}</div>`}
+  $('iqFeedback').classList.remove('hidden');$('iqNextBtn').classList.remove('hidden');updateFieldFocus(q,true);$('summaryBestStreak').textContent=iqBestStreak;$('iqScore').textContent=iqScoreValue;$('iqStreak').textContent=iqStreakValue;$('iqCorrect').textContent=iqCorrectValue;
+}
+function nextIQQuestion(){if(iqIndex<iqQuestions.length-1){iqIndex++;renderIQQuestion()}else{$('iqFeedback').className='note success';$('iqFeedback').innerHTML=`<strong>Session complete</strong><div>${iqCorrectValue}/${iqQuestions.length} correct • ${iqScoreValue} IQ points</div>`;$('iqNextBtn').classList.add('hidden')}}
+function resetIQSession(){iqIndex=0;iqScoreValue=0;iqStreakValue=0;iqCorrectValue=0;renderIQQuestion()}
 function renderPracticeHub(){$('practiceList').innerHTML=practicePlans.map((p,i)=>`<div class="practice-card"><div class="eyebrow">${esc(p.tag)}</div><h3>${esc(p.title)}</h3><p>${esc(p.desc)}</p><div class="row space" style="margin-top:12px"><span class="profile-meta">${p.minutes} minutes</span><button class="mini-btn blue" onclick="startPracticePlan(${i})">Start</button></div></div>`).join('')}
 function startPracticePlan(i){const p=practicePlans[i];alert(`${p.title}\n\n${p.desc}\n\nTarget time: ${p.minutes} minutes`)}
 function populateDevelopmentPlayerSelect(){const s=$('progressPlayerSelect');if(!s)return;s.innerHTML=players.map(p=>`<option value="${p.id}">${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</option>`).join('');if(currentPlayer?.id)s.value=currentPlayer.id}
