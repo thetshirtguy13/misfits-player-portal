@@ -178,6 +178,73 @@ input,select,textarea,button{max-width:100%}
   .app-bottom-nav button{font-size:10px;padding:10px 2px}
 }
 
+
+/* MISFITS COMPACT HEADER V2 */
+.brand strong{display:block}.brand .muted{display:block}
+@media(max-width:700px){
+  header{padding:0!important}
+  .topbar{
+    display:grid!important;
+    grid-template-columns:auto 1fr auto!important;
+    gap:8px!important;
+    align-items:center!important;
+    padding:10px 14px!important;
+  }
+  .brand{min-width:0!important}
+  .brand .logo{width:42px!important;height:42px!important;border-radius:12px!important}
+  .brand strong{font-size:16px!important;line-height:1.1!important}
+  .brand .muted{font-size:10px!important}
+  .user-chip{
+    padding:8px 10px!important;
+    font-size:10px!important;
+    white-space:nowrap!important;
+  }
+  .selector{
+    grid-column:1/-1!important;
+    order:4!important;
+    width:100%!important;
+    margin:0!important;
+  }
+  .selector select{
+    width:100%!important;
+    padding:10px 12px!important;
+    font-size:14px!important;
+    border-radius:12px!important;
+  }
+  .mobile-menu-btn{display:none!important}
+}
+
+
+/* LEARN EXPERIENCE V2 */
+.learn-category-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none}
+.learn-category-row::-webkit-scrollbar{display:none}
+.learn-category-row button{
+  flex:0 0 auto;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+  border-radius:999px;padding:9px 12px;font-size:11px;font-weight:800;cursor:pointer
+}
+.learn-category-row button.active{background:linear-gradient(135deg,var(--red),#b91c1c);border-color:transparent}
+.learn-intro-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.learn-intro-card{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:14px}
+.learn-intro-card strong{display:block;margin-bottom:5px}.learn-intro-card span{color:var(--muted);font-size:12px}
+.scenario-meta{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 2px}
+.scenario-chip{border:1px solid var(--line);border-radius:999px;padding:6px 9px;font-size:10px;font-weight:800;color:#cbd5e1;background:#0d1729}
+.field-wrap{border:1px solid var(--line);border-radius:18px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01))}
+.field-caption{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+.answer-btn{position:relative;padding-right:48px!important}
+.answer-btn .answer-letter{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;
+  display:grid;place-items:center;border:1px solid var(--line);font-size:11px;font-weight:900;color:#cbd5e1
+}
+.iq-complete-card{border:1px solid rgba(34,197,94,.45);background:rgba(34,197,94,.08);border-radius:16px;padding:16px}
+.iq-complete-card h3{margin:0 0 6px}
+.iq-next-actions{display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:700px){
+  .learn-intro-grid{grid-template-columns:1fr}
+  .learn-category-row{margin-right:-4px}
+  .field-diagram{max-width:100%;aspect-ratio:1/1}
+  .pos-dot{width:42px;height:42px;font-size:12px}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -322,19 +389,85 @@ input,select,textarea,button{max-width:100%}
   </div>
 </section>
 
+
 <section id="learn" class="page">
-  <div class="learn-hero"><div class="eyebrow">Learn</div><h2>Know your job before the pitch</h2><p>Work through defensive scenarios, cutoffs, relays, backups, positioning, and baseball decisions.</p></div>
-  <div class="card iq-shell">
-    <div class="row space"><div><h3 style="margin:0">Where Do I Go?</h3><div id="iqQuestionLabel" class="muted small">Question 1 of 10</div></div><button class="mini-btn" onclick="resetIQSession()">Restart</button></div>
+  <div class="learn-hero">
+    <div class="eyebrow">Learn</div>
+    <h2>Know your job before the pitch</h2>
+    <p>Build baseball IQ through defensive positioning, cutoffs, relays, backups, rundowns, baserunning, and situational decisions.</p>
+  </div>
+
+  <div class="learn-intro-grid">
+    <div class="learn-intro-card"><strong>Situations</strong><span>10-question sessions with real baseball decisions.</span></div>
+    <div class="learn-intro-card"><strong>Immediate feedback</strong><span>See why the decision was right or wrong.</span></div>
+    <div class="learn-intro-card"><strong>IQ points</strong><span>Build score and streaks as you learn.</span></div>
+  </div>
+
+  <div class="card">
+    <div class="learn-category-row" id="learnCategoryRow">
+      <button class="active" data-cat="All" onclick="setLearnCategory('All')">All</button>
+      <button data-cat="Defense" onclick="setLearnCategory('Defense')">Defense</button>
+      <button data-cat="Cutoffs" onclick="setLearnCategory('Cutoffs')">Cutoffs</button>
+      <button data-cat="Pitcher" onclick="setLearnCategory('Pitcher')">Pitcher</button>
+      <button data-cat="Catcher" onclick="setLearnCategory('Catcher')">Catcher</button>
+      <button data-cat="Hitting" onclick="setLearnCategory('Hitting')">Hitting</button>
+      <button data-cat="Baserunning" onclick="setLearnCategory('Baserunning')">Baserunning</button>
+    </div>
+  </div>
+
+  <div class="card iq-shell" style="margin-top:14px">
+    <div class="row space">
+      <div>
+        <h3 style="margin:0">Where Do I Go?</h3>
+        <div id="iqQuestionLabel" class="muted small">Question 1 of 10</div>
+      </div>
+      <button class="mini-btn" onclick="resetIQSession()">Restart</button>
+    </div>
+
     <div class="iq-progress"><div id="iqProgressBar" style="width:10%"></div></div>
-    <div class="iq-score-row"><div class="iq-score-box"><span>Score</span><strong id="iqScore">0</strong></div><div class="iq-score-box"><span>Streak</span><strong id="iqStreak">0</strong></div><div class="iq-score-box"><span>Correct</span><strong id="iqCorrect">0</strong></div></div>
-    <div><div class="eyebrow" id="iqTag">Defensive Positioning</div><h2 id="iqTitle" style="margin:8px 0">Sacrifice bunt with runner at second</h2><p id="iqPrompt" class="muted"></p></div>
-    <div class="field-diagram"><div class="pos-dot p-lf">LF</div><div class="pos-dot p-cf">CF</div><div class="pos-dot p-rf">RF</div><div class="pos-dot p-ss">SS</div><div class="pos-dot p-2b">2B</div><div class="pos-dot p-3b">3B</div><div class="pos-dot p-1b">1B</div><div class="pos-dot p-p">P</div><div class="pos-dot p-c">C</div><div class="pos-dot p-runner">R</div></div>
+
+    <div class="iq-score-row">
+      <div class="iq-score-box"><span>Score</span><strong id="iqScore">0</strong></div>
+      <div class="iq-score-box"><span>Streak</span><strong id="iqStreak">0</strong></div>
+      <div class="iq-score-box"><span>Correct</span><strong id="iqCorrect">0</strong></div>
+    </div>
+
+    <div>
+      <div class="eyebrow" id="iqTag">Defensive Positioning</div>
+      <h2 id="iqTitle" style="margin:8px 0">Sacrifice bunt with runner at second</h2>
+      <div class="scenario-meta">
+        <span class="scenario-chip" id="iqOutsChip">0 outs</span>
+        <span class="scenario-chip" id="iqRunnerChip">Runner on 2nd</span>
+        <span class="scenario-chip" id="iqLevelChip">10U</span>
+      </div>
+      <p id="iqPrompt" class="muted"></p>
+    </div>
+
+    <div class="field-wrap">
+      <div class="field-diagram" aria-label="baseball field diagram">
+        <div class="pos-dot p-lf">LF</div>
+        <div class="pos-dot p-cf">CF</div>
+        <div class="pos-dot p-rf">RF</div>
+        <div class="pos-dot p-ss">SS</div>
+        <div class="pos-dot p-2b">2B</div>
+        <div class="pos-dot p-3b">3B</div>
+        <div class="pos-dot p-1b">1B</div>
+        <div class="pos-dot p-p">P</div>
+        <div class="pos-dot p-c">C</div>
+        <div class="pos-dot p-runner">R</div>
+      </div>
+      <div class="field-caption">Field diagram is a learning aid for responsibilities and positioning.</div>
+    </div>
+
     <div id="iqAnswers" class="answer-grid"></div>
     <div id="iqFeedback" class="note hidden"></div>
-    <button id="iqNextBtn" class="btn blue hidden" onclick="nextIQQuestion()">Next Question</button>
+    <div class="iq-next-actions">
+      <button id="iqNextBtn" class="btn blue hidden" onclick="nextIQQuestion()">Next Question</button>
+      <button class="mini-btn" onclick="showPage('practicehub')">Go to Practice</button>
+    </div>
   </div>
 </section>
+
 
 <section id="practicehub" class="page">
   <div class="practice-hero"><div class="eyebrow">Practice</div><h2>Do one useful thing at home</h2><p>Choose a short baseball session with exact setup, reps, coaching points, and a finish challenge.</p></div>
@@ -433,20 +566,74 @@ function syncMobileNav(){
 }
 function toggleMobileNav(){const p=$('mobileNavPanel');if(!p)return;buildMobileNav();p.classList.toggle('open')}
 
+
 const iqQuestions=[
-{title:'Sacrifice bunt with runner at second',tag:'Defensive Positioning',prompt:'Runner on second, no outs, and the batter squares early. What should happen behind the charging corners?',answers:['SS covers third and 2B covers first','SS stays at short and 2B stays at second','Pitcher covers third and catcher covers first','All infielders crash toward home'],correct:0,explain:'Corners charge; SS covers third; 2B covers first; pitcher handles the middle; catcher directs.'},
-{title:'Single to right field with runner on first',tag:'Cutoffs & Relays',prompt:'Who should line up the throw toward third base?',answers:['Shortstop','Second baseman','Pitcher','First baseman'],correct:0,explain:'The shortstop commonly becomes the cutoff toward third on this play.'},
-{title:'Fly ball to left-center',tag:'Communication',prompt:'CF and LF can both catch the ball. Who has priority?',answers:['Center fielder','Left fielder','Shortstop','Whoever calls first'],correct:0,explain:'The center fielder generally has priority over a corner outfielder and must communicate loudly.'},
-{title:'Ground ball to first with nobody on',tag:'Pitcher Responsibility',prompt:'What is the pitcher’s first responsibility after contact?',answers:['Cover first base','Back up home','Go to third','Stay on the mound'],correct:0,explain:'The pitcher should break to cover first if the first baseman fields the ball away from the bag.'},
-{title:'Runner stealing second',tag:'Catcher Responsibility',prompt:'What should the middle infielders know before the pitch?',answers:['Who covers second and who backs up','Both charge home','Both cover first','Ignore the runner'],correct:0,explain:'The defense needs a clear coverage and backup plan before the pitch.'},
-{title:'Deep ball in the gap',tag:'Relays',prompt:'What matters most on a long relay play?',answers:['Alignment, target, and communication','Throw home every time','Hold the baseball','Everyone chases the ball'],correct:0,explain:'Clean relays depend on proper alignment, a clear target, and communication.'},
-{title:'Runner on third, less than two outs',tag:'Situational Hitting',prompt:'What is a productive offensive goal?',answers:['Put a ball in play that can score the runner','Always swing for a home run','Take every pitch','Bunt with two strikes'],correct:0,explain:'The goal is a productive ball in play that gives the runner a chance to score.'},
-{title:'Backing up a throw to third',tag:'Backups',prompt:'Who often has backup responsibility behind third on an outfield throw?',answers:['Pitcher','Catcher','First baseman only','Nobody'],correct:0,explain:'Pitchers commonly have backup responsibilities behind bases on outfield throws.'},
-{title:'Rundown between first and second',tag:'Rundowns',prompt:'What is the best defensive priority?',answers:['Few throws, run the runner hard, protect the lead base','Keep throwing back and forth','Everyone crowd the runner','Throw behind every time'],correct:0,explain:'Good rundowns use few throws and protect the lead base.'},
-{title:'Two outs, runner on second, base hit',tag:'Game Awareness',prompt:'What should an outfielder know before the pitch?',answers:['The likely throw target if the ball is hit to them','Only the batter’s name','The next inning lineup','Nothing until contact'],correct:0,explain:'Defenders should know the game situation and likely target before contact.'}
+{cat:'Defense',title:'Sacrifice bunt with runner at second',tag:'Defensive Positioning',outs:'0 outs',runner:'Runner on 2nd',level:'10U',prompt:'Runner on second, no outs, and the batter squares early. What should happen behind the charging corners?',answers:['SS covers third and 2B covers first','SS stays at short and 2B stays at second','Pitcher covers third and catcher covers first','All infielders crash toward home'],correct:0,explain:'Corners charge. SS replaces the third baseman, 2B replaces the first baseman, the pitcher works the middle, and the catcher directs traffic.'},
+{cat:'Cutoffs',title:'Single to right field with runner on first',tag:'Cutoffs & Relays',outs:'1 out',runner:'Runner on 1st',level:'10U',prompt:'The runner is trying to go first-to-third. Who should line up the throw toward third?',answers:['Shortstop','Second baseman','Pitcher','First baseman'],correct:0,explain:'The shortstop commonly becomes the cutoff toward third on this play while the second baseman handles responsibilities on the right side.'},
+{cat:'Defense',title:'Fly ball to left-center',tag:'Communication',outs:'Any',runner:'Any runners',level:'10U',prompt:'The center fielder and left fielder can both catch the ball. Who should normally have priority?',answers:['Center fielder','Left fielder','Shortstop','Whoever calls first'],correct:0,explain:'The center fielder generally has priority over the corner outfielders. The key is early, loud communication.'},
+{cat:'Pitcher',title:'Ground ball to first with nobody on',tag:'Pitcher Responsibility',outs:'Any',runner:'Bases empty',level:'10U',prompt:'The first baseman fields a ground ball away from the bag. What is the pitcher’s first responsibility?',answers:['Cover first base','Back up home','Go to third','Stay on the mound'],correct:0,explain:'The pitcher should break immediately to cover first so the first baseman has a target.'},
+{cat:'Catcher',title:'Runner stealing second',tag:'Catcher Responsibility',outs:'Any',runner:'Runner on 1st',level:'10U',prompt:'Before the pitch, what should the middle infielders already know?',answers:['Who covers second and who backs up','Both charge home','Both cover first','Ignore the runner until he goes'],correct:0,explain:'Coverage and backup responsibilities should be decided before the pitch so the catcher has a clear target.'},
+{cat:'Cutoffs',title:'Deep ball in the gap',tag:'Relays',outs:'Any',runner:'Multiple runners',level:'10U',prompt:'What matters most on a long relay play?',answers:['Alignment, target, and communication','Throw home every time','Hold the baseball','Everyone chases the ball'],correct:0,explain:'Good relays depend on proper alignment, a clear target, and communication from the infield.'},
+{cat:'Hitting',title:'Runner on third, less than two outs',tag:'Situational Hitting',outs:'0 or 1 out',runner:'Runner on 3rd',level:'10U',prompt:'What is a productive offensive goal?',answers:['Put a ball in play that can score the runner','Always swing for a home run','Take every pitch','Bunt with two strikes'],correct:0,explain:'A productive ball in play can score the runner without requiring a perfect hit.'},
+{cat:'Pitcher',title:'Backing up a throw to third',tag:'Backups',outs:'Any',runner:'Runner advancing',level:'10U',prompt:'Who often has backup responsibility behind third on a throw from the outfield?',answers:['Pitcher','Catcher','First baseman only','Nobody'],correct:0,explain:'Pitchers commonly have backup responsibilities behind bases on throws from the outfield.'},
+{cat:'Defense',title:'Rundown between first and second',tag:'Rundowns',outs:'Any',runner:'Runner trapped',level:'10U',prompt:'What is the best defensive priority?',answers:['Few throws, run the runner hard, protect the lead base','Keep throwing back and forth','Everyone crowd the runner','Throw behind every time'],correct:0,explain:'Good rundowns use few throws, keep the lead base protected, and make the runner commit.'},
+{cat:'Defense',title:'Two outs, runner on second, base hit',tag:'Game Awareness',outs:'2 outs',runner:'Runner on 2nd',level:'10U',prompt:'What should the outfielder know before the pitch?',answers:['The likely throw target if the ball is hit to them','Only the batter’s name','The next inning lineup','Nothing until contact'],correct:0,explain:'Defenders should know the situation and likely target before the ball is put in play.'},
+{cat:'Baserunning',title:'Ball in the dirt with runner on first',tag:'Baserunning',outs:'Any',runner:'Runner on 1st',level:'10U',prompt:'What should the runner read before trying to advance?',answers:['How far the ball gets away and where the catcher is moving','Only the third-base coach','The scoreboard','Whether the batter likes the pitch'],correct:0,explain:'A runner should read the distance of the ball, catcher recovery, and game situation before committing.'},
+{cat:'Catcher',title:'Pop-up near home plate',tag:'Catcher Communication',outs:'Any',runner:'Any runners',level:'10U',prompt:'What is the catcher’s first job on a pop-up around home?',answers:['Find the ball, communicate, and avoid collisions','Run straight to first','Remove the mask and throw it toward the mound','Wait for the pitcher'],correct:0,explain:'The catcher needs to locate the ball, communicate clearly, and manage traffic around home plate.'}
 ];
+let learnCategory='All';
+let iqPool=[...iqQuestions];
 let iqIndex=0,iqScoreValue=0,iqStreakValue=0,iqCorrectValue=0,iqAnswered=false;
 
+function setLearnCategory(cat){
+  learnCategory=cat;
+  document.querySelectorAll('#learnCategoryRow button').forEach(b=>b.classList.toggle('active',b.dataset.cat===cat));
+  iqPool=cat==='All'?[...iqQuestions]:iqQuestions.filter(q=>q.cat===cat);
+  if(!iqPool.length)iqPool=[...iqQuestions];
+  resetIQSession();
+}
+function renderIQQuestion(){
+  const q=iqPool[iqIndex]||iqPool[0];
+  if(!q)return;
+  iqAnswered=false;
+  $('iqQuestionLabel').textContent=`Question ${iqIndex+1} of ${iqPool.length}`;
+  $('iqProgressBar').style.width=`${((iqIndex+1)/iqPool.length)*100}%`;
+  $('iqScore').textContent=iqScoreValue;$('iqStreak').textContent=iqStreakValue;$('iqCorrect').textContent=iqCorrectValue;
+  $('iqTag').textContent=q.tag;$('iqTitle').textContent=q.title;$('iqPrompt').textContent=q.prompt;
+  $('iqOutsChip').textContent=q.outs;$('iqRunnerChip').textContent=q.runner;$('iqLevelChip').textContent=q.level;
+  $('iqFeedback').classList.add('hidden');$('iqNextBtn').classList.add('hidden');
+  const letters=['A','B','C','D'];
+  $('iqAnswers').innerHTML=q.answers.map((a,i)=>`<button class="answer-btn" onclick="answerIQ(${i})">${esc(a)}<span class="answer-letter">${letters[i]||''}</span></button>`).join('');
+}
+function answerIQ(i){
+  if(iqAnswered)return;
+  iqAnswered=true;
+  const q=iqPool[iqIndex];
+  const buttons=[...document.querySelectorAll('#iqAnswers .answer-btn')];
+  buttons[q.correct]?.classList.add('correct');
+  if(i===q.correct){
+    iqCorrectValue++;iqStreakValue++;iqScoreValue+=150;
+    $('iqFeedback').className='note success';
+    $('iqFeedback').innerHTML=`<strong>Good baseball decision</strong><div style="margin-top:6px">${esc(q.explain)}</div><div style="margin-top:8px;font-weight:900">+150 IQ points</div>`;
+  }else{
+    iqStreakValue=0;buttons[i]?.classList.add('wrong');
+    $('iqFeedback').className='note danger';
+    $('iqFeedback').innerHTML=`<strong>Review the situation</strong><div style="margin-top:6px">${esc(q.explain)}</div>`;
+  }
+  $('iqFeedback').classList.remove('hidden');$('iqNextBtn').classList.remove('hidden');
+  $('iqScore').textContent=iqScoreValue;$('iqStreak').textContent=iqStreakValue;$('iqCorrect').textContent=iqCorrectValue;
+}
+function nextIQQuestion(){
+  if(iqIndex<iqPool.length-1){
+    iqIndex++;renderIQQuestion();
+  }else{
+    $('iqFeedback').className='iq-complete-card';
+    $('iqFeedback').innerHTML=`<h3>Session complete</h3><div>${iqCorrectValue}/${iqPool.length} correct • ${iqScoreValue} IQ points</div>`;
+    $('iqFeedback').classList.remove('hidden');
+    $('iqNextBtn').classList.add('hidden');
+  }
+}
+function resetIQSession(){iqIndex=0;iqScoreValue=0;iqStreakValue=0;iqCorrectValue=0;renderIQQuestion()}
 const practicePlans=[
 {title:'Pre-throw activation',tag:'Throwing Support',minutes:10,desc:'Light movement, shoulder activation, wrist and forearm prep, then an easy catch progression. Stop for pain.'},
 {title:'Pitcher command session',tag:'Pitching',minutes:20,desc:'Dry reps, target work, controlled flat-ground throws, then a 12-pitch location challenge.'},
