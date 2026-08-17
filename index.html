@@ -305,6 +305,11 @@ input,select,textarea,button{max-width:100%}
   .p-p{top:59%}.p-c{top:86%}
   main{padding-bottom:135px!important}
 }
+
+/* COMPLETE SITE FINISH */
+.practice-modal{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:16px}.practice-modal-card{width:min(620px,100%);max-height:88vh;overflow:auto;background:#0f172a;border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.5)}
+.quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.quick-action{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:14px;padding:13px;text-align:left;cursor:pointer}.quick-action strong{display:block}.quick-action span{font-size:11px;color:var(--muted)}
+@media(max-width:700px){.quick-actions{grid-template-columns:repeat(2,1fr)}.practice-modal-card{padding:16px}.app-bottom-nav{bottom:6px}}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -323,6 +328,7 @@ input,select,textarea,button{max-width:100%}
 <div id="appView" class="app hidden"><header><div class="topbar"><div class="logo">M</div><div class="brand"><h1>Misfits Player Portal</h1><p>Train • Track • Improve</p></div><select id="playerSelect" class="selector" onchange="switchPlayer()"></select><div id="userChip" class="user-chip"></div></div><nav><button class="active" data-page="dashboard">Dashboard</button><button data-page="workouts">Home Workouts</button><button data-page="progress">Progress</button><button data-page="stats">Stats</button><button data-page="media">Media</button><button id="coachTab" data-page="coach">Coach</button><button id="profilesTab" data-page="playerprofiles">Player Profiles</button><button id="gcTab" data-page="gamechanger">GameChanger Import</button><button onclick="logout()">Sign Out</button></nav><div id="mobileNavPanel" class="mobile-nav-panel"></div></header>
 <main>
 <section id="dashboard" class="page active"><div class="hero"><div class="card hero-card"><span class="pill" id="welcomeRole"></span><h2 style="font-size:30px;margin:14px 0 8px" id="welcomeTitle"></h2><p class="muted">Complete workouts, record games, upload development media, and track progress from any device.</p><div class="row"><button class="btn blue" onclick="showPage('workouts')">Start Workout</button><button class="btn secondary" onclick="showPage('progress')">View Progress</button></div></div><div class="card"><h3>Weekly goal</h3><div class="row space"><span class="muted small">Workout completion</span><strong id="weeklyPercent">0%</strong></div><div class="progress" style="margin:8px 0 18px"><div id="weeklyBar" style="width:0%"></div></div><div class="row space"><span class="muted small">Current streak</span><strong id="streak">0 days</strong></div><div class="note small" style="margin-top:16px">Youth pitchers should follow coach-approved pitch-count and rest guidance. Stop immediately for arm pain.</div></div></div><div class="grid" id="dashStats" style="margin-top:16px"></div><div class="card" style="margin-top:16px"><h3>Recommended today</h3><div id="recommended"></div></div>
+<div class="quick-actions"><button class="quick-action" onclick="showPage('stats')"><strong>Record Game</strong><span>Add stats</span></button><button class="quick-action" onclick="showPage('media')"><strong>Upload Video</strong><span>Training media</span></button><button class="quick-action" onclick="showPage('playerprofiles')"><strong>Goals</strong><span>Development plan</span></button><button class="quick-action" onclick="showPage('workouts')"><strong>Workouts</strong><span>Position training</span></button></div>
 <div id="learnLaunchGrid" class="launch-grid">
   <div class="launch-card" onclick="showPage('learn')"><div class="eyebrow">Learn</div><h3>Baseball IQ</h3><p>Situations, positioning, cutoffs, relays, backups, and decisions.</p></div>
   <div class="launch-card" onclick="showPage('practicehub')"><div class="eyebrow">Practice</div><h3>Home Practice</h3><p>Short position-specific sessions with setup, reps, and a finish challenge.</p></div>
@@ -567,6 +573,7 @@ input,select,textarea,button{max-width:100%}
     <button class="more-item" onclick="showPage('gamechanger')"><strong>GameChanger Import</strong><div class="muted small">Import tools for coaches and admins.</div></button>
   </div>
 </section>
+<div id="practiceModal" class="practice-modal hidden" onclick="if(event.target===this)closePracticePlan()"><div class="practice-modal-card"><div class="row space"><div><div class="eyebrow">Home Practice Plan</div><h2 id="practiceModalTitle" style="margin:6px 0"></h2><div id="practiceModalMeta" class="muted small"></div></div><button class="mini-btn" onclick="closePracticePlan()">Close</button></div><div id="practiceModalSteps" style="margin-top:16px"></div><div class="note small" style="margin-top:14px">Quality reps matter more than rushing. For throwing work, stop for pain and follow coach-approved workload/rest guidance.</div><button class="btn green" style="width:100%;margin-top:14px" onclick="completePracticePlan()">Mark Practice Complete</button></div></div>
 <section id="gamechanger" class="page"><h2>GameChanger Import</h2><p class="muted">Upload a GameChanger season-stat CSV and map rows to player profiles.</p><div class="card"><div class="note small">Export stats from GameChanger and upload the CSV here. This portal never asks for your GameChanger password.</div><div class="form-grid two" style="margin-top:16px"><div><label>Stat category</label><select id="gcCategory"><option value="auto">Detect automatically</option><option value="batting">Batting</option><option value="pitching">Pitching</option><option value="fielding">Fielding</option></select></div><div><label>GameChanger CSV</label><input id="gcFile" type="file" accept=".csv,text/csv"></div></div><div class="row" style="margin-top:14px"><button class="btn blue" onclick="previewGC()">Preview Import</button><button class="btn secondary" onclick="downloadGCTemplate()">Download Sample CSV</button></div></div><div id="gcPreviewCard" class="card hidden" style="margin-top:16px"><div class="row space"><div><h3 style="margin-bottom:4px">Import Preview</h3><p id="gcSummary" class="muted small"></p></div><button class="btn green" onclick="confirmGCImport()">Import Stats</button></div><div class="table-wrap"><table><thead><tr><th>CSV Player</th><th>Matched Account</th><th>Category</th><th>Key Stats</th><th>Status</th></tr></thead><tbody id="gcPreviewBody"></tbody></table></div></div><div class="card" style="margin-top:16px"><h3>Import history</h3><div class="table-wrap"><table><thead><tr><th>Date</th><th>File</th><th>Category</th><th>Rows Imported</th></tr></thead><tbody id="gcHistoryBody"></tbody></table></div></div></section>
 </main></div>
 <script>
@@ -584,7 +591,7 @@ const workouts=[
 {id:'field-out',category:'Fielding',title:'Outfield Footwork & Fly Balls',minutes:30,icon:'📍',level:'All ages',exercises:[['Drop-step reps','3 x 8 each'],['Angle routes','3 x 6'],['Self-toss fly balls','20'],['Ground ball approach','15'],['Crow-hop throws','15'],['Backup review','5 min']]}
 ];
 const $=id=>document.getElementById(id);const today=()=>new Date().toISOString().slice(0,10);const fmt=n=>Number(n||0).toFixed(3).replace(/^0/,'');const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-function showOnly(id){['setupView','authView','onboardView','appView'].forEach(x=>$(x).classList.toggle('hidden',x!==id))}
+function showOnly(id){['setupView','authView','onboardView','appView'].forEach(x=>$(x).classList.toggle('hidden',x!==id));const bn=$('appBottomNav');if(bn)bn.style.display=id==='appView'?'grid':'none'}
 function notify(msg,type=''){const el=$('authMessage');el.textContent=msg;el.className='note small '+type;el.classList.remove('hidden')}
 function getConfig(){try{return JSON.parse(localStorage.getItem(CONFIG_KEY)||'null')}catch{return null}}
 function initClient(){const c=getConfig();if(!c?.url||!c?.key)return false;client=supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});return true}
@@ -769,8 +776,8 @@ function syncBottomNav(id){document.querySelectorAll('#appBottomNav button').for
 function renderIQQuestion(){
   const q=iqPool[iqIndex]||iqPool[0];
   iqAnswered=false;
-  $('iqQuestionLabel').textContent=`Question ${iqIndex+1} of ${iqQuestions.length}`;
-  $('iqProgressBar').style.width=`${((iqIndex+1)/iqQuestions.length)*100}%`;
+  $('iqQuestionLabel').textContent=`Question ${iqIndex+1} of ${iqPool.length}`;
+  $('iqProgressBar').style.width=`${((iqIndex+1)/iqPool.length)*100}%`;
   $('iqScore').textContent=iqScoreValue;$('iqStreak').textContent=iqStreakValue;$('iqCorrect').textContent=iqCorrectValue;
   $('iqTag').textContent=q.tag;$('iqTitle').textContent=q.title;$('iqPrompt').textContent=q.prompt;
   $('iqFeedback').classList.add('hidden');$('iqNextBtn').classList.add('hidden');updateFieldFocus(q,false);$('summaryBestStreak').textContent=iqBestStreak;
@@ -785,8 +792,20 @@ function answerIQ(i){
 }
 function nextIQQuestion(){if(iqIndex<iqPool.length-1){iqIndex++;renderIQQuestion()}else{$('iqFeedback').className='note success';$('iqFeedback').innerHTML=`<strong>Session complete</strong><div>${iqCorrectValue}/${iqPool.length} correct • ${iqScoreValue} IQ points</div>`;$('iqNextBtn').classList.add('hidden')}}
 function resetIQSession(){iqIndex=0;iqScoreValue=0;iqStreakValue=0;iqCorrectValue=0;renderIQQuestion()}
-function renderPracticeHub(){$('practiceList').innerHTML=practicePlans.map((p,i)=>`<div class="practice-card"><div class="eyebrow">${esc(p.tag)}</div><h3>${esc(p.title)}</h3><p>${esc(p.desc)}</p><div class="row space" style="margin-top:12px"><span class="profile-meta">${p.minutes} minutes</span><button class="mini-btn blue" onclick="startPracticePlan(${i})">Start</button></div></div>`).join('')}
-function startPracticePlan(i){const p=practicePlans[i];alert(`${p.title}\n\n${p.desc}\n\nTarget time: ${p.minutes} minutes`)}
+const practiceSteps={
+'Pitching':['5 min dynamic warm-up','10 dry delivery reps','20 target throws at 60–70%','12-pitch command challenge: 8/12 strikes','5 min arm-care cooldown'],
+'Catching':['3 min hip/ankle mobility','20 quiet receives','15 block-and-recover reps','10 clean transfers each direction','10 throw-footwork reps'],
+'Hitting':['10 dry swings','15 middle tee swings','10 opposite-field swings','10 pull-side swings','10-swing quality-contact challenge'],
+'Infield':['20 ready-position hops','15 forehands','15 backhands','10 slow rollers','10 field-transfer-throw reps'],
+'Outfield':['10 drop steps each side','10 angle routes','10 ground-ball pickups','10 crow-hop throws','5 game-speed route reps'],
+'Athleticism':['4 x 10-yard starts','4 crossover starts each side','4 shuffle-to-sprint reps','4 x 20-yard accelerations','Full recovery between quality reps'],
+'Recovery':['3 min easy movement','Shoulder/forearm mobility','Light band or towel work','Easy breathing reset','No painful stretching or throwing'],
+'Throwing Support':['3 min movement warm-up','Wrist/forearm prep','10 easy short throws','10 step-behind throws','Finish with easy catch; stop for pain']};
+function renderPracticeHub(){const pos=(currentPlayer?.primary_position||'').toLowerCase();const rank=p=>{const t=p.tag.toLowerCase();return (pos.includes('pitch')&&t==='pitching')||(pos.includes('catch')&&t==='catching')||(pos.includes('out')&&t==='outfield')||(pos.includes('in')&&t==='infield')?0:1};$('practiceList').innerHTML=[...practicePlans].sort((a,b)=>rank(a)-rank(b)).map(p=>{const i=practicePlans.indexOf(p);return `<div class="practice-card"><div class="eyebrow">${esc(p.tag)}</div><h3>${esc(p.title)}</h3><p>${esc(p.desc)}</p><div class="row space" style="margin-top:12px"><span class="profile-meta">${p.minutes} minutes</span><button class="mini-btn blue" onclick="startPracticePlan(${i})">Open Plan</button></div></div>`}).join('')}
+function startPracticePlan(i){const p=practicePlans[i],steps=practiceSteps[p.tag]||[p.desc];$('practiceModalTitle').textContent=p.title;$('practiceModalMeta').textContent=`${p.tag} • ${p.minutes} minutes`;$('practiceModalSteps').innerHTML=steps.map((x,n)=>`<div class="exercise"><strong>${n+1}. ${esc(x)}</strong></div>`).join('');$('practiceModal').classList.remove('hidden')}
+function closePracticePlan(){$('practiceModal').classList.add('hidden')}
+async function completePracticePlan(){const title=$('practiceModalTitle').textContent,p=practicePlans.find(x=>x.title===title);if(!p||!currentPlayer)return closePracticePlan();const {error}=await client.from('workout_logs').insert({player_id:currentPlayer.id,workout_id:'practice-'+p.tag.toLowerCase().replace(/\s+/g,'-'),workout_title:p.title,category:p.tag,minutes:p.minutes,completed_on:today(),notes:'Completed from Home Practice'});if(error)return alert(error.message);closePracticePlan();await loadPlayerData();renderAll();alert('Practice session completed and added to progress.')}
+
 function populateDevelopmentPlayerSelect(){const s=$('progressPlayerSelect');if(!s)return;s.innerHTML=players.map(p=>`<option value="${p.id}">${esc((p.preferred_name||p.first_name)+' '+p.last_name)}</option>`).join('');if(currentPlayer?.id)s.value=currentPlayer.id}
 async function renderDevelopmentProgress(){
   const pid=$('progressPlayerSelect')?.value||currentPlayer?.id;if(!pid)return;
