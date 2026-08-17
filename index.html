@@ -703,29 +703,23 @@ const FIELD_POINTS={
   LF:[24,23],CF:[50,14],RF:[76,23],
   SS:[39,45],'2B':[61,45],'3B':[29,61],'1B':[71,61],P:[50,60],C:[50,85],
   FIRST:[68,59],SECOND:[50,40],THIRD:[32,59],HOME:[50,78],
-  BUNT_LEFT:[44,70],BUNT_RIGHT:[56,70],POP_HOME:[50,72],
-  CUTOFF_RIGHT:[63,49],BACKUP_FIRST:[79,67],BACKUP_THIRD:[21,67],
-  BALL_LEFT_CENTER:[38,20],BALL_SHALLOW:[50,34]
+  BUNT_LEFT:[42,67],BUNT_RIGHT:[58,67],POP_HOME:[50,72],
+  CUTOFF_RIGHT:[61,52],RELAY_GAP:[50,34],BACKUP_SECOND:[50,32],
+  BACKUP_FIRST:[80,66],BACKUP_THIRD:[20,66],BALL_LEFT_CENTER:[38,20],BALL_SHALLOW:[50,34]
 };
 
 function setScenarioRunner(q){
   const r=document.querySelector('.field-diagram .p-runner');
   if(!r)return;
   const raw=String(q?.runner||'').toLowerCase();
-  r.style.opacity='1';
-  r.textContent='R';
-
-  if(raw.includes('bases empty') || raw==='any'){
-    r.style.opacity='0';
-  }else if(raw.includes('runner on 1st') || raw.includes('batter-runner') || raw.includes('runner trapped')){
-    r.style.left='68%';r.style.top='59%';
-  }else if(raw.includes('runner on 3rd')){
-    r.style.left='32%';r.style.top='59%';
-  }else if(raw.includes('multiple')){
-    r.style.left='50%';r.style.top='40%';r.textContent='R+';
-  }else{
-    r.style.left='50%';r.style.top='40%';
-  }
+  r.style.opacity='1'; r.textContent='R';
+  if(raw.includes('bases empty') || raw==='any') r.style.opacity='0';
+  else if(raw.includes('1st & 3rd')){r.style.left='68%';r.style.top='59%';r.textContent='R+';}
+  else if(raw.includes('runner on 1st') || raw.includes('batter-runner') || raw.includes('runner trapped')){r.style.left='68%';r.style.top='59%';}
+  else if(raw.includes('runner on 3rd')){r.style.left='32%';r.style.top='59%';}
+  else if(raw.includes('multiple')){r.style.left='50%';r.style.top='40%';r.textContent='R+';}
+  else if(raw.includes('runner on 2nd')){r.style.left='50%';r.style.top='40%';}
+  else r.style.opacity='0';
 }
 
 function scenarioArrows(q){
@@ -735,100 +729,57 @@ function scenarioArrows(q){
       ['SS','THIRD','cover-path'],['2B','FIRST','cover-path']
     ],
     'Single to right with runner on first':[
-      ['RF','SS','throw-path'],['SS','THIRD','throw-path']
+      ['RF','SS','throw-path'],['SS','THIRD','throw-path'],['FIRST','THIRD','runner-path']
     ],
-    'Fly ball to left-center':[
-      ['CF','BALL_LEFT_CENTER','cover-path']
-    ],
-    'Ground ball to first':[
-      ['P','FIRST','cover-path']
-    ],
+    'Fly ball to left-center':[['CF','BALL_LEFT_CENTER','cover-path']],
+    'Ground ball to first':[['P','FIRST','cover-path']],
     'Runner stealing second':[
-      ['C','SECOND','throw-path'],['2B','SECOND','cover-path']
+      ['FIRST','SECOND','runner-path'],['C','SECOND','throw-path'],
+      ['2B','SECOND','cover-path'],['SS','BACKUP_SECOND','cover-path']
     ],
     'Deep ball in the gap':[
-      ['CF','SS','throw-path'],['SS','HOME','throw-path']
+      ['CF','RELAY_GAP','cover-path'],['RELAY_GAP','SS','throw-path'],['SS','HOME','throw-path']
     ],
-    'Backing up third':[
-      ['P','THIRD','cover-path']
-    ],
+    'Backing up third':[['P','BACKUP_THIRD','cover-path']],
     'Rundown between first and second':[
-      ['1B','SECOND','throw-path'],['2B','FIRST','throw-path']
+      ['FIRST','SECOND','runner-path'],['1B','SECOND','throw-path'],['2B','FIRST','throw-path']
     ],
     'Two outs, runner on second, base hit':[
-      ['CF','SS','throw-path'],['SS','HOME','throw-path']
+      ['CF','SS','throw-path'],['SS','HOME','throw-path'],['SECOND','HOME','runner-path']
     ],
-    'Ball in the dirt':[
-      ['FIRST','SECOND','runner-path']
-    ],
-    'Pop-up near home':[
-      ['C','POP_HOME','cover-path']
-    ],
+    'Ball in the dirt':[['FIRST','SECOND','runner-path']],
+    'Pop-up near home':[['C','POP_HOME','cover-path']],
     'Routine double-play ball':[
-      ['SS','SECOND','throw-path'],['SECOND','FIRST','throw-path']
+      ['SS','SECOND','throw-path'],['SECOND','FIRST','throw-path'],['FIRST','SECOND','runner-path']
     ],
-    'Runner on third, slow roller':[
-      ['3B','HOME','throw-path']
-    ],
+    'Runner on third, slow roller':[['3B','HOME','throw-path'],['THIRD','HOME','runner-path']],
     'Single to right, runner scoring from second':[
       ['1B','CUTOFF_RIGHT','cover-path'],['RF','CUTOFF_RIGHT','throw-path'],
-      ['CUTOFF_RIGHT','HOME','throw-path']
+      ['CUTOFF_RIGHT','HOME','throw-path'],['SECOND','HOME','runner-path']
     ],
-    'Fly ball with runner on third':[
-      ['CF','HOME','throw-path']
-    ],
-    'Tagging from third':[
-      ['THIRD','HOME','runner-path']
-    ],
-    'Overthrow at first':[
-      ['RF','BACKUP_FIRST','cover-path']
-    ],
-    'Overthrow at third':[
-      ['LF','BACKUP_THIRD','cover-path']
-    ],
-    'Passed ball with runner on third':[
-      ['P','HOME','cover-path'],['THIRD','HOME','runner-path']
-    ],
-    'Dropped third strike':[
-      ['C','FIRST','throw-path']
-    ],
-    'Force play at second':[
-      ['2B','SECOND','cover-path']
-    ],
-    'Runner on second, nobody out':[
-      ['SECOND','THIRD','runner-path']
-    ],
-    'Shallow fly behind second':[
-      ['CF','BALL_SHALLOW','cover-path']
-    ]
+    'Fly ball with runner on third':[['CF','HOME','throw-path'],['THIRD','HOME','runner-path']],
+    'Tagging from third':[['THIRD','HOME','runner-path']],
+    'Overthrow at first':[['RF','BACKUP_FIRST','cover-path']],
+    'Overthrow at third':[['LF','BACKUP_THIRD','cover-path']],
+    'Passed ball with runner on third':[['P','HOME','cover-path'],['THIRD','HOME','runner-path']],
+    'Dropped third strike':[['C','FIRST','throw-path']],
+    'Force play at second':[['2B','SECOND','cover-path'],['FIRST','SECOND','runner-path']],
+    'Runner on second, nobody out':[['SECOND','THIRD','runner-path']],
+    'Shallow fly behind second':[['CF','BALL_SHALLOW','cover-path']]
   };
   return map[q?.title||'']||[];
 }
 
 function drawScenarioArrows(q){
-  const group=$('movementArrows');
-  if(!group)return;
-  group.innerHTML='';
-
+  const group=$('movementArrows'); if(!group)return; group.innerHTML='';
   scenarioArrows(q).forEach(([from,to,kind])=>{
-    const a=FIELD_POINTS[from],b=FIELD_POINTS[to];
-    if(!a||!b)return;
-
+    const a=FIELD_POINTS[from],b=FIELD_POINTS[to]; if(!a||!b)return;
     const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1;
-    const trimStart=2.8,trimEnd=3.5;
-    const x1=a[0]+dx/len*trimStart;
-    const y1=a[1]+dy/len*trimStart;
-    const x2=b[0]-dx/len*trimEnd;
-    const y2=b[1]-dy/len*trimEnd;
-
+    const isRunner=kind==='runner-path', trimStart=isRunner?1.5:5.0, trimEnd=isRunner?2.2:5.0;
+    const x1=a[0]+dx/len*trimStart,y1=a[1]+dy/len*trimStart,x2=b[0]-dx/len*trimEnd,y2=b[1]-dy/len*trimEnd;
     const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',x1.toFixed(1));
-    line.setAttribute('y1',y1.toFixed(1));
-    line.setAttribute('x2',x2.toFixed(1));
-    line.setAttribute('y2',y2.toFixed(1));
-    line.setAttribute('class',`field-arrow-line ${kind||'cover-path'}`);
-    line.setAttribute('marker-end','url(#arrowHead)');
-    group.appendChild(line);
+    line.setAttribute('x1',x1.toFixed(1));line.setAttribute('y1',y1.toFixed(1));line.setAttribute('x2',x2.toFixed(1));line.setAttribute('y2',y2.toFixed(1));
+    line.setAttribute('class',`field-arrow-line ${kind||'cover-path'}`);line.setAttribute('marker-end','url(#arrowHead)');group.appendChild(line);
   });
 }
 
