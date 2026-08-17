@@ -305,34 +305,7 @@ input,select,textarea,button{max-width:100%}
   .p-p{top:59%}.p-c{top:86%}
   main{padding-bottom:135px!important}
 }
-
-/* QUIZ NAV CLEARANCE V4 */
-#learn{padding-bottom:180px!important}
-#learn .iq-shell{padding-bottom:36px!important;margin-bottom:160px!important}
-#learn #iqAnswers{padding-bottom:24px!important}
-#learn .iq-next-actions{margin-top:10px;padding-bottom:28px}
-@media(max-width:700px){
-  #learn{padding-bottom:220px!important}
-  #learn .iq-shell{margin-bottom:190px!important}
-  .app-bottom-nav{bottom:max(8px,env(safe-area-inset-bottom))!important}
-}
-
-/* DYNAMIC FIELD STATES V4 */
-.runner-dot{
-  position:absolute;width:40px;height:40px;border-radius:50%;
-  display:grid;place-items:center;background:#fb923c;color:#fff;font-weight:900;
-  border:4px solid #fff;box-shadow:0 0 0 3px rgba(251,146,60,.35);
-  z-index:8;transform:translate(-50%,-50%);
-}
-.runner-dot.hidden-runner{display:none}
-.runner-first{left:68%;top:59%}
-.runner-second{left:50%;top:40%}
-.runner-third{left:32%;top:59%}
-.runner-home{left:50%;top:78%}
-.field-state-label{text-align:center;font-size:11px;color:var(--muted);margin-top:8px;font-weight:700}
-.pos-dot.scenario-focus{box-shadow:0 0 0 4px rgba(239,68,68,.9),0 0 22px rgba(239,68,68,.45)}
-.pos-dot.scenario-target{box-shadow:0 0 0 4px rgba(34,197,94,.9),0 0 22px rgba(34,197,94,.45)}
-
+</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -559,10 +532,8 @@ input,select,textarea,button{max-width:100%}
         <div class="pos-dot p-1b" data-pos="1B">1B</div>
         <div class="pos-dot p-p" data-pos="P">P</div>
         <div class="pos-dot p-c" data-pos="C">C</div>
-        <div id="runner1" class="runner-dot hidden-runner">R</div>
-        <div id="runner2" class="runner-dot hidden-runner">R</div>
-        <div id="runner3" class="runner-dot hidden-runner">R</div></div>
-      <div class="field-caption">Field diagram is a learning aid for responsibilities and positioning.</div><div id="fieldStateLabel" class="field-state-label"></div><div id="fieldInstruction" class="field-instruction">Think through the situation before choosing an answer.</div>
+        <div class="pos-dot p-runner" data-pos="R">R</div></div>
+      <div class="field-caption">Field diagram is a learning aid for responsibilities and positioning.</div><div id="fieldInstruction" class="field-instruction">Think through the situation before choosing an answer.</div>
     </div>
 
     <div id="iqAnswers" class="answer-grid"></div>
@@ -708,53 +679,23 @@ function buildPersonalizedIQPool(){
   }
   $('summaryQuestions').textContent=iqPool.length;
 }
-
-function runnerBasesForScenario(q){
-  const raw=String(q?.runner||'').toLowerCase();
-  if(raw.includes('bases empty'))return [];
-  if(raw.includes('multiple'))return ['first','second'];
-  if(raw.includes('runner on 3rd'))return ['third'];
-  if(raw.includes('runner on 2nd'))return ['second'];
-  if(raw.includes('runner on 1st'))return ['first'];
-  if(raw.includes('runner trapped'))return ['first'];
-  if(raw.includes('batter-runner'))return ['first'];
-  if(raw.includes('runner advancing'))return ['second'];
-  return [];
-}
-function renderScenarioRunners(q){
-  const bases=runnerBasesForScenario(q);
-  const runners=[$('runner1'),$('runner2'),$('runner3')].filter(Boolean);
-  runners.forEach(r=>{r.className='runner-dot hidden-runner';r.textContent='R';});
-  bases.forEach((base,i)=>{if(runners[i])runners[i].className=`runner-dot runner-${base}`;});
-  const label=$('fieldStateLabel');
-  if(label)label.textContent=[q?.outs||'',q?.runner||''].filter(Boolean).join(' • ');
-}
-
 function updateFieldFocus(q,showMovement=false){
-  document.querySelectorAll('.field-diagram .pos-dot').forEach(el=>el.classList.remove('focused','movement-target','scenario-focus','scenario-target'));
-  renderScenarioRunners(q);
-
+  document.querySelectorAll('.field-diagram .pos-dot').forEach(el=>el.classList.remove('focused','movement-target'));
   const diagram=$('fieldDiagram');
   const arrow=$('movementArrow');
   if(arrow)arrow.style.display='none';
-
   const focusEl=q?.focus ? diagram?.querySelector(`[data-pos="${q.focus}"]`) : null;
   const targetEl=q?.movement ? diagram?.querySelector(`[data-pos="${q.movement}"]`) : null;
-
-  if(focusEl)focusEl.classList.add('scenario-focus');
-  if(showMovement && targetEl)targetEl.classList.add('scenario-target');
-
+  if(focusEl)focusEl.classList.add('focused');
+  if(showMovement && targetEl)targetEl.classList.add('movement-target');
   if(showMovement && focusEl && targetEl && arrow && diagram && q.focus!==q.movement){
-    const d=diagram.getBoundingClientRect();
-    const a=focusEl.getBoundingClientRect();
-    const b=targetEl.getBoundingClientRect();
+    const d=diagram.getBoundingClientRect(),a=focusEl.getBoundingClientRect(),b=targetEl.getBoundingClientRect();
     arrow.setAttribute('x1',(((a.left+a.width/2-d.left)/d.width)*100).toFixed(1));
     arrow.setAttribute('y1',(((a.top+a.height/2-d.top)/d.height)*100).toFixed(1));
     arrow.setAttribute('x2',(((b.left+b.width/2-d.left)/d.width)*100).toFixed(1));
     arrow.setAttribute('y2',(((b.top+b.height/2-d.top)/d.height)*100).toFixed(1));
     arrow.style.display='block';
   }
-
   $('fieldInstruction').textContent=q?.instruction||'Think through the situation before choosing an answer.';
 }
 function setLearnCategory(cat){
@@ -776,14 +717,6 @@ function renderIQQuestion(){
   const letters=['A','B','C','D'];
   $('iqAnswers').innerHTML=q.answers.map((a,i)=>`<button class="answer-btn" onclick="answerIQ(${i})">${esc(a)}<span class="answer-letter">${letters[i]||''}</span></button>`).join('');
 }
-function scrollQuizNextIntoView(){
-  setTimeout(()=>{
-    const next=$('iqNextBtn');
-    const feedback=$('iqFeedback');
-    const target=(next&&!next.classList.contains('hidden'))?next:feedback;
-    target?.scrollIntoView({behavior:'smooth',block:'center'});
-  },150);
-}
 function answerIQ(i){
   if(iqAnswered)return;
   iqAnswered=true;
@@ -799,7 +732,7 @@ function answerIQ(i){
     $('iqFeedback').className='note danger';
     $('iqFeedback').innerHTML=`<strong>Review the situation</strong><div style="margin-top:6px">${esc(q.explain)}</div>`;
   }
-  $('iqFeedback').classList.remove('hidden');$('iqNextBtn').classList.remove('hidden');scrollQuizNextIntoView();updateFieldFocus(q,true);$('summaryBestStreak').textContent=iqBestStreak;
+  $('iqFeedback').classList.remove('hidden');$('iqNextBtn').classList.remove('hidden');updateFieldFocus(q,true);$('summaryBestStreak').textContent=iqBestStreak;
   $('iqScore').textContent=iqScoreValue;$('iqStreak').textContent=iqStreakValue;$('iqCorrect').textContent=iqCorrectValue;
 }
 function nextIQQuestion(){
