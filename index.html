@@ -310,6 +310,19 @@ input,select,textarea,button{max-width:100%}
 .practice-modal{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.72);display:grid;place-items:center;padding:16px}.practice-modal-card{width:min(620px,100%);max-height:88vh;overflow:auto;background:#0f172a;border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 24px 70px rgba(0,0,0,.5)}
 .quick-actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:16px}.quick-action{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:14px;padding:13px;text-align:left;cursor:pointer}.quick-action strong{display:block}.quick-action span{font-size:11px;color:var(--muted)}
 @media(max-width:700px){.quick-actions{grid-template-columns:repeat(2,1fr)}.practice-modal-card{padding:16px}.app-bottom-nav{bottom:6px}}
+
+/* SCENARIO ARROW FIX */
+.field-arrow-line{
+  stroke:#22c55e;
+  stroke-width:2.7;
+  stroke-linecap:round;
+  fill:none;
+  filter:drop-shadow(0 0 3px rgba(34,197,94,.55));
+}
+.field-arrow-line.throw-path{stroke:#38bdf8}
+.field-arrow-line.runner-path{stroke:#fb923c;stroke-dasharray:4 3}
+.field-arrow-line.cover-path{stroke:#22c55e}
+.p-runner{transition:left .2s ease,top .2s ease,opacity .2s ease}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -527,7 +540,7 @@ input,select,textarea,button{max-width:100%}
               <path d="M0,0 L6,3 L0,6 Z" class="field-arrow-head"></path>
             </marker>
           </defs>
-          <line id="movementArrow" x1="50" y1="50" x2="50" y2="50" class="field-arrow-line" marker-end="url(#arrowHead)" style="display:none"></line>
+          <g id="movementArrows"></g>
         </svg>
         <div class="pos-dot p-lf" data-pos="LF">LF</div>
         <div class="pos-dot p-cf" data-pos="CF">CF</div>
@@ -686,23 +699,156 @@ function buildPersonalizedIQPool(){
   }
   $('summaryQuestions').textContent=iqPool.length;
 }
+const FIELD_POINTS={
+  LF:[24,23],CF:[50,14],RF:[76,23],
+  SS:[39,45],'2B':[61,45],'3B':[29,61],'1B':[71,61],P:[50,60],C:[50,85],
+  FIRST:[68,59],SECOND:[50,40],THIRD:[32,59],HOME:[50,78],
+  BUNT_LEFT:[44,70],BUNT_RIGHT:[56,70],POP_HOME:[50,72],
+  CUTOFF_RIGHT:[63,49],BACKUP_FIRST:[79,67],BACKUP_THIRD:[21,67],
+  BALL_LEFT_CENTER:[38,20],BALL_SHALLOW:[50,34]
+};
+
+function setScenarioRunner(q){
+  const r=document.querySelector('.field-diagram .p-runner');
+  if(!r)return;
+  const raw=String(q?.runner||'').toLowerCase();
+  r.style.opacity='1';
+  r.textContent='R';
+
+  if(raw.includes('bases empty') || raw==='any'){
+    r.style.opacity='0';
+  }else if(raw.includes('runner on 1st') || raw.includes('batter-runner') || raw.includes('runner trapped')){
+    r.style.left='68%';r.style.top='59%';
+  }else if(raw.includes('runner on 3rd')){
+    r.style.left='32%';r.style.top='59%';
+  }else if(raw.includes('multiple')){
+    r.style.left='50%';r.style.top='40%';r.textContent='R+';
+  }else{
+    r.style.left='50%';r.style.top='40%';
+  }
+}
+
+function scenarioArrows(q){
+  const map={
+    'Sacrifice bunt with runner at second':[
+      ['3B','BUNT_LEFT','cover-path'],['1B','BUNT_RIGHT','cover-path'],
+      ['SS','THIRD','cover-path'],['2B','FIRST','cover-path']
+    ],
+    'Single to right with runner on first':[
+      ['RF','SS','throw-path'],['SS','THIRD','throw-path']
+    ],
+    'Fly ball to left-center':[
+      ['CF','BALL_LEFT_CENTER','cover-path']
+    ],
+    'Ground ball to first':[
+      ['P','FIRST','cover-path']
+    ],
+    'Runner stealing second':[
+      ['C','SECOND','throw-path'],['2B','SECOND','cover-path']
+    ],
+    'Deep ball in the gap':[
+      ['CF','SS','throw-path'],['SS','HOME','throw-path']
+    ],
+    'Backing up third':[
+      ['P','THIRD','cover-path']
+    ],
+    'Rundown between first and second':[
+      ['1B','SECOND','throw-path'],['2B','FIRST','throw-path']
+    ],
+    'Two outs, runner on second, base hit':[
+      ['CF','SS','throw-path'],['SS','HOME','throw-path']
+    ],
+    'Ball in the dirt':[
+      ['FIRST','SECOND','runner-path']
+    ],
+    'Pop-up near home':[
+      ['C','POP_HOME','cover-path']
+    ],
+    'Routine double-play ball':[
+      ['SS','SECOND','throw-path'],['SECOND','FIRST','throw-path']
+    ],
+    'Runner on third, slow roller':[
+      ['3B','HOME','throw-path']
+    ],
+    'Single to right, runner scoring from second':[
+      ['1B','CUTOFF_RIGHT','cover-path'],['RF','CUTOFF_RIGHT','throw-path'],
+      ['CUTOFF_RIGHT','HOME','throw-path']
+    ],
+    'Fly ball with runner on third':[
+      ['CF','HOME','throw-path']
+    ],
+    'Tagging from third':[
+      ['THIRD','HOME','runner-path']
+    ],
+    'Overthrow at first':[
+      ['RF','BACKUP_FIRST','cover-path']
+    ],
+    'Overthrow at third':[
+      ['LF','BACKUP_THIRD','cover-path']
+    ],
+    'Passed ball with runner on third':[
+      ['P','HOME','cover-path'],['THIRD','HOME','runner-path']
+    ],
+    'Dropped third strike':[
+      ['C','FIRST','throw-path']
+    ],
+    'Force play at second':[
+      ['2B','SECOND','cover-path']
+    ],
+    'Runner on second, nobody out':[
+      ['SECOND','THIRD','runner-path']
+    ],
+    'Shallow fly behind second':[
+      ['CF','BALL_SHALLOW','cover-path']
+    ]
+  };
+  return map[q?.title||'']||[];
+}
+
+function drawScenarioArrows(q){
+  const group=$('movementArrows');
+  if(!group)return;
+  group.innerHTML='';
+
+  scenarioArrows(q).forEach(([from,to,kind])=>{
+    const a=FIELD_POINTS[from],b=FIELD_POINTS[to];
+    if(!a||!b)return;
+
+    const dx=b[0]-a[0],dy=b[1]-a[1],len=Math.hypot(dx,dy)||1;
+    const trimStart=2.8,trimEnd=3.5;
+    const x1=a[0]+dx/len*trimStart;
+    const y1=a[1]+dy/len*trimStart;
+    const x2=b[0]-dx/len*trimEnd;
+    const y2=b[1]-dy/len*trimEnd;
+
+    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x1.toFixed(1));
+    line.setAttribute('y1',y1.toFixed(1));
+    line.setAttribute('x2',x2.toFixed(1));
+    line.setAttribute('y2',y2.toFixed(1));
+    line.setAttribute('class',`field-arrow-line ${kind||'cover-path'}`);
+    line.setAttribute('marker-end','url(#arrowHead)');
+    group.appendChild(line);
+  });
+}
+
 function updateFieldFocus(q,showMovement=false){
   document.querySelectorAll('.field-diagram .pos-dot').forEach(el=>el.classList.remove('focused','movement-target'));
   const diagram=$('fieldDiagram');
-  const arrow=$('movementArrow');
-  if(arrow)arrow.style.display='none';
+  const group=$('movementArrows');
+  if(group)group.innerHTML='';
+
+  setScenarioRunner(q);
+
   const focusEl=q?.focus ? diagram?.querySelector(`[data-pos="${q.focus}"]`) : null;
-  const targetEl=q?.movement ? diagram?.querySelector(`[data-pos="${q.movement}"]`) : null;
   if(focusEl)focusEl.classList.add('focused');
-  if(showMovement && targetEl)targetEl.classList.add('movement-target');
-  if(showMovement && focusEl && targetEl && arrow && diagram && q.focus!==q.movement){
-    const d=diagram.getBoundingClientRect(),a=focusEl.getBoundingClientRect(),b=targetEl.getBoundingClientRect();
-    arrow.setAttribute('x1',(((a.left+a.width/2-d.left)/d.width)*100).toFixed(1));
-    arrow.setAttribute('y1',(((a.top+a.height/2-d.top)/d.height)*100).toFixed(1));
-    arrow.setAttribute('x2',(((b.left+b.width/2-d.left)/d.width)*100).toFixed(1));
-    arrow.setAttribute('y2',(((b.top+b.height/2-d.top)/d.height)*100).toFixed(1));
-    arrow.style.display='block';
+
+  if(showMovement){
+    drawScenarioArrows(q);
+    const target=q?.movement ? diagram?.querySelector(`[data-pos="${q.movement}"]`) : null;
+    if(target)target.classList.add('movement-target');
   }
+
   $('fieldInstruction').textContent=q?.instruction||'Think through the situation before choosing an answer.';
 }
 function setLearnCategory(cat){
