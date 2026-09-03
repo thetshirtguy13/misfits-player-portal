@@ -168,17 +168,32 @@ def audit(action, detail="", who=None):
     db.session.commit()
 
 def send_email(to, subject, body):
-    host=os.environ.get("MAIL_HOST")
-    if not host:
-        app.logger.warning("EMAIL to %s | %s | %s", to, subject, body)
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        app.logger.warning("RESEND_API_KEY is not configured")
         return False
-    msg=EmailMessage(); msg["Subject"]=subject; msg["From"]=os.environ.get("MAIL_FROM","no-reply@example.com"); msg["To"]=to; msg.set_content(body)
-    port=int(os.environ.get("MAIL_PORT","587")); use_tls=os.environ.get("MAIL_USE_TLS","true").lower()=="true"
-    with smtplib.SMTP(host,port,timeout=20) as s:
-        if use_tls: s.starttls()
-        if os.environ.get("MAIL_USERNAME"): s.login(os.environ.get("MAIL_USERNAME"),os.environ.get("MAIL_PASSWORD",""))
-        s.send_message(msg)
-    return True
+    try:
+        import urllib.request
+        payload = json.dumps({
+            "from": os.environ.get("MAIL_FROM", "onboarding@resend.dev"),
+            "to": [to],
+            "subject": subject,
+            "text": body
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return 200 <= response.status < 300
+    except Exception:
+        app.logger.exception("Resend email failed")
+        return False
 
 def token_for(kind, payload):
     return serializer.dumps({"kind":kind, **payload})
