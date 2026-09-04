@@ -19,7 +19,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "false").lower()=="true",
-    MAX_CONTENT_LENGTH=3 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=200 * 1024 * 1024,
 )
 db_url = os.environ.get("DATABASE_URL", "sqlite:///misfits.db")
 if db_url.startswith("postgres://"):
