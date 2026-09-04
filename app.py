@@ -174,6 +174,7 @@ def send_email(to, subject, body):
         return False
     try:
         import urllib.request
+        import urllib.error
         payload = json.dumps({
             "from": os.environ.get("MAIL_FROM", "onboarding@resend.dev"),
             "to": [to],
@@ -191,6 +192,13 @@ def send_email(to, subject, body):
         )
         with urllib.request.urlopen(req, timeout=15) as response:
             return 200 <= response.status < 300
+    except urllib.error.HTTPError as e:
+        try:
+            error_body = e.read().decode("utf-8", errors="replace")
+        except Exception:
+            error_body = "<unable to read response body>"
+        app.logger.error("Resend HTTP error %s: %s", e.code, error_body)
+        return False
     except Exception:
         app.logger.exception("Resend email failed")
         return False
