@@ -168,41 +168,17 @@ def audit(action, detail="", who=None):
     db.session.commit()
 
 def send_email(to, subject, body):
-    api_key = os.environ.get("RESEND_API_KEY")
-    if not api_key:
-        app.logger.warning("RESEND_API_KEY is not configured")
+    host=os.environ.get("MAIL_HOST")
+    if not host:
+        app.logger.warning("EMAIL to %s | %s | %s", to, subject, body)
         return False
-    try:
-        import urllib.request
-        import urllib.error
-        payload = json.dumps({
-            "from": os.environ.get("MAIL_FROM", "onboarding@resend.dev"),
-            "to": [to],
-            "subject": subject,
-            "text": body
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "User-Agent": "Misfits-Player-Development/1.0"
-            },
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=15) as response:
-            return 200 <= response.status < 300
-    except urllib.error.HTTPError as e:
-        try:
-            error_body = e.read().decode("utf-8", errors="replace")
-        except Exception:
-            error_body = "<unable to read response body>"
-        app.logger.error("Resend HTTP error %s: %s", e.code, error_body)
-        return False
-    except Exception:
-        app.logger.exception("Resend email failed")
-        return False
+    msg=EmailMessage(); msg["Subject"]=subject; msg["From"]=os.environ.get("MAIL_FROM","no-reply@example.com"); msg["To"]=to; msg.set_content(body)
+    port=int(os.environ.get("MAIL_PORT","587")); use_tls=os.environ.get("MAIL_USE_TLS","true").lower()=="true"
+    with smtplib.SMTP(host,port,timeout=20) as s:
+        if use_tls: s.starttls()
+        if os.environ.get("MAIL_USERNAME"): s.login(os.environ.get("MAIL_USERNAME"),os.environ.get("MAIL_PASSWORD",""))
+        s.send_message(msg)
+    return True
 
 def token_for(kind, payload):
     return serializer.dumps({"kind":kind, **payload})
@@ -470,6 +446,7 @@ def gamechanger():
             name=pick(r,"Player","Player Name","Name","Athlete") or (str(pick(r,"First Name","First"))+" "+str(pick(r,"Last Name","Last"))).strip()
             p=next((x for x in players if x and key(x.name)==key(name)),None)
             if not p: unmatched.append(name); continue
+            GameStat.query.filter(GameStat.player_id==p.id, GameStat.source.like("gamechanger%")).delete(synchronize_session=False)
             db.session.add(GameStat(player_id=p.id,played_on=date.today(),opponent="GameChanger season import",ab=int(n(pick(r,"AB","At Bats"))),hits=int(n(pick(r,"H","Hits"))),walks=int(n(pick(r,"BB","Walks"))),runs=int(n(pick(r,"R","Runs"))),rbi=int(n(pick(r,"RBI"))),sb=int(n(pick(r,"SB","Stolen Bases"))),ip=n(pick(r,"IP","Innings Pitched")),pso=int(n(pick(r,"SO","K","Strikeouts"))),er=int(n(pick(r,"ER","Earned Runs"))),pitches=int(n(pick(r,"Pitches","Pitch Count","PC"))),source=f"gamechanger:{max(1, int(n(pick(r, 'GP', 'Games', 'Games Played')) or 1))}")); imported+=1
         db.session.commit(); audit("gamechanger_import",f"rows={imported}; unmatched={len(unmatched)}"); result={"imported":imported,"unmatched":unmatched}
     return render_template("gamechanger.html",user=u,result=result)
