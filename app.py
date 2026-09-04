@@ -241,7 +241,13 @@ def player_totals(pid):
     rows=GameStat.query.filter_by(player_id=pid).all()
     def s(k): return sum(getattr(r,k) or 0 for r in rows)
     ab,h,bb=s("ab"),s("hits"),s("walks")
-    return {"games":len(rows),"ab":ab,"hits":h,"walks":bb,"runs":s("runs"),"rbi":s("rbi"),"sb":s("sb"),"ip":round(s("ip"),1),"pso":s("pso"),"er":s("er"),"pitches":s("pitches"),"avg":h/ab if ab else 0,"obp":(h+bb)/(ab+bb) if ab+bb else 0}
+    games=sum(
+        int(g.source.split(":",1)[1])
+        if g.source and g.source.startswith("gamechanger:") and g.source.split(":",1)[1].isdigit()
+        else 1
+        for g in rows
+    )
+    return {"games":games,"ab":ab,"hits":h,"walks":bb,"runs":s("runs"),"rbi":s("rbi"),"sb":s("sb"),"ip":round(s("ip"),1),"pso":s("pso"),"er":s("er"),"pitches":s("pitches"),"avg":h/ab if ab else 0,"obp":(h+bb)/(ab+bb) if ab+bb else 0}
 
 def team_ids_for(u):
     return [m.team_id for m in TeamMembership.query.filter_by(user_id=u.id,approved=True).all()]
@@ -464,7 +470,7 @@ def gamechanger():
             name=pick(r,"Player","Player Name","Name","Athlete") or (str(pick(r,"First Name","First"))+" "+str(pick(r,"Last Name","Last"))).strip()
             p=next((x for x in players if x and key(x.name)==key(name)),None)
             if not p: unmatched.append(name); continue
-            db.session.add(GameStat(player_id=p.id,played_on=date.today(),opponent="GameChanger season import",ab=int(n(pick(r,"AB","At Bats"))),hits=int(n(pick(r,"H","Hits"))),walks=int(n(pick(r,"BB","Walks"))),runs=int(n(pick(r,"R","Runs"))),rbi=int(n(pick(r,"RBI"))),sb=int(n(pick(r,"SB","Stolen Bases"))),ip=n(pick(r,"IP","Innings Pitched")),pso=int(n(pick(r,"SO","K","Strikeouts"))),er=int(n(pick(r,"ER","Earned Runs"))),pitches=int(n(pick(r,"Pitches","Pitch Count","PC"))),source="gamechanger")); imported+=1
+            db.session.add(GameStat(player_id=p.id,played_on=date.today(),opponent="GameChanger season import",ab=int(n(pick(r,"AB","At Bats"))),hits=int(n(pick(r,"H","Hits"))),walks=int(n(pick(r,"BB","Walks"))),runs=int(n(pick(r,"R","Runs"))),rbi=int(n(pick(r,"RBI"))),sb=int(n(pick(r,"SB","Stolen Bases"))),ip=n(pick(r,"IP","Innings Pitched")),pso=int(n(pick(r,"SO","K","Strikeouts"))),er=int(n(pick(r,"ER","Earned Runs"))),pitches=int(n(pick(r,"Pitches","Pitch Count","PC"))),source=f"gamechanger:{max(1, int(n(pick(r, 'GP', 'Games', 'Games Played')) or 1))}")); imported+=1
         db.session.commit(); audit("gamechanger_import",f"rows={imported}; unmatched={len(unmatched)}"); result={"imported":imported,"unmatched":unmatched}
     return render_template("gamechanger.html",user=u,result=result)
 
