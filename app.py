@@ -482,7 +482,7 @@ def media_upload():
         if not player or not can_view_player(current_user(),player): flash("You are not authorized for that player."); return redirect(url_for("media_library"))
     ext={"video/mp4":"mp4","video/quicktime":"mov","video/webm":"webm"}[f.mimetype]
     key=f"private/{current_user().id}/{uuid.uuid4().hex}.{ext}"
-    s3_client().upload_fileobj(f,media_bucket(),key,ExtraArgs={"ContentType":f.mimetype})
+    s3_client().put_object(Bucket=media_bucket(),Key=key,Body=f.stream,ContentType=f.mimetype)
     m=Media(owner_user_id=current_user().id,player_id=player_id,object_key=key,original_name=(f.filename or "video")[:255],content_type=f.mimetype); db.session.add(m); db.session.commit(); audit("media_uploaded",f"media_id={m.id}"); flash("Private video uploaded."); return redirect(url_for("media_library"))
 
 @app.route("/media/<int:mid>")
