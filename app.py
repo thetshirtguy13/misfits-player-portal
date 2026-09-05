@@ -485,6 +485,8 @@ def media_upload():
     try:
         s3_client().put_object(Bucket=media_bucket(),Key=key,Body=f.stream,ContentType=f.mimetype)
     except Exception as e:
+        response = getattr(e, "response", None)
+        app.logger.error("VIDEO UPLOAD ERROR RESPONSE: %r", response)
         app.logger.exception("VIDEO UPLOAD FAILED: %r", e)
         raise
     m=Media(owner_user_id=current_user().id,player_id=player_id,object_key=key,original_name=(f.filename or "video")[:255],content_type=f.mimetype); db.session.add(m); db.session.commit(); audit("media_uploaded",f"media_id={m.id}"); flash("Private video uploaded."); return redirect(url_for("media_library"))
