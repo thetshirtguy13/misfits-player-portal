@@ -458,7 +458,8 @@ def add_player_to_team(team_id):
             approved=player.consent_verified
         ))
 
-    db.session.commit()
+    db.session.commit() 
+    send_email(player.email, "Welcome to Misfits Player Development", f"Your player account has been created for {team.name}.") 
     audit("coach_added_player", f"team_id={team.id},player_id={player.id}")
     flash(f"{player.name} added to {team.name}.")
     return redirect(url_for("teams"))
