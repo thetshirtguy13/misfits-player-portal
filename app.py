@@ -157,7 +157,7 @@ def role_required(*roles):
         def wrapper(*a,**kw):
             u=current_user()
             if not u: return redirect(url_for("login"))
-            if u.role not in roles: return redirect(url_for("dashboard"))
+            if u.role != "admin" and u.role not in roles: return redirect(url_for("dashboard"))
             return fn(*a,**kw)
         return wrapper
     return deco
