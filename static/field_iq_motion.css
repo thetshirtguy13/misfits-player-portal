@@ -1,0 +1,1 @@
+.field-v2 .fielder{transition:transform .9s cubic-bezier(.2,.8,.2,1),background .25s,border-color .25s,box-shadow .25s}.field-v2 .fielder.moving{transform:translate(calc(-50% + var(--move-x)),calc(-50% + var(--move-y)));background:#ffc642;border-color:#fff4ce;box-shadow:0 0 0 7px rgba(255,198,66,.18),0 5px 14px rgba(0,0,0,.55)}
