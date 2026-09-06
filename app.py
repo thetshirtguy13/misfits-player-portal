@@ -250,9 +250,12 @@ def player_totals(pid):
     return {"games":games,"ab":ab,"hits":h,"walks":bb,"runs":s("runs"),"rbi":s("rbi"),"sb":s("sb"),"ip":round(s("ip"),1),"pso":s("pso"),"er":s("er"),"pitches":s("pitches"),"avg":h/ab if ab else 0,"obp":(h+bb)/(ab+bb) if ab+bb else 0}
 
 def team_ids_for(u):
+    if u.role=="admin":
+        return [team.id for team in Team.query.all()]
     return [m.team_id for m in TeamMembership.query.filter_by(user_id=u.id,approved=True).all()]
 
 def can_view_player(viewer, player):
+    if viewer.role=="admin": return True
     if viewer.id==player.id: return True
     if viewer.role=="parent" and player.parent_id==viewer.id: return True
     if viewer.role=="coach":
@@ -287,15 +290,30 @@ def register():
         email=request.form["email"].strip().lower(); password=request.form["password"]
         if len(password)<10: flash("Use a password with at least 10 characters."); return redirect(url_for("register"))
         if User.query.filter_by(email=email).first(): flash("That email already exists."); return redirect(url_for("register"))
-        u=User(role=role,name=request.form["name"].strip(),email=email,password_hash=generate_password_hash(password),age_group=request.form.get("age_group","") if role=="player" else "",position=request.form.get("position","") if role=="player" else "",consent_verified=(role!="player"))
-        db.session.add(u); db.session.commit(); audit("account_created",f"role={role}",u); send_verification(u)
+        parent_email=""
+        team=None
         if role=="player":
-            pe=request.form.get("parent_email","").strip().lower()
-            if not pe: flash("A parent/guardian email is required for youth player accounts."); db.session.delete(u); db.session.commit(); return redirect(url_for("register"))
-            cr=ConsentRequest(player_id=u.id,parent_email=pe); db.session.add(cr); db.session.commit()
+            parent_email=request.form.get("parent_email","").strip().lower()
+            join_code=request.form.get("join_code","").strip().upper()
+            if not parent_email: flash("A parent/guardian email is required for youth player accounts."); return redirect(url_for("register"))
+            team=Team.query.filter_by(join_code=join_code).first()
+            if not team: flash("A valid team join code is required for player accounts."); return redirect(url_for("register"))
+        u=User(role=role,name=request.form["name"].strip(),email=email,password_hash=generate_password_hash(password),age_group=request.form.get("age_group","") if role=="player" else "",position=request.form.get("position","") if role=="player" else "",consent_verified=(role!="player"))
+        db.session.add(u); db.session.flush()
+        if role=="player":
+            db.session.add(TeamMembership(team_id=team.id,user_id=u.id,role="player",approved=False))
+            cr=ConsentRequest(player_id=u.id,parent_email=parent_email); db.session.add(cr)
+        elif role=="parent":
+            approved_requests=ConsentRequest.query.filter_by(parent_email=email).filter(ConsentRequest.approved_at.isnot(None)).all()
+            for approved_request in approved_requests:
+                player=db.session.get(User,approved_request.player_id)
+                if player and player.role=="player" and player.parent_id is None:
+                    player.parent_id=u.id
+        db.session.commit(); audit("account_created",f"role={role}",u); send_verification(u)
+        if role=="player":
             tok=token_for("consent",{"cid":cr.id,"nonce":cr.token_nonce})
             link=app_url(url_for("parent_consent",token=tok))
-            sent=send_email(pe,"Parent consent for Misfits Player Development",f"Review and approve this player account: {link}")
+            sent=send_email(parent_email,"Parent consent for Misfits Player Development",f"Review and approve this player account: {link}\n\nAfter approval, create or sign in to a parent account using this email address to view the player.")
             if not sent: flash("Development parent-consent link: "+link)
         session.clear(); session["user_id"]=u.id; return redirect(url_for("dashboard"))
     return render_template("register.html")
@@ -363,8 +381,11 @@ def parent_consent(token):
         cr.approved_at=datetime.utcnow(); player.consent_verified=True
         parent=User.query.filter_by(email=cr.parent_email,role="parent").first()
         if parent: player.parent_id=parent.id
+        TeamMembership.query.filter_by(user_id=player.id,role="player").update({"approved":True})
         db.session.commit(); audit("parent_consent_approved",f"player_id={player.id}",parent or player)
-        return render_template("message.html",title="Consent approved",message="The player account can now use development tracking features.")
+        message="The player account can now use development tracking features."
+        if not parent: message+=" Create a parent account using this email address to view the linked player."
+        return render_template("message.html",title="Consent approved",message=message)
     return render_template("consent.html",player=player,parent_email=cr.parent_email)
 
 # ---------------- Main app ----------------
@@ -424,68 +445,15 @@ def teams():
         org=Organization.query.filter_by(owner_id=u.id).first()
         if not org: org=Organization(name=request.form.get("organization","Misfits Baseball")[:120],owner_id=u.id); db.session.add(org); db.session.flush()
         team=Team(organization_id=org.id,name=request.form["name"][:120],age_group=request.form.get("age_group","")[:20],join_code=secrets.token_hex(3).upper()); db.session.add(team); db.session.flush(); db.session.add(TeamMembership(team_id=team.id,user_id=u.id,role="coach")); db.session.commit(); audit("team_created",f"team_id={team.id}"); return redirect(url_for("teams"))
-    tids=team_ids_for(u); rows=Team.query.filter(Team.id.in_(tids)).all() if tids else []
+    tids=team_ids_for(u)
+    rows=Team.query.all() if u.role=="admin" else (Team.query.filter(Team.id.in_(tids)).all() if tids else [])
     return render_template("teams.html",user=u,teams=rows)
 
 
 @app.route("/teams/<int:team_id>/add-player", methods=["POST"])
 @role_required("coach")
 def add_player_to_team(team_id):
-    coach = current_user()
-    team = db.session.get(Team, team_id)
-
-    if not team or team.id not in team_ids_for(coach):
-        flash("Team not found or you do not have permission.")
-        return redirect(url_for("teams"))
-
-    name = request.form.get("name", "").strip()
-    email = request.form.get("email", "").strip().lower()
-    age_group = request.form.get("age_group", team.age_group or "").strip()
-    position = request.form.get("position", "").strip()
-
-    if not name or not email:
-        flash("Player name and email are required.")
-        return redirect(url_for("teams"))
-
-    player = User.query.filter_by(email=email).first()
-
-    if player:
-        if player.role != "player":
-            flash("That email already belongs to a non-player account.")
-            return redirect(url_for("teams"))
-    else:
-        temporary_password = secrets.token_urlsafe(12)
-        player = User(
-            role="player",
-            name=name,
-            email=email,
-            password_hash=generate_password_hash(temporary_password),
-            age_group=age_group,
-            position=position,
-            email_verified=False,
-            consent_verified=False,
-            is_active=True
-        )
-        db.session.add(player)
-        db.session.flush()
-
-    membership = TeamMembership.query.filter_by(
-        team_id=team.id,
-        user_id=player.id
-    ).first()
-
-    if not membership:
-        db.session.add(TeamMembership(
-            team_id=team.id,
-            user_id=player.id,
-            role="player",
-            approved=player.consent_verified
-        ))
-
-    db.session.commit() 
-    send_email(player.email, "Welcome to Misfits Player Development", f"Your player account has been created for {team.name}.") 
-    audit("coach_added_player", f"team_id={team.id},player_id={player.id}")
-    flash(f"{player.name} added to {team.name}.")
+    flash("Players create their own accounts and join with the team's code shown below.")
     return redirect(url_for("teams"))
 
 
@@ -500,8 +468,13 @@ def join_team():
 @app.route("/coach")
 @role_required("coach")
 def coach():
-    u=current_user(); tids=team_ids_for(u); mids=TeamMembership.query.filter(TeamMembership.team_id.in_(tids),TeamMembership.role=="player",TeamMembership.approved==True).all() if tids else []
-    players=[db.session.get(User,m.user_id) for m in mids]; seen=set(); data=[]
+    u=current_user()
+    if u.role=="admin":
+        players=User.query.filter_by(role="player").all()
+    else:
+        tids=team_ids_for(u); mids=TeamMembership.query.filter(TeamMembership.team_id.in_(tids),TeamMembership.role=="player",TeamMembership.approved==True).all() if tids else []
+        players=[db.session.get(User,m.user_id) for m in mids]
+    seen=set(); data=[]
     for p in players:
         if not p or p.id in seen: continue
         seen.add(p.id); cs=WorkoutCompletion.query.filter_by(player_id=p.id).all(); data.append((p,len(cs),sum(x.minutes for x in cs),player_totals(p.id)))
@@ -549,13 +522,17 @@ def my_players():
 def media_library():
     u=current_user(); q=Media.query.order_by(Media.created_at.desc()).all(); rows=[m for m in q if can_view_media(u,m)]
     players=[]
-    if u.role=="coach":
+    if u.role=="admin":
+        players=User.query.filter_by(role="player").all()
+    elif u.role=="coach":
         tids=team_ids_for(u); mids=TeamMembership.query.filter(TeamMembership.team_id.in_(tids),TeamMembership.role=="player").all() if tids else []
         players=[db.session.get(User,m.user_id) for m in mids if db.session.get(User,m.user_id)]
+    elif u.role=="parent":
+        players=User.query.filter_by(parent_id=u.id,role="player").all()
     return render_template("media.html",user=u,rows=rows,players=players,storage_ready=bool(media_bucket()))
 
 @app.route("/media/upload",methods=["POST"])
-@role_required("coach","parent")
+@role_required("coach","parent","admin")
 @limiter.limit("20 per day")
 def media_upload():
     if not media_bucket(): flash("Private video storage is not configured yet."); return redirect(url_for("media_library"))
