@@ -265,6 +265,12 @@ def can_view_player(viewer, player):
 @app.before_request
 def bootstrap():
     db.create_all()
+    admin_email=os.environ.get("ADMIN_EMAIL","").strip().lower()
+    if admin_email:
+        designated_admin=User.query.filter_by(email=admin_email).first()
+        if designated_admin and designated_admin.role!="admin":
+            designated_admin.role="admin"
+            db.session.commit()
     if Workout.query.count()==0:
         for c,t,m,l,e in WORKOUTS: db.session.add(Workout(category=c,title=t,minutes=m,level=l,exercises=e))
         db.session.commit()

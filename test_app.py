@@ -10,6 +10,7 @@ import app as portal
 
 class PortalFlowTests(unittest.TestCase):
     def setUp(self):
+        os.environ.pop("ADMIN_EMAIL", None)
         portal.app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
         self.client = portal.app.test_client()
         with portal.app.app_context():
@@ -153,6 +154,15 @@ class PortalFlowTests(unittest.TestCase):
         response = self.client.get("/admin", follow_redirects=False)
         self.assertEqual(302, response.status_code)
         self.assertTrue(response.headers["Location"].endswith("/dashboard"))
+
+    def test_admin_email_setting_promotes_only_matching_account(self):
+        with patch.dict(os.environ, {"ADMIN_EMAIL": "coach@example.com"}):
+            self.client.get("/health")
+        with portal.app.app_context():
+            coach = portal.db.session.get(portal.User, self.coach_id)
+            other = portal.User.query.filter_by(email="other@example.com").one()
+            self.assertEqual("admin", coach.role)
+            self.assertEqual("coach", other.role)
 
     def test_registered_player_can_login_and_join_another_team(self):
         self.register()
