@@ -216,6 +216,14 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"Question 1 of 10", practice.data)
         self.assertIn(b"Halfway depth", practice.data)
         self.assertIn(b"pitch plan", practice.data.lower())
+        pitch_plan = self.client.get("/pitch-plan")
+        guides = self.client.get("/field-guides")
+        self.assertEqual(200, pitch_plan.status_code)
+        self.assertIn(b"Pitch Plan 10", pitch_plan.data)
+        self.assertIn(b"Fastball-Changeup Tunnel", pitch_plan.data)
+        self.assertEqual(200, guides.status_code)
+        self.assertIn(b"Pop-up priority ladder", guides.data)
+        self.assertIn(b"Single to right", guides.data)
 
 
 if __name__ == "__main__":

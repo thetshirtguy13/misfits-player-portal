@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Pitch Plan 10{% endblock %}{% block content %}
+<div class="quiz-shell pitch-quiz" data-questions='{{ questions|tojson }}'>
+  <div class="quiz-head"><div><small>PITCH IQ PRACTICE</small><h1>Pitch Plan 10</h1></div><strong id="question-count">Question 1 of 10</strong></div>
+  <div class="progress-track"><span id="quiz-progress"></span></div>
+  <div class="quiz-stats"><div><small>SCORE</small><strong id="score">0</strong></div><div><small>STREAK</small><strong id="streak">0</strong></div><div><small>CORRECT</small><strong id="correct">0</strong></div></div>
+  <section class="pitch-board"><span class="situation-label">STARTING SITUATION</span><div class="pitch-meta"><div><small>COUNT</small><strong id="pitch-count">1-1</strong></div><div><small>HITTER</small><strong id="hitter">RHH</strong></div></div>
+    <div class="zone-wrap"><span class="zone-up">UP</span><span class="zone-in">IN</span><span class="zone-away">AWAY</span><span class="zone-down">DOWN</span><div class="strike-zone"><i></i><i></i><i></i><i></i><span id="pitch-dot">FB</span></div></div>
+    <p class="previous"><span></span> Catcher's view · plan the next pitch</p>
+  </section>
+  <section class="question-card pitch-question"><div class="pitch-tags"><span id="pitch-category">PITCHING &amp; PITCH SELECTION</span><span id="pitch-level">ADVANCED</span></div><h2 id="pitch-title"></h2><div class="job-callout">Your job: choose a plan you can actually throw with confidence.</div><h2 id="question"></h2><div id="answers" class="answers"></div><div id="feedback" class="feedback" aria-live="polite"></div><button id="next-question" class="gold-btn" hidden>Next pitch →</button></section>
+  <a class="quit-link" href="{{url_for('learn')}}">Quit to Learn</a>
+</div><script src="{{url_for('static',filename='pitch_plan.js')}}"></script>
+{% endblock %}
