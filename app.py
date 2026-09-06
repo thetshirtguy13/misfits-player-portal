@@ -516,6 +516,79 @@ def gamechanger():
 def my_players():
     u=current_user(); linked=User.query.filter_by(parent_id=u.id,role="player").all(); return render_template("my_players.html",user=u,linked=linked)
 
+# ---------------- Administration ----------------
+@app.route("/admin")
+@role_required("admin")
+def admin_panel():
+    players=User.query.filter_by(role="player").order_by(User.name).all()
+    teams=Team.query.order_by(Team.name).all()
+    rows=[]
+    for player in players:
+        memberships=TeamMembership.query.filter_by(user_id=player.id,role="player").all()
+        parent=db.session.get(User,player.parent_id) if player.parent_id else None
+        consent=ConsentRequest.query.filter_by(player_id=player.id).order_by(ConsentRequest.created_at.desc()).first()
+        rows.append((player,memberships,parent,consent))
+    return render_template("admin.html",user=current_user(),rows=rows,teams=teams)
+
+@app.route("/admin/player/<int:pid>/team",methods=["POST"])
+@role_required("admin")
+def admin_assign_team(pid):
+    player=db.session.get(User,pid)
+    team=db.session.get(Team,int(request.form.get("team_id",0) or 0))
+    if not player or player.role!="player" or not team:
+        flash("Player or team not found."); return redirect(url_for("admin_panel"))
+    membership=TeamMembership.query.filter_by(team_id=team.id,user_id=player.id).first()
+    if membership:
+        membership.role="player"; membership.approved=player.consent_verified
+    else:
+        db.session.add(TeamMembership(team_id=team.id,user_id=player.id,role="player",approved=player.consent_verified))
+    db.session.commit(); audit("admin_assigned_player_team",f"player_id={player.id},team_id={team.id}")
+    flash(f"{player.name} assigned to {team.name}."); return redirect(url_for("admin_panel"))
+
+@app.route("/admin/player/<int:pid>/team/<int:team_id>/remove",methods=["POST"])
+@role_required("admin")
+def admin_remove_team(pid,team_id):
+    player=db.session.get(User,pid); team=db.session.get(Team,team_id)
+    membership=TeamMembership.query.filter_by(team_id=team_id,user_id=pid,role="player").first()
+    if not player or player.role!="player" or not membership:
+        flash("Team assignment not found."); return redirect(url_for("admin_panel"))
+    db.session.delete(membership); db.session.commit()
+    audit("admin_removed_player_team",f"player_id={pid},team_id={team_id}")
+    flash(f"{player.name} removed from {team.name if team else 'team'}."); return redirect(url_for("admin_panel"))
+
+@app.route("/admin/player/<int:pid>/status",methods=["POST"])
+@role_required("admin")
+def admin_player_status(pid):
+    player=db.session.get(User,pid)
+    if not player or player.role!="player": flash("Player not found."); return redirect(url_for("admin_panel"))
+    player.is_active=request.form.get("status")=="activate"; db.session.commit()
+    audit("admin_player_status",f"player_id={pid},active={player.is_active}")
+    flash(f"{player.name} account {'activated' if player.is_active else 'disabled'}."); return redirect(url_for("admin_panel"))
+
+@app.route("/admin/player/<int:pid>/delete",methods=["POST"])
+@role_required("admin")
+@limiter.limit("10 per hour")
+def admin_delete_player(pid):
+    player=db.session.get(User,pid)
+    if not player or player.role!="player": flash("Player not found."); return redirect(url_for("admin_panel"))
+    if request.form.get("confirm_name","").strip()!=player.name:
+        flash("Enter the player's exact name to confirm deletion."); return redirect(url_for("admin_panel"))
+    media_rows=Media.query.filter((Media.owner_user_id==player.id)|(Media.player_id==player.id)).all()
+    if media_bucket():
+        for media in media_rows:
+            try: s3_client().delete_object(Bucket=media_bucket(),Key=media.object_key)
+            except Exception: app.logger.exception("Unable to remove stored media for deleted player %s",player.id)
+    WorkoutCompletion.query.filter_by(player_id=player.id).delete()
+    GameStat.query.filter_by(player_id=player.id).delete()
+    TeamMembership.query.filter_by(user_id=player.id).delete()
+    ConsentRequest.query.filter_by(player_id=player.id).delete()
+    Media.query.filter((Media.owner_user_id==player.id)|(Media.player_id==player.id)).delete(synchronize_session=False)
+    AuditLog.query.filter_by(user_id=player.id).delete()
+    User.query.filter_by(parent_id=player.id).update({"parent_id":None})
+    player_name=player.name; db.session.delete(player); db.session.commit()
+    audit("admin_deleted_player",f"player_id={pid},name={player_name}")
+    flash(f"{player_name} account deleted."); return redirect(url_for("admin_panel"))
+
 # ---------------- Private media/video storage ----------------
 @app.route("/media",methods=["GET"])
 @login_required

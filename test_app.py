@@ -104,10 +104,55 @@ class PortalFlowTests(unittest.TestCase):
         self.login_as(self.admin_id)
         teams = self.client.get("/teams")
         players = self.client.get("/coach")
+        admin = self.client.get("/admin")
         self.assertIn(b"12U Blue", teams.data)
         self.assertIn(b"13U Gold", teams.data)
         self.assertIn(b"Player One", players.data)
+        self.assertIn(b"Player Account Administration", admin.data)
+        self.assertIn(b"parent@example.com", admin.data)
         self.assertIn(b">Players<", self.client.get("/dashboard").data)
+
+    def test_admin_can_assign_remove_and_disable_player(self):
+        self.register()
+        with portal.app.app_context():
+            player = portal.User.query.filter_by(email="player@example.com").one()
+            player.consent_verified = True
+            portal.db.session.commit()
+            player_id = player.id
+        self.login_as(self.admin_id)
+        self.client.post(f"/admin/player/{player_id}/team", data={"team_id": self.other_team_id})
+        with portal.app.app_context():
+            membership = portal.TeamMembership.query.filter_by(team_id=self.other_team_id, user_id=player_id).one()
+            self.assertTrue(membership.approved)
+        self.client.post(f"/admin/player/{player_id}/status", data={"status": "deactivate"})
+        with portal.app.app_context():
+            self.assertFalse(portal.db.session.get(portal.User, player_id).is_active)
+        self.client.post(f"/admin/player/{player_id}/team/{self.other_team_id}/remove")
+        with portal.app.app_context():
+            self.assertIsNone(portal.TeamMembership.query.filter_by(team_id=self.other_team_id, user_id=player_id).first())
+
+    def test_admin_deletion_requires_name_and_removes_player_account(self):
+        self.register()
+        with portal.app.app_context():
+            player = portal.User.query.filter_by(email="player@example.com").one()
+            player_id = player.id
+            portal.db.session.add(portal.GameStat(player_id=player_id, opponent="Test"))
+            portal.db.session.commit()
+        self.login_as(self.admin_id)
+        response = self.client.post(f"/admin/player/{player_id}/delete", data={"confirm_name": "wrong"}, follow_redirects=True)
+        self.assertIn(b"exact name", response.data)
+        with portal.app.app_context():
+            self.assertIsNotNone(portal.db.session.get(portal.User, player_id))
+        self.client.post(f"/admin/player/{player_id}/delete", data={"confirm_name": "Player One"})
+        with portal.app.app_context():
+            self.assertIsNone(portal.db.session.get(portal.User, player_id))
+            self.assertEqual(0, portal.GameStat.query.filter_by(player_id=player_id).count())
+
+    def test_coach_cannot_open_admin_workspace(self):
+        self.login_as(self.coach_id)
+        response = self.client.get("/admin", follow_redirects=False)
+        self.assertEqual(302, response.status_code)
+        self.assertTrue(response.headers["Location"].endswith("/dashboard"))
 
     def test_registered_player_can_login_and_join_another_team(self):
         self.register()
