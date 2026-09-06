@@ -206,6 +206,17 @@ class PortalFlowTests(unittest.TestCase):
         request = urlopen.call_args.args[0]
         self.assertEqual("misfits-player-development/1.0", request.get_header("User-agent"))
 
+    def test_baseball_iq_learning_and_practice_pages(self):
+        self.login_as(self.coach_id)
+        learn = self.client.get("/learn")
+        practice = self.client.get("/practice")
+        self.assertEqual(200, learn.status_code)
+        self.assertIn(b"Where do I go?", learn.data)
+        self.assertEqual(200, practice.status_code)
+        self.assertIn(b"Question 1 of 10", practice.data)
+        self.assertIn(b"Halfway depth", practice.data)
+        self.assertIn(b"pitch plan", practice.data.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

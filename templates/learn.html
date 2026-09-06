@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Learn Baseball IQ{% endblock %}{% block content %}
+<section class="learning-hero"><span>BASEBALL IQ</span><h1>Know where to go before the ball is hit.</h1><p>Learn the reads, rotations, communication and pitch plans that make a complete ballplayer.</p><a class="gold-btn" href="{{url_for('practice')}}">Start 10 situations →</a></section>
+<div class="lesson-grid">
+<article class="lesson-card featured"><small>10 SITUATIONS</small><h2>Where do I go?</h2><p>Cutoffs, positioning, backups, passed balls, bunts, the wheel play, communication and which base needs you.</p><a href="{{url_for('practice')}}">Start →</a></article>
+<article class="lesson-card"><small>CUTOFFS &amp; RELAYS</small><h2>Get in line</h2><p>Be the cutoff, cover the base, protect the runner behind the play and back up throws.</p><a href="{{url_for('practice')}}">Practice →</a></article>
+<article class="lesson-card"><small>BEFORE THE PITCH</small><h2>Where should I stand?</h2><p>Double-play depth, corners in, halfway, holding runners and protecting the lines.</p><a href="{{url_for('practice')}}">Practice →</a></article>
+<article class="lesson-card pitch"><small>PITCH STRATEGY</small><h2>Pitch Plan 10</h2><p>Use the count, what happened earlier in the game, and the pitches you can control today.</p><a href="{{url_for('practice')}}">Practice →</a></article>
+<article class="lesson-card guides"><small>FIELD DIAGRAMS</small><h2>Movement guides</h2><p>See runners, defender positions, field depth and backup responsibilities on every question.</p><a href="{{url_for('practice')}}">Open guides →</a></article>
+</div><details class="baseball-words"><summary>Baseball words used in the lessons</summary><dl><dt>Cutoff</dt><dd>A defender who receives and redirects an outfield throw.</dd><dt>Relay</dt><dd>A planned sequence of throws used to move the ball quickly.</dd><dt>Halfway</dt><dd>Infield depth between normal and fully in.</dd><dt>Wheel play</dt><dd>A bunt defense where the corners charge and the middle infield rotates.</dd></dl></details>
+{% endblock %}

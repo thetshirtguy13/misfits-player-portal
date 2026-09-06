@@ -138,6 +138,19 @@ WORKOUTS=[
 ("Fielding","Ground Ball Fundamentals",30,"All ages","Athletic warm-up — 5 min\nReady-position reps — 15\nForehand ground balls — 20\nBackhands — 20\nFunnel and footwork — 20\nThrow to target — 15"),
 ("Fielding","Outfield Footwork & Fly Balls",30,"All ages","Drop steps — 3 x 8 each side\nAngle routes — 3 x 6\nSelf-toss fly balls — 20\nGround ball approach — 15\nCrow-hop throws — 15\nBackup responsibility review — 5 min")]
 
+FIELD_IQ_QUESTIONS = [
+    {"situation":"Halfway depth","outs":0,"runners":"3rd","runner_bases":["third"],"question":"Why might an infield play halfway with a runner on third and fewer than two outs?","answers":["It is the same as standing on the outfield grass.","It guarantees the runner cannot score on any ground ball.","It removes the need for the catcher to communicate.","It balances a possible play at home with better range and a more reliable out at first."],"correct":3,"explanation":"Halfway depth keeps a possible throw home available without giving up as much range as playing all the way in."},
+    {"situation":"Double-play depth","outs":0,"runners":"1st","runner_bases":["first"],"question":"With a runner on first and fewer than two outs, why do the middle infielders move to double-play depth?","answers":["To be closer to second base for a faster turn.","To guard both foul lines.","To back up the catcher.","To make an outfield relay shorter."],"correct":0,"explanation":"Shortstop and second baseman shade toward second so they can receive the ball and turn two quickly."},
+    {"situation":"Corners in","outs":0,"runners":"1st","runner_bases":["first"],"question":"The batter squares to bunt. What is the first priority for the corner infielders?","answers":["Retreat to the outfield grass.","Charge under control and field the bunt.","Both cover second base.","Wait for the catcher to field every bunt."],"correct":1,"explanation":"The first and third basemen charge under control while teammates rotate to cover the bases."},
+    {"situation":"Cutoff to third","outs":1,"runners":"1st","runner_bases":["first"],"question":"A single is hit to right field and the runner tries for third. Who is usually the cutoff?","answers":["Shortstop","First baseman","Catcher","Pitcher"],"correct":1,"explanation":"On a throw from right field toward third, the first baseman commonly lines up as the cutoff while the pitcher backs up third."},
+    {"situation":"Cutoff to home","outs":1,"runners":"2nd","runner_bases":["second"],"question":"A base hit goes to left field and the runner from second heads home. Who usually lines up the throw?","answers":["First baseman","Second baseman","Third baseman","Shortstop"],"correct":2,"explanation":"The third baseman is commonly the cutoff on a throw from left field to home while other defenders cover and back up."},
+    {"situation":"Passed ball","outs":2,"runners":"3rd","runner_bases":["third"],"question":"A pitch gets past the catcher with a runner on third. Where should the pitcher go?","answers":["Cover home plate","Cover second base","Run to the dugout","Stay on the mound"],"correct":0,"explanation":"The catcher retrieves the ball and the pitcher covers home for a return throw and possible tag."},
+    {"situation":"Protect the line","outs":2,"runners":"1st & 2nd","runner_bases":["first","second"],"question":"Late in a close game, why might the corner infielders guard the lines?","answers":["To prevent an extra-base hit down the line.","To start a routine double play.","To make the pitcher throw harder.","To stop a stolen base at second."],"correct":0,"explanation":"Guarding the lines trades some range toward the middle for protection against a damaging extra-base hit."},
+    {"situation":"Backup responsibility","outs":1,"runners":"2nd","runner_bases":["second"],"question":"A throw from center field is headed to home plate. What should the first baseman do?","answers":["Stand on first base.","Join the outfielders.","Trail and back up the throw near home.","Cover third base."],"correct":2,"explanation":"Every throw needs a backup. The first baseman should get behind the play to contain an overthrow."},
+    {"situation":"Wheel play","outs":0,"runners":"1st & 2nd","runner_bases":["first","second"],"question":"On a wheel play against a bunt, which infielder breaks to cover third?","answers":["Shortstop","Second baseman","First baseman","Pitcher"],"correct":0,"explanation":"The corners charge, the shortstop rotates to third, and the second baseman covers first or second according to the team call."},
+    {"situation":"Pitch plan","outs":2,"runners":"2nd & 3rd","runner_bases":["second","third"],"question":"What should shape a pitcher and catcher's plan before the next pitch?","answers":["Only the loudest fan.","The count, hitter, game situation, earlier at-bats, and pitches available today.","The color of the hitter's bat.","Always throwing the same pitch."],"correct":1,"explanation":"Good pitch calling combines the count and game situation with hitter information and the pitches the pitcher can command that day."}
+]
+
 # ---------------- Helpers ----------------
 def current_user():
     uid=session.get("user_id")
@@ -403,6 +416,14 @@ def dashboard():
     memberships=TeamMembership.query.filter_by(user_id=u.id,approved=True).all()
     teams=[db.session.get(Team,m.team_id) for m in memberships]
     return render_template("dashboard.html",user=u,totals=player_totals(u.id) if u.role=="player" else None,completions=comps,linked=linked,teams=teams)
+
+@app.route("/learn")
+@login_required
+def learn(): return render_template("learn.html", user=current_user())
+
+@app.route("/practice")
+@login_required
+def practice(): return render_template("practice.html", user=current_user(), questions=FIELD_IQ_QUESTIONS)
 
 @app.route("/workouts")
 @login_required
