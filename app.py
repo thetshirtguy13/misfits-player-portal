@@ -186,7 +186,8 @@ def send_email(to, subject, body):
             data=payload,
             headers={
                 "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
+                "Content-Type": "application/json",
+        "User-Agent": "misfits-player-development/1.0"
             },
             method="POST"
         )
