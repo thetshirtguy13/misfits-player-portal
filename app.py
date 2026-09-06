@@ -403,6 +403,67 @@ def teams():
     tids=team_ids_for(u); rows=Team.query.filter(Team.id.in_(tids)).all() if tids else []
     return render_template("teams.html",user=u,teams=rows)
 
+
+@app.route("/teams/<int:team_id>/add-player", methods=["POST"])
+@role_required("coach")
+def add_player_to_team(team_id):
+    coach = current_user()
+    team = db.session.get(Team, team_id)
+
+    if not team or team.id not in team_ids_for(coach):
+        flash("Team not found or you do not have permission.")
+        return redirect(url_for("teams"))
+
+    name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip().lower()
+    age_group = request.form.get("age_group", team.age_group or "").strip()
+    position = request.form.get("position", "").strip()
+
+    if not name or not email:
+        flash("Player name and email are required.")
+        return redirect(url_for("teams"))
+
+    player = User.query.filter_by(email=email).first()
+
+    if player:
+        if player.role != "player":
+            flash("That email already belongs to a non-player account.")
+            return redirect(url_for("teams"))
+    else:
+        temporary_password = secrets.token_urlsafe(12)
+        player = User(
+            role="player",
+            name=name,
+            email=email,
+            password_hash=generate_password_hash(temporary_password),
+            age_group=age_group,
+            position=position,
+            email_verified=False,
+            consent_verified=False,
+            is_active=True
+        )
+        db.session.add(player)
+        db.session.flush()
+
+    membership = TeamMembership.query.filter_by(
+        team_id=team.id,
+        user_id=player.id
+    ).first()
+
+    if not membership:
+        db.session.add(TeamMembership(
+            team_id=team.id,
+            user_id=player.id,
+            role="player",
+            approved=player.consent_verified
+        ))
+
+    db.session.commit()
+    audit("coach_added_player", f"team_id={team.id},player_id={player.id}")
+    flash(f"{player.name} added to {team.name}.")
+    return redirect(url_for("teams"))
+
+
 @app.route("/join-team",methods=["POST"])
 @role_required("player")
 def join_team():
