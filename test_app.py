@@ -109,8 +109,21 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"12U Blue", teams.data)
         self.assertIn(b"13U Gold", teams.data)
         self.assertIn(b"Player One", players.data)
-        self.assertIn(b"Player Account Administration", admin.data)
+        self.assertIn(b"Account Administration", admin.data)
+        self.assertIn(b"Coach Accounts", admin.data)
+        self.assertIn(b"coach@example.com", admin.data)
         self.assertIn(b"parent@example.com", admin.data)
+
+    def test_admin_can_assign_new_coach_to_team(self):
+        with portal.app.app_context():
+            new_coach=portal.User(role="coach",name="New Coach",email="newcoach@example.com",password_hash="x",consent_verified=True)
+            portal.db.session.add(new_coach); portal.db.session.commit(); coach_id=new_coach.id
+        self.login_as(self.admin_id)
+        response=self.client.post(f"/admin/coach/{coach_id}/team",data={"team_id":self.team_id},follow_redirects=True)
+        self.assertIn(b"New Coach assigned",response.data)
+        with portal.app.app_context():
+            membership=portal.TeamMembership.query.filter_by(user_id=coach_id,team_id=self.team_id,role="coach").one()
+            self.assertTrue(membership.approved)
         self.assertIn(b">Players<", self.client.get("/dashboard").data)
 
     def test_admin_can_assign_remove_and_disable_player(self):

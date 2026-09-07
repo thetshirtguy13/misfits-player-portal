@@ -569,6 +569,7 @@ def my_players():
 @role_required("admin")
 def admin_panel():
     players=User.query.filter_by(role="player").order_by(User.name).all()
+    coaches=User.query.filter_by(role="coach").order_by(User.name).all()
     teams=Team.query.order_by(Team.name).all()
     rows=[]
     for player in players:
@@ -576,7 +577,33 @@ def admin_panel():
         parent=db.session.get(User,player.parent_id) if player.parent_id else None
         consent=ConsentRequest.query.filter_by(player_id=player.id).order_by(ConsentRequest.created_at.desc()).first()
         rows.append((player,memberships,parent,consent))
-    return render_template("admin.html",user=current_user(),rows=rows,teams=teams)
+    coach_rows=[(coach,TeamMembership.query.filter_by(user_id=coach.id,role="coach").all()) for coach in coaches]
+    return render_template("admin.html",user=current_user(),rows=rows,coach_rows=coach_rows,teams=teams)
+
+@app.route("/admin/coach/<int:cid>/team",methods=["POST"])
+@role_required("admin")
+def admin_assign_coach_team(cid):
+    coach=db.session.get(User,cid)
+    team=db.session.get(Team,int(request.form.get("team_id",0) or 0))
+    if not coach or coach.role!="coach" or not team:
+        flash("Coach or team not found."); return redirect(url_for("admin_panel"))
+    membership=TeamMembership.query.filter_by(team_id=team.id,user_id=coach.id).first()
+    if membership:
+        membership.role="coach"; membership.approved=True
+    else:
+        db.session.add(TeamMembership(team_id=team.id,user_id=coach.id,role="coach",approved=True))
+    db.session.commit(); audit("admin_assigned_coach_team",f"coach_id={coach.id},team_id={team.id}")
+    flash(f"{coach.name} assigned to {team.name}."); return redirect(url_for("admin_panel"))
+
+@app.route("/admin/coach/<int:cid>/team/<int:team_id>/remove",methods=["POST"])
+@role_required("admin")
+def admin_remove_coach_team(cid,team_id):
+    coach=db.session.get(User,cid); team=db.session.get(Team,team_id)
+    membership=TeamMembership.query.filter_by(team_id=team_id,user_id=cid,role="coach").first()
+    if not coach or coach.role!="coach" or not membership:
+        flash("Coach team assignment not found."); return redirect(url_for("admin_panel"))
+    db.session.delete(membership); db.session.commit(); audit("admin_removed_coach_team",f"coach_id={cid},team_id={team_id}")
+    flash(f"{coach.name} removed from {team.name if team else 'team'}."); return redirect(url_for("admin_panel"))
 
 @app.route("/admin/player/<int:pid>/team",methods=["POST"])
 @role_required("admin")
