@@ -561,6 +561,8 @@ def gamechanger():
 # ---------------- Parent ----------------
 from roster_profiles import install as install_roster_profiles
 RosterProfile = install_roster_profiles(app, db, Team, current_user, team_ids_for, role_required, audit)
+from finances import install as install_finances
+FinanceSetting, FinanceAccount, FinanceEntry, PaymentNotice = install_finances(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, current_user, role_required)
 
 @app.route("/my-players")
 @role_required("parent")
