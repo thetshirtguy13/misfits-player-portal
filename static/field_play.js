@@ -1,0 +1,48 @@
+(() => {
+  'use strict';
+  const shell=document.querySelector('.quiz-shell'); if(!shell)return;
+  const questions=JSON.parse(shell.dataset.questions), el=id=>document.getElementById(id);
+  const starts={cf:[50,17],lf:[24,28],rf:[76,28],ss:[39,55],secondbase:[61,55],thirdbase:[29,68],firstbase:[71,68],pitcher:[50,71],catcher:[50,94],'runner-first':[76,67],'runner-second':[50,43],'runner-third':[24,67]};
+  // Ball and player locations use field-relative percentages on every screen size.
+  const plays=[
+    {tip:'Halfway depth balances a possible throw home with range. Read the ground ball before deciding where to throw.',steps:[['Move halfway in.',[50,71],{ss:[41,62],secondbase:[59,62],thirdbase:[32,72],firstbase:[68,72]}],['Field the grounder and check the runner at third.',[41,62],{}],['Example: take the reliable out at first.',[72,68],{firstbase:[72,68]}]]},
+    {tip:'Double-play depth: shade toward second. The player without the ball covers the bag; get one out before attempting two.',steps:[['Shade toward second.',[50,94],{ss:[43,51],secondbase:[57,51]}],['Shortstop fields; second base covers.',[43,51],{secondbase:[50,47],'runner-first':[60,56]}],['Feed second for the force.',[50,47],{'runner-first':[50,47]}],['Turn and throw to first.',[72,68],{firstbase:[72,68]}]]},
+    {tip:'Corners charge a bunt under control. In this example, second base covers first and shortstop covers second.',steps:[['Read the bunt and charge.',[42,81],{thirdbase:[42,81],firstbase:[58,81]}],['Cover bases while third base fields.',[42,81],{secondbase:[72,68],ss:[50,47],'runner-first':[50,47]}],['Take the safe out at first.',[72,68],{}]]},
+    {tip:'A cutoff aligns between the outfielder and the target. The target calls whether to cut the throw or let it through.',steps:[['Single to right; runner rounds second.',[78,32],{rf:[78,32],'runner-first':[50,47]}],['First base aligns the relay; pitcher backs up third.',[54,50],{firstbase:[54,50],thirdbase:[28,67],pitcher:[16,78]}],['Relay to third as the runner advances.',[28,67],{'runner-first':[28,67]}]]},
+    {tip:'Relay home: align with the throw and listen to the catcher. This example uses third base as the cutoff from left.',steps:[['Single to left; runner rounds third.',[23,31],{lf:[23,31],'runner-second':[28,67]}],['Third base aligns the relay; pitcher backs up home.',[37,61],{thirdbase:[37,61],pitcher:[43,98]}],['Relay home for the catcher to receive.',[50,92],{catcher:[50,92],'runner-second':[50,94]}]]},
+    {tip:'Passed ball: pitcher covers home while the catcher retrieves and makes a controlled return throw.',steps:[['The pitch gets past the catcher.',[42,98],{}],['Catcher retrieves; pitcher covers home.',[42,98],{catcher:[42,98],pitcher:[50,93],'runner-third':[39,80]}],['Return the ball for a possible tag.',[50,93],{'runner-third':[50,94]}]]},
+    {tip:'Guarding the lines reduces extra-base hits down the line but gives up some coverage toward the middle.',steps:[['Corners shade toward the lines.',[50,94],{thirdbase:[24,68],firstbase:[76,68]}],['Example: stop a grounder near third.',[24,68],{}],['Set the feet and throw to first.',[72,68],{firstbase:[72,68]}]]},
+    {tip:'Backup: get behind the receiver, in line with the throw. This example follows a team call for first base to back up home.',steps:[['Center field gathers the ball.',[50,25],{cf:[50,25],'runner-second':[28,67]}],['First base trails behind home, clear of the runner.',[50,60],{firstbase:[55,98]}],['Catcher receives with a backup behind the play.',[50,93],{catcher:[50,92],'runner-second':[50,94]}]]},
+    {tip:'Wheel play: corners charge and shortstop covers third. This example sends second base to first; call coverage before the pitch.',steps:[['Corners charge the bunt.',[42,81],{thirdbase:[42,81],firstbase:[58,81]}],['Shortstop covers third; second base covers first.',[42,81],{ss:[28,67],secondbase:[72,68],'runner-second':[28,67],'runner-first':[50,47]}],['Example: throw to third for the available force.',[28,67],{}]]},
+    {tip:'Pitch plan: agree on pitch and target, check runners, then execute. The demonstration does not prescribe one pitch for every hitter.',steps:[['Check runners and get the sign.',[50,71],{catcher:[49,93]}],['Deliver to the agreed target.',[49,93],{pitcher:[50,76]}],['Receive and stay ready for contact.',[49,93],{ss:[40,57],secondbase:[60,57]}]]}
+  ];
+  let index=0,score=0,streak=0,correct=0,locked=false,frame=0,generation=0,elapsed=0,lastTime=null,paused=false,currentStep=-1;
+  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  function position(name,p){const f=document.querySelector(`.field-v2 .${name}`);if(f){f.style.left=`${p[0]}%`;f.style.top=`${p[1]}%`;}}
+  function stop(){generation++;cancelAnimationFrame(frame);frame=0;lastTime=null;}
+  function resetField(){stop();elapsed=0;paused=false;currentStep=-1;Object.entries(starts).forEach(([name,p])=>{position(name,p);document.querySelector(`.field-v2 .${name}`)?.classList.remove('moving');});el('play-ball').hidden=true;el('ball-trail').setAttribute('points','');el('pause-play').textContent='Pause';}
+  function draw(progress){
+    const steps=plays[index].steps,step=Math.min(steps.length-1,Math.floor(progress)),t=Math.min(1,progress-step),smooth=t*t*(3-2*t);
+    const before=structuredClone(starts);let from=[50,71];
+    for(let i=0;i<step;i++){Object.assign(before,steps[i][2]);from=steps[i][1];}
+    const after={...before,...steps[step][2]},to=steps[step][1];
+    if(step!==currentStep){currentStep=step;el('play-caption').textContent=`${step+1}/${steps.length}: ${steps[step][0]}`;}
+    Object.entries(after).forEach(([name,p])=>{const a=before[name];position(name,[a[0]+(p[0]-a[0])*smooth,a[1]+(p[1]-a[1])*smooth]);if(steps[step][2][name])document.querySelector(`.field-v2 .${name}`)?.classList.add('moving');});
+    const ball=[from[0]+(to[0]-from[0])*t,from[1]+(to[1]-from[1])*t];
+    el('play-ball').style.left=`${ball[0]}%`;el('play-ball').style.top=`${ball[1]}%`;
+    el('ball-trail').setAttribute('points',[[50,71],...steps.slice(0,step).map(s=>s[1]),ball].map(p=>`${p[0]*7},${p[1]*6.2}`).join(' '));
+  }
+  function tick(time,token){if(token!==generation||paused)return;if(lastTime!==null)elapsed+=Math.min(time-lastTime,100)*Number(el('play-speed').value);lastTime=time;const p=elapsed/1400;draw(p);if(p>=plays[index].steps.length){el('pause-play').hidden=true;frame=0;lastTime=null;return;}frame=requestAnimationFrame(t=>tick(t,token));}
+  function animatePlay(){resetField();el('play-ball').hidden=false;el('replay-play').hidden=false;el('pause-play').hidden=reduced.matches;if(reduced.matches){draw(plays[index].steps.length);el('play-caption').textContent=plays[index].steps.map(s=>s[0]).join(' ');return;}const token=generation;frame=requestAnimationFrame(t=>tick(t,token));}
+  function render(){
+    locked=false;resetField();const q=questions[index];el('question-count').textContent=`Question ${index+1} of ${questions.length}`;el('quiz-progress').style.width=`${index/questions.length*100}%`;el('situation').textContent=q.situation;el('outs').textContent=`${q.outs} OUT${q.outs===1?'':'S'}`;el('runners').textContent=`RUNNERS ${q.runners.toUpperCase()}`;el('question').textContent=q.question;el('question-tip').textContent=plays[index].tip;
+    document.querySelectorAll('.runner').forEach(r=>r.hidden=true);q.runner_bases.forEach(b=>document.querySelector(`.runner-${b}`).hidden=false);el('feedback').className='feedback';el('feedback').textContent='';el('next-question').hidden=true;el('replay-play').hidden=true;el('pause-play').hidden=true;el('play-caption').textContent='Answer the question to watch the play.';el('answers').replaceChildren();
+    q.answers.forEach((answer,i)=>{const b=document.createElement('button');b.type='button';b.className='answer';const letter=document.createElement('span'),text=document.createElement('b');letter.textContent=String.fromCharCode(65+i);text.textContent=answer;b.append(letter,text);b.addEventListener('click',()=>choose(i,b));el('answers').appendChild(b);});
+  }
+  function choose(choice,button){if(locked)return;locked=true;const q=questions[index];document.querySelectorAll('.answer').forEach((b,i)=>{b.disabled=true;if(i===q.correct)b.classList.add('right');});if(choice===q.correct){score+=100+streak*20;streak++;correct++;el('feedback').classList.add('good');el('feedback').textContent=`Correct! ${q.explanation}`;}else{streak=0;button.classList.add('wrong');el('feedback').classList.add('bad');el('feedback').textContent=`Good try. ${q.explanation}`;}el('score').textContent=score;el('streak').textContent=streak;el('correct').textContent=correct;el('next-question').hidden=false;animatePlay();}
+  el('replay-play').addEventListener('click',()=>{if(locked)animatePlay();});
+  el('pause-play').addEventListener('click',()=>{paused=!paused;el('pause-play').textContent=paused?'Resume':'Pause';if(paused){cancelAnimationFrame(frame);lastTime=null;}else{const token=generation;frame=requestAnimationFrame(t=>tick(t,token));}});
+  el('next-question').addEventListener('click',()=>{if(!locked)return;stop();index++;if(index<questions.length)render();else finish();});
+  function finish(){el('quiz-progress').style.width='100%';document.querySelector('.field-card').hidden=true;document.querySelector('.question-card').innerHTML=`<div class="quiz-finish"><small>ROUND COMPLETE</small><h2>${correct} of ${questions.length} correct</h2><p>You scored ${score} points. Review the reads and practice the movements with your coach.</p><button class="gold-btn" id="restart">Practice again</button></div>`;el('restart').addEventListener('click',()=>location.reload());}
+  render();
+})();

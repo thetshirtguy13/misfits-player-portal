@@ -559,6 +559,9 @@ def gamechanger():
     return render_template("gamechanger.html",user=u,result=result)
 
 # ---------------- Parent ----------------
+from roster_profiles import install as install_roster_profiles
+RosterProfile = install_roster_profiles(app, db, Team, current_user, team_ids_for, role_required, audit)
+
 @app.route("/my-players")
 @role_required("parent")
 def my_players():

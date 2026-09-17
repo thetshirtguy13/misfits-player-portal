@@ -1,0 +1,11 @@
+.field-v2{aspect-ratio:700/620!important;overflow:visible;margin-bottom:30px}
+.field-v2 .fielder,.field-v2 .runner{right:auto;bottom:auto;width:clamp(23px,6vw,42px);height:clamp(23px,6vw,42px);border-width:3px;font-size:clamp(10px,2.5vw,15px);transition:background .2s;transform:translate(-50%,-50%)}
+.field-v2 .fielder.moving,.field-v2 .runner.moving{transform:translate(-50%,-50%);border-color:#ffe69a;box-shadow:0 0 0 4px #ffc64240}
+.field-v2 .runner.moving{background:#ff8a32}
+.play-ball{position:absolute;z-index:6;transform:translate(-50%,-50%);font-size:clamp(15px,3vw,24px);line-height:1;filter:drop-shadow(0 2px 3px #000);pointer-events:none}
+.play-controls{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}.play-controls label{display:flex;align-items:center;gap:8px}.play-controls select{width:auto}.play-controls button{min-height:44px}.play-controls [hidden],.play-ball[hidden]{display:none!important}
+#play-caption{min-height:3em;color:#ffe3a1;font-weight:700;line-height:1.5}.field-legend{font-size:12px;color:#c9c4bb}.field-card{overflow:hidden}
+@media(prefers-reduced-motion:reduce){.field-v2 *{transition:none!important}.progress-track span{transition:none}}
+
+.quiz-shell [hidden]{display:none!important}
+@media(min-width:1000px){.quiz-shell{max-width:1200px;display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start}.quiz-head,.progress-track,.quiz-stats{grid-column:1/-1;margin:0}.field-card,.question-card{min-width:0;padding:20px}.question-card>h2{font-size:26px}.field-card h2{font-size:25px}.answer{font-size:16px;padding:12px}.field-v2{margin-top:0}}
