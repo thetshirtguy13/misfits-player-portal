@@ -247,7 +247,11 @@ def send_verification(u):
     tok=token_for("verify",{"uid":u.id})
     link=app_url(url_for("verify_email",token=tok))
     sent=send_email(u.email,"Verify your Misfits account",f"Verify your email: {link}\n\nIf you did not create this account, ignore this message.")
-    if not sent: flash("Development verification link: "+link)
+    if sent:
+        flash(f"Verification email submitted to {u.email}. Check your inbox and spam folder. The link expires in 24 hours.")
+    else:
+        flash("We could not send the verification email. Please try again later or contact your team admin.")
+    return sent
 
 def s3_client():
     endpoint=os.environ.get("S3_ENDPOINT_URL") or None
@@ -341,13 +345,15 @@ def register():
                 player=db.session.get(User,approved_request.player_id)
                 if player and player.role=="player" and player.parent_id is None:
                     player.parent_id=u.id
-        db.session.commit(); audit("account_created",f"role={role}",u); send_verification(u)
+        db.session.commit(); audit("account_created",f"role={role}",u)
+        session.clear(); session["user_id"]=u.id
+        send_verification(u)
         if role=="player":
             tok=token_for("consent",{"cid":cr.id,"nonce":cr.token_nonce})
             link=app_url(url_for("parent_consent",token=tok))
             sent=send_email(parent_email,"Parent consent for Misfits Player Development",f"Review and approve this player account: {link}\n\nAfter approval, create or sign in to a parent account using this email address to view the player.")
-            if not sent: flash("Development parent-consent link: "+link)
-        session.clear(); session["user_id"]=u.id; return redirect(url_for("dashboard"))
+            if not sent: flash("We could not send the parent-consent email. Please contact your team admin.")
+        return redirect(url_for("dashboard"))
     return render_template("register.html")
 
 @app.route("/login",methods=["GET","POST"])
@@ -376,7 +382,12 @@ def verify_email(token):
 @app.route("/resend-verification",methods=["POST"])
 @login_required
 @limiter.limit("3 per hour")
-def resend_verification(): send_verification(current_user()); flash("Verification message sent if email is configured."); return redirect(url_for("dashboard"))
+def resend_verification():
+    if current_user().email_verified:
+        flash("Your email is already verified.")
+    else:
+        send_verification(current_user())
+    return redirect(url_for("dashboard"))
 
 @app.route("/forgot-password",methods=["GET","POST"])
 @limiter.limit("5 per hour")
@@ -563,6 +574,8 @@ from roster_profiles import install as install_roster_profiles
 RosterProfile = install_roster_profiles(app, db, Team, current_user, team_ids_for, role_required, audit)
 from finances import install as install_finances
 FinanceSetting, FinanceAccount, FinanceEntry, PaymentNotice = install_finances(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, current_user, role_required)
+from family_access import install as install_family_access
+RosterFamilyLink = install_family_access(app, db, User, Team, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter)
 
 @app.route("/my-players")
 @role_required("parent")

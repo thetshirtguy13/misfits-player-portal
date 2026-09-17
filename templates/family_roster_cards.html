@@ -1,0 +1,1 @@
+{% if family_roster_profiles %}<section class="card"><h2>Team Roster Profiles</h2><p>Players your team admin has linked to your family.</p>{% for p in family_roster_profiles %}<div class="line"><a href="{{url_for('family_roster_profile',pid=p.id)}}"><strong>{{p.name}}</strong></a><span>{{p.season}}</span></div>{% endfor %}</section>{% endif %}
