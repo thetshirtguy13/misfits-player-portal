@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Calendar | Misfits Player Development{% endblock %}
+{% block content %}
+<section class="calendar-heading">
+  <div>
+    <h1>Team Calendar</h1>
+    <p class="muted">Games, tournaments, team practices, and Power Alley practices.</p>
+  </div>
+  <div class="calendar-nav" aria-label="Calendar month navigation">
+    <a class="btn secondary" href="{{url_for('team_calendar',year=previous.year,month=previous.month)}}">Previous</a>
+    <strong>{{month_name}} {{year}}</strong>
+    <a class="btn secondary" href="{{url_for('team_calendar',year=following.year,month=following.month)}}">Next</a>
+  </div>
+</section>
+
+<div class="calendar-legend" aria-label="Event colors">
+  {% for value,label in event_types.items() %}<span class="legend-item"><i class="legend-swatch event-{{value}}"></i>{{label}}</span>{% endfor %}
+</div>
+
+<div class="calendar-scroll">
+  <div class="calendar-grid calendar-weekdays">
+    {% for day_name in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}<div>{{day_name}}</div>{% endfor %}
+  </div>
+  <div class="calendar-grid calendar-days">
+    {% for week in weeks %}{% for day in week %}
+    <section class="calendar-day{% if day.month!=month %} outside-month{% endif %}{% if day==today %} today{% endif %}">
+      <time datetime="{{day.isoformat()}}">{{day.day}}</time>
+      <div class="day-events">
+        {% for event in events_by_day.get(day,[]) %}
+        <article class="calendar-event event-{{event.event_type}}">
+          <strong>{{event.title}}</strong>
+          <span>{{event.start_time.strftime('%I:%M %p').lstrip('0')}}{% if event.end_time %} - {{event.end_time.strftime('%I:%M %p').lstrip('0')}}{% endif %}</span>
+        </article>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}{% endfor %}
+  </div>
+</div>
+
+{% if user.role=='admin' %}
+<section class="card calendar-admin">
+  <h2>Add Calendar Event</h2>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+    <div class="calendar-formgrid">
+      <label>Event name<input name="title" maxlength="160" placeholder="Team event"></label>
+      <label>Type<select name="event_type" required>{% for value,label in event_types.items() %}<option value="{{value}}">{{label}}</option>{% endfor %}</select></label>
+      <label>Date<input type="date" name="starts_on" required></label>
+      <label>Start time<input type="time" name="start_time" required></label>
+      <label>End time<input type="time" name="end_time"></label>
+    </div>
+    <button type="submit">Add Event</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}
