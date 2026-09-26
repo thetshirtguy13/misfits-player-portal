@@ -118,7 +118,9 @@ class PortalFlowTests(unittest.TestCase):
         self.login_as(self.admin_id)
         response = self.client.get("/calendar?year=2026&month=9")
         self.assertEqual(200, response.status_code)
-        self.assertIn(b"Team Calendar", response.data)
+        self.assertIn(b"Master Calendar", response.data)
+        self.assertIn(b"12U Blue", response.data)
+        self.assertIn(b"13U Gold", response.data)
         self.assertIn(b"Power Alley Practice", response.data)
         self.assertIn(b"5:45 PM", response.data)
         self.assertIn(b"Calendar", self.client.get("/dashboard").data)
@@ -126,6 +128,7 @@ class PortalFlowTests(unittest.TestCase):
     def test_admin_can_add_tournament_to_calendar(self):
         self.login_as(self.admin_id)
         response = self.client.post("/calendar", data={
+            "team_id": self.team_id,
             "title": "Fall Classic",
             "event_type": "tournament",
             "starts_on": "2026-10-10",
@@ -134,6 +137,7 @@ class PortalFlowTests(unittest.TestCase):
         }, follow_redirects=True)
         self.assertIn(b"Fall Classic", response.data)
         duplicate = self.client.post("/calendar", data={
+            "team_id": self.team_id,
             "title": "Fall Classic",
             "event_type": "tournament",
             "starts_on": "2026-10-10",
@@ -141,12 +145,22 @@ class PortalFlowTests(unittest.TestCase):
             "end_time": "17:00",
         }, follow_redirects=True)
         self.assertIn(b"already on the calendar", duplicate.data)
+        other_team = self.client.post("/calendar", data={
+            "team_id": self.other_team_id,
+            "title": "Fall Classic",
+            "event_type": "tournament",
+            "starts_on": "2026-10-10",
+            "start_time": "08:00",
+            "end_time": "17:00",
+        }, follow_redirects=True)
+        self.assertIn(b"Fall Classic", other_team.data)
         with portal.app.app_context():
-            self.assertEqual(1, portal.ScheduleEvent.query.filter_by(title="Fall Classic").count())
+            self.assertEqual(2, portal.ScheduleEvent.query.filter_by(title="Fall Classic").count())
 
     def test_coach_cannot_add_calendar_event(self):
         self.login_as(self.coach_id)
         response = self.client.post("/calendar", data={
+            "team_id": self.team_id,
             "title": "Unauthorized Event",
             "event_type": "game",
             "starts_on": "2026-10-10",
@@ -155,6 +169,40 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"Only administrators", response.data)
         with portal.app.app_context():
             self.assertIsNone(portal.ScheduleEvent.query.filter_by(title="Unauthorized Event").first())
+
+    def test_team_calendar_isolated_by_membership(self):
+        with portal.app.app_context():
+            portal.db.session.add_all([
+                portal.ScheduleEvent(team_id=self.team_id,title="Blue Practice",event_type="practice",starts_on=portal.date(2026,10,8),start_time=portal.datetime.strptime("17:00","%H:%M").time()),
+                portal.ScheduleEvent(team_id=self.other_team_id,title="Gold Practice",event_type="practice",starts_on=portal.date(2026,10,8),start_time=portal.datetime.strptime("18:00","%H:%M").time()),
+            ])
+            portal.db.session.commit()
+        self.login_as(self.coach_id)
+        own=self.client.get(f"/calendar?team_id={self.team_id}&year=2026&month=10")
+        blocked=self.client.get(f"/calendar?team_id={self.other_team_id}&year=2026&month=10",follow_redirects=True)
+        self.assertIn(b"Blue Practice",own.data)
+        self.assertNotIn(b"Gold Practice",own.data)
+        self.assertIn(b"do not have access",blocked.data)
+
+    def test_admin_master_calendar_uses_team_colors(self):
+        self.login_as(self.admin_id)
+        response=self.client.get("/calendar?team_id=all&year=2026&month=9")
+        self.assertIn(b"Admin master schedule",response.data)
+        self.assertIn(b"--team-color:",response.data)
+        self.assertIn(b"Add Team Event",response.data)
+
+    def test_team_chat_is_private_and_admin_can_join(self):
+        self.login_as(self.coach_id)
+        posted=self.client.post(f"/teams/{self.team_id}/chat",data={"body":"Practice moved to field two."},follow_redirects=True)
+        self.assertIn(b"Practice moved to field two.",posted.data)
+        blocked=self.client.get(f"/teams/{self.other_team_id}/chat",follow_redirects=True)
+        self.assertIn(b"do not have access",blocked.data)
+        self.login_as(self.admin_id)
+        admin_room=self.client.get(f"/teams/{self.team_id}/chat")
+        self.assertIn(b"Practice moved to field two.",admin_room.data)
+        admin_post=self.client.post(f"/teams/{self.other_team_id}/chat",data={"body":"Admin is in every team room."},follow_redirects=True)
+        self.assertIn(b"Admin is in every team room.",admin_post.data)
+        self.assertIn(b"Admin",admin_post.data)
 
     def test_admin_can_assign_new_coach_to_team(self):
         with portal.app.app_context():
