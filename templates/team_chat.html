@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{team.name}} Chat | Misfits Player Development{% endblock %}
+{% block content %}
+<section class="chat-shell" style="--team-color:{{team_color}}">
+  <header class="chat-header">
+    <a href="{{url_for('team_chats')}}" aria-label="Back to team chats">‹</a>
+    <i></i><div><p class="eyebrow">Private team chat</p><h1>{{team.name}}</h1></div>
+    <a class="btn secondary" href="{{url_for('team_calendar',team_id=team.id)}}">Calendar</a>
+  </header>
+  <div class="message-list" aria-live="polite">
+    {% for message in messages %}{% set author=users.get(message.user_id) %}
+    <article class="chat-message{% if message.user_id==user.id %} own-message{% endif %}">
+      <div class="message-meta"><strong>{{author.name if author else 'Team member'}}{% if author and author.role=='admin' %}<span>Admin</span>{% endif %}</strong><time datetime="{{message.created_at.isoformat()}}">{{message.created_at.strftime('%b %d · %I:%M %p').replace(' 0',' ')}}</time></div>
+      <p>{{message.body}}</p>
+    </article>
+    {% else %}<div class="chat-empty"><h2>Start the conversation</h2><p class="muted">This room is ready for team updates, reminders, and questions.</p></div>{% endfor %}
+  </div>
+  <form class="chat-composer" method="post">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+    <label class="sr-only" for="chat-body">Message</label>
+    <textarea id="chat-body" name="body" maxlength="1000" rows="2" placeholder="Message {{team.name}}" required></textarea>
+    <button type="submit">Send</button>
+  </form>
+</section>
+{% endblock %}
