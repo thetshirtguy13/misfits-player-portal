@@ -13,6 +13,7 @@ import calendar as calendar_module
 import csv, io, os, json, secrets, smtplib, uuid
 import boto3
 from email.message import EmailMessage
+from learning_content import FIELD_IQ_LEVELS, LEVELS, PITCH_PLAN_LEVELS
 
 app = Flask(__name__)
 app.config.update(
@@ -614,13 +615,22 @@ def team_chat(team_id):
 @login_required
 def learn(): return render_template("learn.html", user=current_user())
 
+def learning_session(question_bank):
+    requested=request.args.get("level","competitive").strip().lower()
+    level=requested if requested in question_bank else "competitive"
+    return level, question_bank[level]
+
 @app.route("/practice")
 @login_required
-def practice(): return render_template("practice.html", user=current_user(), questions=FIELD_IQ_QUESTIONS)
+def practice():
+    level,questions=learning_session(FIELD_IQ_LEVELS)
+    return render_template("practice.html",user=current_user(),questions=questions,levels=LEVELS,active_level=level)
 
 @app.route("/pitch-plan")
 @login_required
-def pitch_plan(): return render_template("pitch_plan.html", user=current_user(), questions=PITCH_PLAN_QUESTIONS)
+def pitch_plan():
+    level,questions=learning_session(PITCH_PLAN_LEVELS)
+    return render_template("pitch_plan.html",user=current_user(),questions=questions,levels=LEVELS,active_level=level)
 
 @app.route("/field-guides")
 @login_required

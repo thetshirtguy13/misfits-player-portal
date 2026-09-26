@@ -312,21 +312,35 @@ class PortalFlowTests(unittest.TestCase):
     def test_baseball_iq_learning_and_practice_pages(self):
         self.login_as(self.coach_id)
         learn = self.client.get("/learn")
-        practice = self.client.get("/practice")
         self.assertEqual(200, learn.status_code)
-        self.assertIn(b"Where do I go?", learn.data)
-        self.assertEqual(200, practice.status_code)
-        self.assertIn(b"Question 1 of 10", practice.data)
-        self.assertIn(b"Halfway depth", practice.data)
-        self.assertIn(b"pitch plan", practice.data.lower())
-        pitch_plan = self.client.get("/pitch-plan")
+        self.assertIn(b"Complete Baseball IQ", learn.data)
+        for level in ("foundation", "competitive", "advanced"):
+            practice = self.client.get(f"/practice?level={level}")
+            pitch_plan = self.client.get(f"/pitch-plan?level={level}")
+            self.assertEqual(200, practice.status_code)
+            self.assertEqual(200, pitch_plan.status_code)
+            self.assertIn(b"Question 1 of 10", practice.data)
+            self.assertIn(level.upper().encode(), practice.data)
+            self.assertIn(b"Pitch Plan Lab", pitch_plan.data)
+            self.assertIn(level.upper().encode(), pitch_plan.data)
         guides = self.client.get("/field-guides")
-        self.assertEqual(200, pitch_plan.status_code)
-        self.assertIn(b"Pitch Plan 10", pitch_plan.data)
-        self.assertIn(b"Fastball-Changeup Tunnel", pitch_plan.data)
         self.assertEqual(200, guides.status_code)
         self.assertIn(b"Pop-up priority ladder", guides.data)
         self.assertIn(b"Single to right", guides.data)
+
+    def test_learning_question_banks_are_progressive_and_valid(self):
+        expected_areas={"Infield","Outfield","Catching","Baserunning","Hitting","Pitching","Team Defense"}
+        for level in ("foundation","competitive","advanced"):
+            field_questions=portal.FIELD_IQ_LEVELS[level]
+            pitch_questions=portal.PITCH_PLAN_LEVELS[level]
+            self.assertEqual(10,len(field_questions))
+            self.assertEqual(10,len(pitch_questions))
+            self.assertTrue(expected_areas.issubset({question["area"] for question in field_questions}))
+            for question in field_questions+pitch_questions:
+                self.assertEqual(level,question["level"])
+                self.assertEqual(4,len(question["answers"]))
+                self.assertIn(question["correct"],range(4))
+                self.assertGreater(len(question["explanation"]),40)
 
 
 if __name__ == "__main__":

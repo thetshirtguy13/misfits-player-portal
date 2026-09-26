@@ -2,6 +2,7 @@
   'use strict';
   const shell=document.querySelector('.quiz-shell'); if(!shell)return;
   const questions=JSON.parse(shell.dataset.questions), el=id=>document.getElementById(id);
+  questions.forEach(q=>{const choices=q.answers.map((answer,index)=>({answer,correct:index===q.correct}));for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}q.answers=choices.map(choice=>choice.answer);q.correct=choices.findIndex(choice=>choice.correct);});
   const starts={cf:[50,17],lf:[24,28],rf:[76,28],ss:[39,55],secondbase:[61,55],thirdbase:[29,68],firstbase:[71,68],pitcher:[50,71],catcher:[50,94],'runner-first':[76,67],'runner-second':[50,43],'runner-third':[24,67]};
   // Ball and player locations use field-relative percentages on every screen size.
   const plays=[
@@ -18,11 +19,12 @@
   ];
   let index=0,score=0,streak=0,correct=0,locked=false,frame=0,generation=0,elapsed=0,lastTime=null,paused=false,currentStep=-1;
   const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+  const activePlay=()=>plays[questions[index].play]||plays[0];
   function position(name,p){const f=document.querySelector(`.field-v2 .${name}`);if(f){f.style.left=`${p[0]}%`;f.style.top=`${p[1]}%`;}}
   function stop(){generation++;cancelAnimationFrame(frame);frame=0;lastTime=null;}
   function resetField(){stop();elapsed=0;paused=false;currentStep=-1;Object.entries(starts).forEach(([name,p])=>{position(name,p);document.querySelector(`.field-v2 .${name}`)?.classList.remove('moving');});el('play-ball').hidden=true;el('ball-trail').setAttribute('points','');el('pause-play').textContent='Pause';}
   function draw(progress){
-    const steps=plays[index].steps,step=Math.min(steps.length-1,Math.floor(progress)),t=Math.min(1,progress-step),smooth=t*t*(3-2*t);
+    const steps=activePlay().steps,step=Math.min(steps.length-1,Math.floor(progress)),t=Math.min(1,progress-step),smooth=t*t*(3-2*t);
     const before=structuredClone(starts);let from=[50,71];
     for(let i=0;i<step;i++){Object.assign(before,steps[i][2]);from=steps[i][1];}
     const after={...before,...steps[step][2]},to=steps[step][1];
@@ -32,10 +34,10 @@
     el('play-ball').style.left=`${ball[0]}%`;el('play-ball').style.top=`${ball[1]}%`;
     el('ball-trail').setAttribute('points',[[50,71],...steps.slice(0,step).map(s=>s[1]),ball].map(p=>`${p[0]*7},${p[1]*6.2}`).join(' '));
   }
-  function tick(time,token){if(token!==generation||paused)return;if(lastTime!==null)elapsed+=Math.min(time-lastTime,100)*Number(el('play-speed').value);lastTime=time;const p=elapsed/1400;draw(p);if(p>=plays[index].steps.length){el('pause-play').hidden=true;frame=0;lastTime=null;return;}frame=requestAnimationFrame(t=>tick(t,token));}
-  function animatePlay(){resetField();el('play-ball').hidden=false;el('replay-play').hidden=false;el('pause-play').hidden=reduced.matches;if(reduced.matches){draw(plays[index].steps.length);el('play-caption').textContent=plays[index].steps.map(s=>s[0]).join(' ');return;}const token=generation;frame=requestAnimationFrame(t=>tick(t,token));}
+  function tick(time,token){if(token!==generation||paused)return;if(lastTime!==null)elapsed+=Math.min(time-lastTime,100)*Number(el('play-speed').value);lastTime=time;const p=elapsed/1400;draw(p);if(p>=activePlay().steps.length){el('pause-play').hidden=true;frame=0;lastTime=null;return;}frame=requestAnimationFrame(t=>tick(t,token));}
+  function animatePlay(){resetField();el('play-ball').hidden=false;el('replay-play').hidden=false;el('pause-play').hidden=reduced.matches;if(reduced.matches){draw(activePlay().steps.length);el('play-caption').textContent=activePlay().steps.map(s=>s[0]).join(' ');return;}const token=generation;frame=requestAnimationFrame(t=>tick(t,token));}
   function render(){
-    locked=false;resetField();const q=questions[index];el('question-count').textContent=`Question ${index+1} of ${questions.length}`;el('quiz-progress').style.width=`${index/questions.length*100}%`;el('situation').textContent=q.situation;el('outs').textContent=`${q.outs} OUT${q.outs===1?'':'S'}`;el('runners').textContent=`RUNNERS ${q.runners.toUpperCase()}`;el('question').textContent=q.question;el('question-tip').textContent=plays[index].tip;
+    locked=false;resetField();const q=questions[index];el('question-count').textContent=`Question ${index+1} of ${questions.length}`;el('quiz-progress').style.width=`${index/questions.length*100}%`;el('situation').textContent=q.situation;el('outs').textContent=`${q.outs} OUT${q.outs===1?'':'S'}`;el('runners').textContent=`RUNNERS ${q.runners.toUpperCase()}`;el('question-area').textContent=q.area.toUpperCase();el('question-level').textContent=q.level.toUpperCase();el('question').textContent=q.question;el('question-tip').textContent=activePlay().tip;
     document.querySelectorAll('.runner').forEach(r=>r.hidden=true);q.runner_bases.forEach(b=>document.querySelector(`.runner-${b}`).hidden=false);el('feedback').className='feedback';el('feedback').textContent='';el('next-question').hidden=true;el('replay-play').hidden=true;el('pause-play').hidden=true;el('play-caption').textContent='Answer the question to watch the play.';el('answers').replaceChildren();
     q.answers.forEach((answer,i)=>{const b=document.createElement('button');b.type='button';b.className='answer';const letter=document.createElement('span'),text=document.createElement('b');letter.textContent=String.fromCharCode(65+i);text.textContent=answer;b.append(letter,text);b.addEventListener('click',()=>choose(i,b));el('answers').appendChild(b);});
   }
