@@ -4,6 +4,7 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
+from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from datetime import datetime, date
@@ -117,9 +118,16 @@ class ScheduleEvent(db.Model):
     starts_on=db.Column(db.Date, nullable=False, index=True)
     start_time=db.Column(db.Time, nullable=False)
     end_time=db.Column(db.Time, nullable=True)
+    team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=True, index=True)
     created_by_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at=db.Column(db.DateTime, default=datetime.utcnow)
-    __table_args__=(db.UniqueConstraint("title","event_type","starts_on","start_time",name="uq_schedule_event"),)
+
+class ChatMessage(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False, index=True)
+    user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    body=db.Column(db.String(1000), nullable=False)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
 
 class Media(db.Model):
@@ -156,6 +164,7 @@ EVENT_TYPES={
     "practice":"Practice",
     "power-alley":"Power Alley Practice",
 }
+TEAM_COLORS=("#38bdf8","#f97316","#a78bfa","#22c55e","#f43f5e","#eab308","#14b8a6","#ec4899")
 
 SEED_EVENTS=[
     ("Power Alley Practice","power-alley","2026-09-28","17:00","19:00"),
@@ -309,6 +318,29 @@ def team_ids_for(u):
         return [team.id for team in Team.query.all()]
     return [m.team_id for m in TeamMembership.query.filter_by(user_id=u.id,approved=True).all()]
 
+def portal_team_ids_for(u):
+    if u.role=="admin": return [team.id for team in Team.query.order_by(Team.id).all()]
+    team_ids=set(team_ids_for(u))
+    if u.role=="parent":
+        child_ids=[child.id for child in User.query.filter_by(parent_id=u.id,role="player").all()]
+        if child_ids:
+            memberships=TeamMembership.query.filter(TeamMembership.user_id.in_(child_ids),TeamMembership.approved==True).all()
+            team_ids.update(membership.team_id for membership in memberships)
+    return sorted(team_ids)
+
+def visible_teams_for(u):
+    team_ids=portal_team_ids_for(u)
+    return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.age_group,Team.name).all() if team_ids else []
+
+def team_color_map(teams):
+    return {team.id:TEAM_COLORS[index % len(TEAM_COLORS)] for index,team in enumerate(sorted(teams,key=lambda row:row.id))}
+
+def can_access_team(u, team_id):
+    return u.role=="admin" or team_id in portal_team_ids_for(u)
+
+def default_calendar_team():
+    return Team.query.filter(Team.name.ilike("Misfits%")).order_by(Team.id).first() or Team.query.order_by(Team.id).first()
+
 def can_view_player(viewer, player):
     if viewer.role=="admin": return True
     if viewer.id==player.id: return True
@@ -320,6 +352,12 @@ def can_view_player(viewer, player):
 @app.before_request
 def bootstrap():
     db.create_all()
+    columns={column["name"] for column in inspect(db.engine).get_columns("schedule_event")}
+    if "team_id" not in columns:
+        db.session.execute(text("ALTER TABLE schedule_event ADD COLUMN team_id INTEGER REFERENCES team(id)"))
+        if db.engine.dialect.name=="postgresql":
+            db.session.execute(text("ALTER TABLE schedule_event DROP CONSTRAINT IF EXISTS uq_schedule_event"))
+        db.session.commit()
     admin_email=os.environ.get("ADMIN_EMAIL","").strip().lower()
     if admin_email:
         designated_admin=User.query.filter_by(email=admin_email).first()
@@ -330,11 +368,14 @@ def bootstrap():
         for c,t,m,l,e in WORKOUTS: db.session.add(Workout(category=c,title=t,minutes=m,level=l,exercises=e))
         db.session.commit()
     seeded_event=False
+    calendar_team=default_calendar_team()
+    if calendar_team:
+        seeded_event=bool(ScheduleEvent.query.filter_by(team_id=None).update({"team_id":calendar_team.id}))
     for title,event_type,day,start,end in SEED_EVENTS:
         starts_on=datetime.strptime(day,"%Y-%m-%d").date()
         start_time=datetime.strptime(start,"%H:%M").time()
-        if not ScheduleEvent.query.filter_by(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time).first():
-            db.session.add(ScheduleEvent(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=datetime.strptime(end,"%H:%M").time() if end else None))
+        if calendar_team and not ScheduleEvent.query.filter_by(team_id=calendar_team.id,title=title,event_type=event_type,starts_on=starts_on,start_time=start_time).first():
+            db.session.add(ScheduleEvent(team_id=calendar_team.id,title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=datetime.strptime(end,"%H:%M").time() if end else None))
             seeded_event=True
     if seeded_event: db.session.commit()
 
@@ -478,9 +519,25 @@ def dashboard():
 @login_required
 def team_calendar():
     u=current_user()
+    teams=visible_teams_for(u)
+    team_by_id={team.id:team for team in teams}
+    selected_value=request.form.get("team_id") if request.method=="POST" else request.args.get("team_id")
+    master=u.role=="admin" and (not selected_value or selected_value=="all")
+    selected_team=None
+    if not master:
+        try: selected_team=team_by_id.get(int(selected_value)) if selected_value else (teams[0] if teams else None)
+        except (TypeError,ValueError): selected_team=None
+        if selected_value and not selected_team:
+            flash("You do not have access to that team calendar.")
+            return redirect(url_for("team_calendar"))
     if request.method=="POST":
         if u.role!="admin":
             flash("Only administrators can add calendar events.")
+            return redirect(url_for("team_calendar"))
+        try: event_team=db.session.get(Team,int(request.form.get("team_id",0)))
+        except (TypeError,ValueError): event_team=None
+        if not event_team:
+            flash("Choose a team for this event.")
             return redirect(url_for("team_calendar"))
         event_type=request.form.get("event_type","")
         if event_type not in EVENT_TYPES:
@@ -498,13 +555,13 @@ def team_calendar():
             flash("The end time must be after the start time.")
             return redirect(url_for("team_calendar"))
         title=request.form.get("title","").strip()[:160] or EVENT_TYPES[event_type]
-        if ScheduleEvent.query.filter_by(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time).first():
+        if ScheduleEvent.query.filter_by(team_id=event_team.id,title=title,event_type=event_type,starts_on=starts_on,start_time=start_time).first():
             flash("That event is already on the calendar.")
-            return redirect(url_for("team_calendar",year=starts_on.year,month=starts_on.month))
-        event=ScheduleEvent(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=end_time,created_by_id=u.id)
+            return redirect(url_for("team_calendar",team_id=event_team.id,year=starts_on.year,month=starts_on.month))
+        event=ScheduleEvent(team_id=event_team.id,title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=end_time,created_by_id=u.id)
         db.session.add(event); db.session.commit(); audit("calendar_event_added",f"event_id={event.id}")
         flash("Calendar event added.")
-        return redirect(url_for("team_calendar",year=starts_on.year,month=starts_on.month))
+        return redirect(url_for("team_calendar",team_id=event_team.id,year=starts_on.year,month=starts_on.month))
 
     today=date.today()
     try:
@@ -513,12 +570,45 @@ def team_calendar():
     except (TypeError,ValueError):
         year,month=today.year,today.month
     weeks=calendar_module.Calendar(firstweekday=6).monthdatescalendar(year,month)
-    rows=ScheduleEvent.query.filter(ScheduleEvent.starts_on.between(weeks[0][0],weeks[-1][-1])).order_by(ScheduleEvent.starts_on,ScheduleEvent.start_time).all()
+    query=ScheduleEvent.query.filter(ScheduleEvent.starts_on.between(weeks[0][0],weeks[-1][-1]))
+    if not master:
+        if not selected_team: query=query.filter(text("1=0"))
+        else: query=query.filter_by(team_id=selected_team.id)
+    rows=query.order_by(ScheduleEvent.starts_on,ScheduleEvent.start_time).all()
     events_by_day={}
     for event in rows: events_by_day.setdefault(event.starts_on,[]).append(event)
     previous=date(year-1,12,1) if month==1 else date(year,month-1,1)
     following=date(year+1,1,1) if month==12 else date(year,month+1,1)
-    return render_template("calendar.html",user=u,weeks=weeks,events_by_day=events_by_day,year=year,month=month,month_name=calendar_module.month_name[month],previous=previous,following=following,event_types=EVENT_TYPES,today=today)
+    all_teams=Team.query.order_by(Team.id).all()
+    return render_template("calendar.html",user=u,weeks=weeks,events_by_day=events_by_day,year=year,month=month,month_name=calendar_module.month_name[month],previous=previous,following=following,event_types=EVENT_TYPES,today=today,teams=teams,selected_team=selected_team,master=master,team_by_id=team_by_id,team_colors=team_color_map(all_teams))
+
+@app.route("/chats")
+@login_required
+def team_chats():
+    u=current_user(); teams=visible_teams_for(u)
+    return render_template("team_chats.html",user=u,teams=teams,team_colors=team_color_map(Team.query.order_by(Team.id).all()))
+
+@app.route("/teams/<int:team_id>/chat",methods=["GET","POST"])
+@login_required
+@limiter.limit("60 per minute")
+def team_chat(team_id):
+    u=current_user(); team=db.session.get(Team,team_id)
+    if not team or not can_access_team(u,team_id):
+        flash("You do not have access to that team chat.")
+        return redirect(url_for("team_chats"))
+    if request.method=="POST":
+        body=request.form.get("body","").strip()[:1000]
+        if not body:
+            flash("Enter a message before sending.")
+        else:
+            message=ChatMessage(team_id=team.id,user_id=u.id,body=body)
+            db.session.add(message); db.session.commit(); audit("team_chat_message",f"team_id={team.id},message_id={message.id}")
+        return redirect(url_for("team_chat",team_id=team.id))
+    messages=ChatMessage.query.filter_by(team_id=team.id).order_by(ChatMessage.created_at.desc(),ChatMessage.id.desc()).limit(100).all()[::-1]
+    user_ids={message.user_id for message in messages}
+    users={member.id:member for member in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    colors=team_color_map(Team.query.order_by(Team.id).all())
+    return render_template("team_chat.html",user=u,team=team,messages=messages,users=users,team_color=colors.get(team.id,TEAM_COLORS[0]))
 
 @app.route("/learn")
 @login_required
@@ -585,7 +675,7 @@ def teams():
         team=Team(organization_id=org.id,name=request.form["name"][:120],age_group=request.form.get("age_group","")[:20],join_code=secrets.token_hex(3).upper()); db.session.add(team); db.session.flush(); db.session.add(TeamMembership(team_id=team.id,user_id=u.id,role="coach")); db.session.commit(); audit("team_created",f"team_id={team.id}"); return redirect(url_for("teams"))
     tids=team_ids_for(u)
     rows=Team.query.all() if u.role=="admin" else (Team.query.filter(Team.id.in_(tids)).all() if tids else [])
-    return render_template("teams.html",user=u,teams=rows)
+    return render_template("teams.html",user=u,teams=rows,team_colors=team_color_map(Team.query.order_by(Team.id).all()))
 
 
 @app.route("/teams/<int:team_id>/add-player", methods=["POST"])
@@ -753,6 +843,7 @@ def admin_delete_player(pid):
     WorkoutCompletion.query.filter_by(player_id=player.id).delete()
     GameStat.query.filter_by(player_id=player.id).delete()
     TeamMembership.query.filter_by(user_id=player.id).delete()
+    ChatMessage.query.filter_by(user_id=player.id).delete()
     ConsentRequest.query.filter_by(player_id=player.id).delete()
     Media.query.filter((Media.owner_user_id==player.id)|(Media.player_id==player.id)).delete(synchronize_session=False)
     AuditLog.query.filter_by(user_id=player.id).delete()

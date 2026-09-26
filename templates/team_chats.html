@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Team Chats | Misfits Player Development{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">Private team rooms</p><h1>Team Chats</h1><p class="muted">Messages are visible only to approved team members and administrators.</p></section>
+<div class="chat-team-list">
+  {% for team in teams %}
+  <a class="chat-team-row" style="--team-color:{{team_colors[team.id]}}" href="{{url_for('team_chat',team_id=team.id)}}">
+    <i></i><span><strong>{{team.name}}</strong><small>{{team.age_group}} team chat</small></span><b aria-hidden="true">›</b>
+  </a>
+  {% else %}
+  <section class="empty-state"><h2>No team chats yet</h2><p class="muted">Join a team to enter its private chat room.</p></section>
+  {% endfor %}
+</div>
+{% endblock %}

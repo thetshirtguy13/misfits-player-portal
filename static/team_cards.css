@@ -1,0 +1,1 @@
+.team-workspace-card{border-top:3px solid var(--team-color)}.team-workspace-card h2{display:flex;align-items:center;gap:9px}.team-workspace-card h2 i{width:10px;height:10px;border-radius:2px;background:var(--team-color)}.team-card-actions{display:flex;gap:8px;margin-top:14px}.team-switcher{scrollbar-width:none}.team-switcher::-webkit-scrollbar{display:none}
