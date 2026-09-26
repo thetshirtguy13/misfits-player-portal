@@ -114,6 +114,48 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"coach@example.com", admin.data)
         self.assertIn(b"parent@example.com", admin.data)
 
+    def test_calendar_shows_seeded_events_and_navigation(self):
+        self.login_as(self.admin_id)
+        response = self.client.get("/calendar?year=2026&month=9")
+        self.assertEqual(200, response.status_code)
+        self.assertIn(b"Team Calendar", response.data)
+        self.assertIn(b"Power Alley Practice", response.data)
+        self.assertIn(b"5:45 PM", response.data)
+        self.assertIn(b"Calendar", self.client.get("/dashboard").data)
+
+    def test_admin_can_add_tournament_to_calendar(self):
+        self.login_as(self.admin_id)
+        response = self.client.post("/calendar", data={
+            "title": "Fall Classic",
+            "event_type": "tournament",
+            "starts_on": "2026-10-10",
+            "start_time": "08:00",
+            "end_time": "17:00",
+        }, follow_redirects=True)
+        self.assertIn(b"Fall Classic", response.data)
+        duplicate = self.client.post("/calendar", data={
+            "title": "Fall Classic",
+            "event_type": "tournament",
+            "starts_on": "2026-10-10",
+            "start_time": "08:00",
+            "end_time": "17:00",
+        }, follow_redirects=True)
+        self.assertIn(b"already on the calendar", duplicate.data)
+        with portal.app.app_context():
+            self.assertEqual(1, portal.ScheduleEvent.query.filter_by(title="Fall Classic").count())
+
+    def test_coach_cannot_add_calendar_event(self):
+        self.login_as(self.coach_id)
+        response = self.client.post("/calendar", data={
+            "title": "Unauthorized Event",
+            "event_type": "game",
+            "starts_on": "2026-10-10",
+            "start_time": "08:00",
+        }, follow_redirects=True)
+        self.assertIn(b"Only administrators", response.data)
+        with portal.app.app_context():
+            self.assertIsNone(portal.ScheduleEvent.query.filter_by(title="Unauthorized Event").first())
+
     def test_admin_can_assign_new_coach_to_team(self):
         with portal.app.app_context():
             new_coach=portal.User(role="coach",name="New Coach",email="newcoach@example.com",password_hash="x",consent_verified=True)

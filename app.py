@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from datetime import datetime, date
 from functools import wraps
+import calendar as calendar_module
 import csv, io, os, json, secrets, smtplib, uuid
 import boto3
 from email.message import EmailMessage
@@ -109,6 +110,17 @@ class GameStat(db.Model):
     source=db.Column(db.String(30), default="manual")
     created_at=db.Column(db.DateTime, default=datetime.utcnow)
 
+class ScheduleEvent(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    title=db.Column(db.String(160), nullable=False)
+    event_type=db.Column(db.String(30), nullable=False)
+    starts_on=db.Column(db.Date, nullable=False, index=True)
+    start_time=db.Column(db.Time, nullable=False)
+    end_time=db.Column(db.Time, nullable=True)
+    created_by_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__=(db.UniqueConstraint("title","event_type","starts_on","start_time",name="uq_schedule_event"),)
+
 
 class Media(db.Model):
     id=db.Column(db.Integer, primary_key=True)
@@ -137,6 +149,19 @@ WORKOUTS=[
 ("Batting","Contact & Bat Speed",25,"10U+","Dry swings — 15\nTop-hand/bottom-hand — 15 each\nShort-bat/choke-up — 20\nFront toss/self toss — 30\nTwo-strike approach — 15"),
 ("Fielding","Ground Ball Fundamentals",30,"All ages","Athletic warm-up — 5 min\nReady-position reps — 15\nForehand ground balls — 20\nBackhands — 20\nFunnel and footwork — 20\nThrow to target — 15"),
 ("Fielding","Outfield Footwork & Fly Balls",30,"All ages","Drop steps — 3 x 8 each side\nAngle routes — 3 x 6\nSelf-toss fly balls — 20\nGround ball approach — 15\nCrow-hop throws — 15\nBackup responsibility review — 5 min")]
+
+EVENT_TYPES={
+    "game":"Game",
+    "tournament":"Tournament",
+    "practice":"Practice",
+    "power-alley":"Power Alley Practice",
+}
+
+SEED_EVENTS=[
+    ("Power Alley Practice","power-alley","2026-09-28","17:00","19:00"),
+    ("Game","game","2026-09-29","17:45",None),
+    ("Practice","practice","2026-10-02","17:00","19:00"),
+]
 
 FIELD_IQ_QUESTIONS = [
     {"situation":"Halfway depth","outs":0,"runners":"3rd","runner_bases":["third"],"question":"Why might an infield play halfway with a runner on third and fewer than two outs?","answers":["It is the same as standing on the outfield grass.","It guarantees the runner cannot score on any ground ball.","It removes the need for the catcher to communicate.","It balances a possible play at home with better range and a more reliable out at first."],"correct":3,"explanation":"Halfway depth keeps a possible throw home available without giving up as much range as playing all the way in."},
@@ -304,6 +329,14 @@ def bootstrap():
     if Workout.query.count()==0:
         for c,t,m,l,e in WORKOUTS: db.session.add(Workout(category=c,title=t,minutes=m,level=l,exercises=e))
         db.session.commit()
+    seeded_event=False
+    for title,event_type,day,start,end in SEED_EVENTS:
+        starts_on=datetime.strptime(day,"%Y-%m-%d").date()
+        start_time=datetime.strptime(start,"%H:%M").time()
+        if not ScheduleEvent.query.filter_by(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time).first():
+            db.session.add(ScheduleEvent(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=datetime.strptime(end,"%H:%M").time() if end else None))
+            seeded_event=True
+    if seeded_event: db.session.commit()
 
 @app.after_request
 def security_headers(resp):
@@ -440,6 +473,52 @@ def dashboard():
     memberships=TeamMembership.query.filter_by(user_id=u.id,approved=True).all()
     teams=[db.session.get(Team,m.team_id) for m in memberships]
     return render_template("dashboard.html",user=u,totals=player_totals(u.id) if u.role=="player" else None,completions=comps,linked=linked,teams=teams)
+
+@app.route("/calendar",methods=["GET","POST"])
+@login_required
+def team_calendar():
+    u=current_user()
+    if request.method=="POST":
+        if u.role!="admin":
+            flash("Only administrators can add calendar events.")
+            return redirect(url_for("team_calendar"))
+        event_type=request.form.get("event_type","")
+        if event_type not in EVENT_TYPES:
+            flash("Choose a valid event type.")
+            return redirect(url_for("team_calendar"))
+        try:
+            starts_on=datetime.strptime(request.form.get("starts_on",""),"%Y-%m-%d").date()
+            start_time=datetime.strptime(request.form.get("start_time",""),"%H:%M").time()
+            end_value=request.form.get("end_time","")
+            end_time=datetime.strptime(end_value,"%H:%M").time() if end_value else None
+        except ValueError:
+            flash("Enter a valid date and time.")
+            return redirect(url_for("team_calendar"))
+        if end_time and end_time<=start_time:
+            flash("The end time must be after the start time.")
+            return redirect(url_for("team_calendar"))
+        title=request.form.get("title","").strip()[:160] or EVENT_TYPES[event_type]
+        if ScheduleEvent.query.filter_by(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time).first():
+            flash("That event is already on the calendar.")
+            return redirect(url_for("team_calendar",year=starts_on.year,month=starts_on.month))
+        event=ScheduleEvent(title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=end_time,created_by_id=u.id)
+        db.session.add(event); db.session.commit(); audit("calendar_event_added",f"event_id={event.id}")
+        flash("Calendar event added.")
+        return redirect(url_for("team_calendar",year=starts_on.year,month=starts_on.month))
+
+    today=date.today()
+    try:
+        year=int(request.args.get("year",today.year)); month=int(request.args.get("month",today.month))
+        if year<2020 or year>2100 or month<1 or month>12: raise ValueError
+    except (TypeError,ValueError):
+        year,month=today.year,today.month
+    weeks=calendar_module.Calendar(firstweekday=6).monthdatescalendar(year,month)
+    rows=ScheduleEvent.query.filter(ScheduleEvent.starts_on.between(weeks[0][0],weeks[-1][-1])).order_by(ScheduleEvent.starts_on,ScheduleEvent.start_time).all()
+    events_by_day={}
+    for event in rows: events_by_day.setdefault(event.starts_on,[]).append(event)
+    previous=date(year-1,12,1) if month==1 else date(year,month-1,1)
+    following=date(year+1,1,1) if month==12 else date(year,month+1,1)
+    return render_template("calendar.html",user=u,weeks=weeks,events_by_day=events_by_day,year=year,month=month,month_name=calendar_module.month_name[month],previous=previous,following=following,event_types=EVENT_TYPES,today=today)
 
 @app.route("/learn")
 @login_required
