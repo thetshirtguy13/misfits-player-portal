@@ -167,6 +167,76 @@ class FamilyAccessTests(unittest.TestCase):
             links = portal.RosterFamilyLink.query.all()
             self.assertEqual([(parent_id, old_profile_id)], [(link.parent_id, link.profile_id) for link in links])
 
+    def test_admin_roster_links_player_login_without_changing_parent_claim(self):
+        parent_id, other_id, profile_id = self.make_family()
+        with portal.app.app_context():
+            player = portal.User(role='player', name='Tucker Ridgway', email='tucker@example.com', password_hash='x', consent_verified=True)
+            portal.db.session.add(player)
+            portal.db.session.flush()
+            portal.db.session.add(portal.RosterFamilyLink(parent_id=parent_id, profile_id=profile_id))
+            portal.db.session.commit()
+            player_id = player.id
+
+        self.login_as(self.admin_id)
+        page = self.client.get(f'/admin/rosters?team_id={self.team_id}')
+        self.assertIn(b'Roster Child', page.data)
+        self.assertIn(b'No player login', page.data)
+        self.assertIn(b'Parent', page.data)
+
+        response = self.client.post(f'/admin/rosters/{profile_id}/player-account', data={'player_id':player_id}, follow_redirects=True)
+        self.assertIn(b'now linked to Tucker Ridgway', response.data)
+        self.assertIn(b'tucker@example.com', response.data)
+        with portal.app.app_context():
+            self.assertEqual(player_id, portal.RosterPlayerLink.query.filter_by(profile_id=profile_id).one().player_id)
+            membership = portal.TeamMembership.query.filter_by(team_id=self.team_id, user_id=player_id).one()
+            self.assertTrue(membership.approved)
+            self.assertEqual(1, portal.RosterFamilyLink.query.filter_by(parent_id=parent_id, profile_id=profile_id).count())
+
+        self.login_as(player_id)
+        self.assertEqual(200, self.client.get(f'/family-roster/{profile_id}').status_code)
+        self.assertIn(b'Roster Child', self.client.get('/dashboard').data)
+
+    def test_admin_roster_name_update_applies_to_every_snapshot(self):
+        with portal.app.app_context():
+            profiles = [
+                portal.RosterProfile(team_id=self.team_id, name='Tucker', name_key='tucker', season='Spring 2026', as_of=date(2026, 5, 1), stats={}),
+                portal.RosterProfile(team_id=self.team_id, name='Tucker', name_key='tucker', season='Fall 2026', as_of=date(2026, 9, 17), stats={}),
+            ]
+            portal.db.session.add_all(profiles)
+            portal.db.session.commit()
+            profile_id = profiles[-1].id
+        self.login_as(self.admin_id)
+        response = self.client.post(f'/admin/rosters/{profile_id}/name', data={'name':'Tucker Ridgway','jersey':'25'}, follow_redirects=True)
+        self.assertIn(b'Roster profile updated for Tucker Ridgway', response.data)
+        with portal.app.app_context():
+            updated = portal.RosterProfile.query.filter_by(team_id=self.team_id).all()
+            self.assertEqual({'Tucker Ridgway'}, {profile.name for profile in updated})
+            self.assertEqual({'tucker ridgway'}, {profile.name_key for profile in updated})
+            self.assertEqual({'25'}, {profile.jersey for profile in updated})
+
+    def test_admin_can_add_missing_roster_player(self):
+        self.login_as(self.admin_id)
+        response = self.client.post('/admin/rosters/add', data={'team_id':self.team_id,'name':'Brayden Brett','jersey':'','season':'Fall 2026','as_of':'2026-09-17'}, follow_redirects=True)
+        self.assertIn(b'Brayden Brett added to 12U Blue', response.data)
+        with portal.app.app_context():
+            profile = portal.RosterProfile.query.filter_by(team_id=self.team_id, name_key='brayden brett').one()
+            self.assertEqual('Fall 2026', profile.season)
+            self.assertEqual(date(2026, 9, 17), profile.as_of)
+
+    def test_linking_full_player_account_completes_first_only_roster_name(self):
+        with portal.app.app_context():
+            profile = portal.RosterProfile(team_id=self.team_id, name='Tucker', name_key='tucker', season='Fall 2026', as_of=date(2026, 9, 17), stats={})
+            player = portal.User(role='player', name='Tucker Ridgway', email='tucker@example.com', password_hash='x', consent_verified=True)
+            portal.db.session.add_all([profile, player])
+            portal.db.session.commit()
+            profile_id, player_id = profile.id, player.id
+        self.login_as(self.admin_id)
+        self.client.post(f'/admin/rosters/{profile_id}/player-account', data={'player_id':player_id})
+        with portal.app.app_context():
+            profile = portal.db.session.get(portal.RosterProfile, profile_id)
+            self.assertEqual('Tucker Ridgway', profile.name)
+            self.assertEqual('tucker ridgway', profile.name_key)
+
 
 if __name__=='__main__':
     unittest.main()
