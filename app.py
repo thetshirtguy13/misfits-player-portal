@@ -399,11 +399,12 @@ def security_headers(resp):
 def home(): return redirect(url_for("dashboard")) if current_user() else redirect(url_for("login"))
 
 def registration_player_choices():
-    rows=db.session.query(RosterProfile,Team).join(Team,Team.id==RosterProfile.team_id).filter(Team.age_group.in_(("9U","11U","12U"))).order_by(Team.age_group,Team.name,RosterProfile.name_key,RosterProfile.as_of.desc(),RosterProfile.id.desc()).all()
+    claimed_keys=set(db.session.query(RosterProfile.team_id,RosterProfile.name_key).join(RosterFamilyLink,RosterFamilyLink.profile_id==RosterProfile.id).distinct().all())
+    rows=db.session.query(RosterProfile,Team).join(Team,Team.id==RosterProfile.team_id).filter(Team.age_group.in_(("9U","10U","11U","12U"))).order_by(Team.age_group,Team.name,RosterProfile.name_key,RosterProfile.as_of.desc(),RosterProfile.id.desc()).all()
     choices=[]; seen=set()
     for profile,team in rows:
         key=(profile.team_id,profile.name_key)
-        if key not in seen:
+        if key not in seen and key not in claimed_keys:
             seen.add(key); choices.append((profile,team))
     return choices
 
@@ -433,6 +434,9 @@ def register():
             if not selected:
                 flash("Choose your player from the team roster."); return redirect(url_for("register"))
             selected_profile,team=selected
+            claimed=db.session.query(RosterFamilyLink.id).join(RosterProfile,RosterProfile.id==RosterFamilyLink.profile_id).filter(RosterProfile.team_id==selected_profile.team_id,RosterProfile.name_key==selected_profile.name_key).first()
+            if claimed:
+                flash("That player is already linked to a family account. Contact your team admin if this is your player."); return redirect(url_for("register"))
             join_code=request.form.get("join_code","").strip().upper()
             if not join_code or not secrets.compare_digest(join_code,team.join_code):
                 flash("The team code does not match the selected player's team."); return redirect(url_for("register"))
