@@ -787,7 +787,7 @@ RosterProfile = install_roster_profiles(app, db, Team, current_user, team_ids_fo
 from finances import install as install_finances
 FinanceSetting, FinanceAccount, FinanceEntry, PaymentNotice = install_finances(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, current_user, role_required)
 from family_access import install as install_family_access
-RosterFamilyLink = install_family_access(app, db, User, Team, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter)
+RosterFamilyLink, RosterPlayerLink = install_family_access(app, db, User, Team, TeamMembership, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter)
 
 @app.route("/my-players")
 @role_required("parent")
@@ -884,6 +884,7 @@ def admin_delete_player(pid):
             try: s3_client().delete_object(Bucket=media_bucket(),Key=media.object_key)
             except Exception: app.logger.exception("Unable to remove stored media for deleted player %s",player.id)
     WorkoutCompletion.query.filter_by(player_id=player.id).delete()
+    RosterPlayerLink.query.filter_by(player_id=player.id).delete()
     GameStat.query.filter_by(player_id=player.id).delete()
     TeamMembership.query.filter_by(user_id=player.id).delete()
     ChatMessage.query.filter_by(user_id=player.id).delete()
@@ -964,7 +965,7 @@ def delete_account():
     u=current_user()
     if not check_password_hash(u.password_hash,request.form.get("password","")): flash("Password did not match."); return redirect(url_for("account"))
     if u.role=="parent": User.query.filter_by(parent_id=u.id).update({"parent_id":None})
-    WorkoutCompletion.query.filter_by(player_id=u.id).delete(); GameStat.query.filter_by(player_id=u.id).delete(); TeamMembership.query.filter_by(user_id=u.id).delete(); ConsentRequest.query.filter_by(player_id=u.id).delete(); Media.query.filter((Media.owner_user_id==u.id)|(Media.player_id==u.id)).delete(synchronize_session=False)
+    WorkoutCompletion.query.filter_by(player_id=u.id).delete(); GameStat.query.filter_by(player_id=u.id).delete(); TeamMembership.query.filter_by(user_id=u.id).delete(); ConsentRequest.query.filter_by(player_id=u.id).delete(); RosterPlayerLink.query.filter_by(player_id=u.id).delete(); Media.query.filter((Media.owner_user_id==u.id)|(Media.player_id==u.id)).delete(synchronize_session=False)
     u.email=f"deleted-{u.id}-{secrets.token_hex(4)}@invalid.local"; u.name="Deleted User"; u.password_hash=generate_password_hash(secrets.token_urlsafe(40)); u.is_active=False
     db.session.commit(); audit("account_deleted",who=u); session.clear(); flash("Account deleted."); return redirect(url_for("login"))
 

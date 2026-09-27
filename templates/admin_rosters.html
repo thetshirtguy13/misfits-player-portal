@@ -1,0 +1,42 @@
+{% extends "base.html" %}{% block content %}
+<a href="{{url_for('admin_panel')}}">← Account administration</a>
+<h1>Team Rosters &amp; Accounts</h1>
+<p class="muted">Review one team at a time, correct imported names, and connect each roster player to the right player login.</p>
+<form method="get" class="row card">
+  <label for="team_id">Team</label>
+  <select id="team_id" name="team_id">{% for team in teams %}<option value="{{team.id}}" {% if team.id==team_id %}selected{% endif %}>{{team.name}} · {{team.age_group}}</option>{% endfor %}</select>
+  <button>View roster</button>
+</form>
+{% if team_id %}<details class="card"><summary>Add a missing roster player</summary>
+  <form method="post" action="{{url_for('admin_roster_add')}}">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="team_id" value="{{team_id}}">
+    <div class="formgrid"><label>Full name<input name="name" maxlength="120" required></label><label>Jersey number<input name="jersey" maxlength="12"></label><label>Season<input name="season" value="{{default_season}}" maxlength="80" required></label><label>Snapshot date<input type="date" name="as_of" value="{{default_as_of}}" required></label></div>
+    <button>Add roster player</button>
+  </form>
+</details>{% endif %}
+{% for row in rows %}{% set profile=row.profile %}<article class="card">
+  <div class="row between">
+    <div><h2>{{profile.name}}{% if profile.jersey %} <small>#{{profile.jersey}}</small>{% endif %}</h2><p class="muted">{{profile.season}} · snapshot through {{profile.as_of}}</p></div>
+    <span class="pill">{{'Player login linked' if row.account else 'No player login'}}</span>
+  </div>
+  <div class="grid4">
+    <div class="stat"><small>Player account</small><strong style="font-size:16px">{{row.account.name if row.account else 'Not linked'}}</strong></div>
+    <div class="stat"><small>Login email</small><strong style="font-size:14px">{{row.account.email if row.account else '—'}}</strong></div>
+    <div class="stat"><small>Parent account</small><strong style="font-size:16px">{{row.parents|map(attribute='name')|join(', ') if row.parents else 'Not claimed'}}</strong></div>
+    <div class="stat"><small>Email verified</small><strong>{{'Yes' if row.account and row.account.email_verified else 'No' if row.account else '—'}}</strong></div>
+  </div>
+  <div class="formgrid">
+    <form method="post" action="{{url_for('admin_roster_name',pid=profile.id)}}">
+      <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+      <label>Full roster name<input name="name" value="{{profile.name}}" maxlength="120" required></label>
+      <label>Jersey number<input name="jersey" value="{{profile.jersey}}" maxlength="12"></label>
+      <button class="secondary">Save roster details</button>
+    </form>
+    <form method="post" action="{{url_for('admin_roster_player_account',pid=profile.id)}}">
+      <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+      <label>Player login<select name="player_id"><option value="">Not linked</option>{% for player in players %}<option value="{{player.id}}" {% if row.account and row.account.id==player.id %}selected{% endif %}>{{player.name}} · {{player.email}}</option>{% endfor %}</select></label>
+      <button>Save account link</button>
+    </form>
+  </div>
+</article>{% else %}<div class="card"><p>No roster players have been imported for this team.</p></div>{% endfor %}
+{% endblock %}
