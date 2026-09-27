@@ -1,1 +1,28 @@
-{% extends "base.html" %}{% block content %}<div class="auth card"><h1>Create Account</h1><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Account type</label><select name="role" id="role"><option value="player">Player</option><option value="parent">Parent</option><option value="coach">Coach</option></select><label>Full name</label><input name="name" required><label>Email</label><input name="email" type="email" required><label>Password</label><input name="password" type="password" minlength="10" required><div id="playerFields"><label>Team join code</label><input name="join_code" placeholder="Get this code from your coach"><label>Parent/guardian email</label><input name="parent_email" type="email" placeholder="Required for player accounts"><label>Age group</label><select name="age_group"><option></option>{% for a in ['8U','9U','10U','11U','12U','13U','14U'] %}<option>{{a}}</option>{% endfor %}</select><label>Primary position</label><select name="position"><option></option>{% for p in ['Pitcher','Catcher','Infielder','Outfielder','Utility'] %}<option>{{p}}</option>{% endfor %}</select></div><button>Create Account</button></form><p class="muted small">Players use a team code to join. Youth player accounts require parent/guardian consent before progress can be recorded.</p></div><script>document.getElementById('role').addEventListener('change',e=>document.getElementById('playerFields').style.display=e.target.value==='player'?'block':'none')</script>{% endblock %}
+{% extends "base.html" %}{% block content %}
+<div class="auth register-auth card">
+  <h1>Create Account</h1>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Account type<select name="role" id="role"><option value="parent">Parent or guardian</option><option value="coach">Coach</option></select></label>
+    <label>Full name<input name="name" required autocomplete="name"></label>
+    <label>Email<input name="email" type="email" required autocomplete="email"></label>
+    <label>Password<input name="password" type="password" minlength="10" required autocomplete="new-password"></label>
+    <div id="familyFields" {% if not player_choices %}hidden{% endif %}>
+      <label for="profile_id">Your player</label>
+      <select name="profile_id" id="profile_id" {% if player_choices %}required{% endif %}>
+        <option value="">Choose a player</option>
+        {% for profile,team in player_choices %}<option value="{{profile.id}}">{{team.age_group}} · {{profile.name}}{% if profile.jersey %} · #{{profile.jersey}}{% endif %}</option>{% endfor %}
+      </select>
+      <label for="join_code">Team code</label>
+      <input name="join_code" id="join_code" placeholder="Get this code from your coach" {% if player_choices %}required{% endif %} autocomplete="off">
+    </div>
+    <button>Create Account</button>
+  </form>
+  <p class="muted small">Parents select an existing 9U, 11U, or 12U roster player. This links the family account without creating a duplicate player.</p>
+</div>
+<script>
+const role=document.getElementById('role'),family=document.getElementById('familyFields'),profile=document.getElementById('profile_id'),code=document.getElementById('join_code');
+function syncFamily(){const show=role.value==='parent'&&profile.options.length>1;family.hidden=!show;profile.required=show;code.required=show}
+role.addEventListener('change',syncFamily);syncFamily();
+</script>
+{% endblock %}

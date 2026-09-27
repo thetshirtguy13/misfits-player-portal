@@ -16,8 +16,8 @@
   <article class="card team-workspace-card" style="--team-color:{{team_colors[team.id]}}">
     <span class="pill">{{team.age_group}}</span>
     <h2><i></i>{{team.name}}</h2>
-    <p>Player join code: <strong class="code">{{team.join_code}}</strong></p>
-    <p class="muted">Give this code to players when they create their account.</p>
+    <p>Family team code: <strong class="code">{{team.join_code}}</strong></p>
+    <p class="muted">Give this code to parents so they can select and securely link their roster player.</p>
     <div class="team-card-actions"><a class="btn secondary" href="{{url_for('team_calendar',team_id=team.id)}}">Calendar</a><a class="btn secondary" href="{{url_for('team_chat',team_id=team.id)}}">Team Chat</a></div>
   </article>
   {% else %}<section class="empty-state"><h2>No teams yet</h2><p class="muted">Create the first team to open its calendar and chat room.</p></section>{% endfor %}
