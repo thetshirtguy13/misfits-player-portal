@@ -33,6 +33,13 @@ class PortalFlowTests(unittest.TestCase):
             portal.db.session.commit()
             self.admin_id, self.coach_id = admin.id, coach.id
             self.team_id, self.other_team_id = team.id, other_team.id
+            portal.initialize_database()
+
+    def test_database_initialization_is_not_repeated_per_request(self):
+        with patch.object(portal, "initialize_database") as initialize:
+            self.client.get("/login")
+            self.client.get("/health")
+        initialize.assert_not_called()
 
     def login_as(self, user_id):
         with self.client.session_transaction() as session:
@@ -260,7 +267,8 @@ class PortalFlowTests(unittest.TestCase):
 
     def test_admin_email_setting_promotes_only_matching_account(self):
         with patch.dict(os.environ, {"ADMIN_EMAIL": "coach@example.com"}):
-            self.client.get("/health")
+            with portal.app.app_context():
+                portal.initialize_database()
         with portal.app.app_context():
             coach = portal.db.session.get(portal.User, self.coach_id)
             other = portal.User.query.filter_by(email="other@example.com").one()
