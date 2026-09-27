@@ -56,6 +56,34 @@ class FinanceTests(unittest.TestCase):
         self.assertEqual(120000, self.balance())
         self.assertIn(b'$1,200.00', self.client.get('/finances').data)
 
+    def test_season_setup_repairs_roster_names_without_losing_ledger(self):
+        self.prepare()
+        with portal.app.app_context():
+            account = portal.FinanceAccount.query.one()
+            account.name = 'Boone'
+            account.name_key = 'boone'
+            account_id = account.id
+            portal.db.session.commit()
+        response = self.setup_accounts()
+        with portal.app.app_context():
+            account = portal.FinanceAccount.query.one()
+            self.assertEqual(account_id, account.id)
+            self.assertEqual('Boone Soper', account.name)
+            self.assertEqual('boone soper', account.name_key)
+            self.assertEqual(2, portal.FinanceEntry.query.filter_by(account_id=account.id).count())
+        self.assertIn(b'0 new player accounts prepared and 1 existing names updated', response.data)
+
+    def test_season_setup_repairs_misspelled_name_by_unique_last_name(self):
+        self.prepare()
+        with portal.app.app_context():
+            account = portal.FinanceAccount.query.one()
+            account.name = 'Boon Soper'
+            account.name_key = 'boon soper'
+            portal.db.session.commit()
+        self.setup_accounts()
+        with portal.app.app_context():
+            self.assertEqual('Boone Soper', portal.FinanceAccount.query.one().name)
+
     def test_parent_isolation_and_admin_only_writes(self):
         self.prepare()
         self.login_as(self.other_parent_id)
