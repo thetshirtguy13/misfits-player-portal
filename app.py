@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file, g
 from flask_sqlalchemy import SQLAlchemy
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
@@ -23,6 +23,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE", "false").lower()=="true",
     MAX_CONTENT_LENGTH=200 * 1024 * 1024,
+    SEND_FILE_MAX_AGE_DEFAULT=3600,
 )
 db_url = os.environ.get("DATABASE_URL", "sqlite:///misfits.db")
 if db_url.startswith("postgres://"):
@@ -201,9 +202,12 @@ PITCH_PLAN_QUESTIONS = [
 
 # ---------------- Helpers ----------------
 def current_user():
+    if hasattr(g,"current_user"):
+        return g.current_user
     uid=session.get("user_id")
     u=db.session.get(User, uid) if uid else None
-    return u if u and u.is_active else None
+    g.current_user=u if u and u.is_active else None
+    return g.current_user
 
 def login_required(fn):
     @wraps(fn)
@@ -352,8 +356,7 @@ def can_view_player(viewer, player):
         return bool(set(team_ids_for(viewer)) & set(team_ids_for(player)))
     return False
 
-@app.before_request
-def bootstrap():
+def initialize_database():
     db.create_all()
     columns={column["name"] for column in inspect(db.engine).get_columns("schedule_event")}
     if "team_id" not in columns:
@@ -381,6 +384,7 @@ def bootstrap():
             db.session.add(ScheduleEvent(team_id=calendar_team.id,title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=datetime.strptime(end,"%H:%M").time() if end else None))
             seeded_event=True
     if seeded_event: db.session.commit()
+    db.session.remove()
 
 @app.after_request
 def security_headers(resp):
@@ -967,6 +971,8 @@ def terms(): return render_template("terms.html",user=current_user())
 @app.route("/health")
 def health(): return jsonify({"ok":True,"time":datetime.utcnow().isoformat()+"Z"})
 
+with app.app_context():
+    initialize_database()
+
 if __name__=="__main__":
-    with app.app_context(): db.create_all()
     app.run(host="0.0.0.0",port=int(os.environ.get("PORT",5000)),debug=os.environ.get("FLASK_DEBUG","false").lower()=="true")
