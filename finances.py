@@ -85,6 +85,10 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
     def key(name):
         return ' '.join(name.casefold().split())
 
+    def name_tokens(name_key):
+        parts = name_key.split()
+        return {parts[0], parts[-1]} if parts else set()
+
     def token():
         value = request.form.get('operation_key', '')
         if not re.fullmatch(r'[a-f0-9]{32}', value):
@@ -166,18 +170,36 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
                 raise ValueError('The fall discount cannot exceed the dues.')
             due_on = date.fromisoformat(request.form['due_on']) if request.form.get('due_on') else None
             count = 0
+            renamed = 0
             for tid in sorted(tids):
                 players = User.query.join(TeamMembership, TeamMembership.user_id == User.id).filter(TeamMembership.team_id == tid, TeamMembership.role == 'player', User.role == 'player', User.is_active.is_(True)).all()
                 roster = RosterProfile.query.filter_by(team_id=tid, season=season).all()
-                names = {key(p.name): p.name for p in players}
-                names.update({p.name_key: p.name for p in roster})
+                names = {p.name_key: p.name for p in roster}
+                roster_tokens = [(p.name_key, name_tokens(p.name_key)) for p in roster]
+                for player in players:
+                    player_key = key(player.name)
+                    if player_key not in names and not any(name_tokens(player_key) & tokens for _, tokens in roster_tokens):
+                        names[player_key] = player.name
+                existing = FinanceAccount.query.filter_by(team_id=tid, season=season).all()
+                assigned = set()
                 for name_key, name in names.items():
                     a = FinanceAccount.query.filter_by(team_id=tid, name_key=name_key, season=season).first()
+                    if not a:
+                        tokens = name_tokens(name_key)
+                        candidates = [account for account in existing if account.id not in assigned and name_tokens(account.name_key) & tokens]
+                        competing_names = [candidate_key for candidate_key in names if name_tokens(candidate_key) & name_tokens(candidates[0].name_key)] if len(candidates) == 1 else []
+                        if len(candidates) == 1 and competing_names == [name_key]:
+                            a = candidates[0]
+                            a.name = name
+                            a.name_key = name_key
+                            renamed += 1
                     if not a:
                         a = FinanceAccount(team_id=tid, name_key=name_key, name=name, season=season)
                         db.session.add(a)
                         db.session.flush()
                         count += 1
+                        existing.append(a)
+                    assigned.add(a.id)
                     matches = [p for p in players if key(p.name) == name_key]
                     if not a.player_id and len(matches) == 1:
                         a.player_id = matches[0].id
@@ -187,8 +209,8 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
                         if amount and not FinanceEntry.query.filter_by(operation_key=operation).first():
                             db.session.add(FinanceEntry(account_id=a.id, kind=kind, cents=amount, description=description,
                                 due_on=due_on if kind == 'dues' else None, created_by=current_user().id, operation_key=operation))
-            log('finance_setup', f'teams={sorted(tids)}; season={season}; new_accounts={count}; dues_cents={charge}; discount_cents={discount}')
-            flash(f'{count} new player accounts prepared. Existing season charges were not duplicated.')
+            log('finance_setup', f'teams={sorted(tids)}; season={season}; new_accounts={count}; renamed_accounts={renamed}; dues_cents={charge}; discount_cents={discount}')
+            flash(f'{count} new player accounts prepared and {renamed} existing names updated. Existing balances and season charges were preserved.')
             return finish('finances')
         except ValueError as exc:
             db.session.rollback()
