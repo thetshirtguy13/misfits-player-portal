@@ -327,6 +327,8 @@ def portal_team_ids_for(u):
         if child_ids:
             memberships=TeamMembership.query.filter(TeamMembership.user_id.in_(child_ids),TeamMembership.approved==True).all()
             team_ids.update(membership.team_id for membership in memberships)
+        roster_team_ids=db.session.query(RosterProfile.team_id).join(RosterFamilyLink,RosterFamilyLink.profile_id==RosterProfile.id).filter(RosterFamilyLink.parent_id==u.id).distinct().all()
+        team_ids.update(team_id for (team_id,) in roster_team_ids)
     return sorted(team_ids)
 
 def visible_teams_for(u):
@@ -392,29 +394,52 @@ def security_headers(resp):
 @app.route("/")
 def home(): return redirect(url_for("dashboard")) if current_user() else redirect(url_for("login"))
 
+def registration_player_choices():
+    rows=db.session.query(RosterProfile,Team).join(Team,Team.id==RosterProfile.team_id).filter(Team.age_group.in_(("9U","11U","12U"))).order_by(Team.age_group,Team.name,RosterProfile.name_key,RosterProfile.as_of.desc(),RosterProfile.id.desc()).all()
+    choices=[]; seen=set()
+    for profile,team in rows:
+        key=(profile.team_id,profile.name_key)
+        if key not in seen:
+            seen.add(key); choices.append((profile,team))
+    return choices
+
 @app.route("/register",methods=["GET","POST"])
 @limiter.limit("10 per hour")
 def register():
+    player_choices=registration_player_choices()
     if request.method=="POST":
-        role=request.form.get("role","player")
-        if role not in {"player","parent","coach"}: role="player"
+        role=request.form.get("role","parent")
+        if role not in {"player","parent","coach"}: role="parent"
         email=request.form["email"].strip().lower(); password=request.form["password"]
         if len(password)<10: flash("Use a password with at least 10 characters."); return redirect(url_for("register"))
         if User.query.filter_by(email=email).first(): flash("That email already exists."); return redirect(url_for("register"))
         parent_email=""
         team=None
+        selected_profile=None
         if role=="player":
             parent_email=request.form.get("parent_email","").strip().lower()
             join_code=request.form.get("join_code","").strip().upper()
             if not parent_email: flash("A parent/guardian email is required for youth player accounts."); return redirect(url_for("register"))
             team=Team.query.filter_by(join_code=join_code).first()
             if not team: flash("A valid team join code is required for player accounts."); return redirect(url_for("register"))
+        elif role=="parent" and player_choices:
+            try: profile_id=int(request.form.get("profile_id",0) or 0)
+            except (TypeError,ValueError): profile_id=0
+            selected={profile.id:(profile,choice_team) for profile,choice_team in player_choices}.get(profile_id)
+            if not selected:
+                flash("Choose your player from the team roster."); return redirect(url_for("register"))
+            selected_profile,team=selected
+            join_code=request.form.get("join_code","").strip().upper()
+            if not join_code or not secrets.compare_digest(join_code,team.join_code):
+                flash("The team code does not match the selected player's team."); return redirect(url_for("register"))
         u=User(role=role,name=request.form["name"].strip(),email=email,password_hash=generate_password_hash(password),age_group=request.form.get("age_group","") if role=="player" else "",position=request.form.get("position","") if role=="player" else "",consent_verified=(role!="player"))
         db.session.add(u); db.session.flush()
         if role=="player":
             db.session.add(TeamMembership(team_id=team.id,user_id=u.id,role="player",approved=False))
             cr=ConsentRequest(player_id=u.id,parent_email=parent_email); db.session.add(cr)
         elif role=="parent":
+            if selected_profile:
+                db.session.add(RosterFamilyLink(parent_id=u.id,profile_id=selected_profile.id))
             approved_requests=ConsentRequest.query.filter_by(parent_email=email).filter(ConsentRequest.approved_at.isnot(None)).all()
             for approved_request in approved_requests:
                 player=db.session.get(User,approved_request.player_id)
@@ -429,7 +454,7 @@ def register():
             sent=send_email(parent_email,"Parent consent for Misfits Player Development",f"Review and approve this player account: {link}\n\nAfter approval, create or sign in to a parent account using this email address to view the player.")
             if not sent: flash("We could not send the parent-consent email. Please contact your team admin.")
         return redirect(url_for("dashboard"))
-    return render_template("register.html")
+    return render_template("register.html",player_choices=player_choices)
 
 @app.route("/login",methods=["GET","POST"])
 @limiter.limit("10 per minute")
