@@ -131,6 +131,42 @@ class FamilyAccessTests(unittest.TestCase):
         page = self.client.get('/register').data
         self.assertEqual(1, page.count(b'Roster Child'))
 
+    def test_registration_includes_10u_roster_players(self):
+        with portal.app.app_context():
+            organization_id = portal.db.session.get(portal.Team, self.team_id).organization_id
+            team = portal.Team(organization_id=organization_id, name='10U Black', age_group='10U', join_code='TEAM10')
+            portal.db.session.add(team)
+            portal.db.session.flush()
+            profile = portal.RosterProfile(team_id=team.id, name='Ten U Child', name_key='ten u child', season='Fall 2026', as_of=date(2026, 9, 17), stats={})
+            portal.db.session.add(profile)
+            portal.db.session.commit()
+        page = self.client.get('/register').data
+        self.assertIn(b'10U', page)
+        self.assertIn(b'Ten U Child', page)
+
+    def test_registration_hides_claimed_player_across_roster_snapshots(self):
+        with portal.app.app_context():
+            parent = portal.User(role='parent', name='Existing Parent', email='existing@example.com', password_hash='x', consent_verified=True)
+            old_profile = portal.RosterProfile(team_id=self.team_id, name='Claimed Child', name_key='claimed child', season='Spring 2026', as_of=date(2026, 5, 1), stats={})
+            new_profile = portal.RosterProfile(team_id=self.team_id, name='Claimed Child', name_key='claimed child', season='Fall 2026', as_of=date(2026, 9, 17), stats={})
+            portal.db.session.add_all([parent, old_profile, new_profile])
+            portal.db.session.flush()
+            portal.db.session.add(portal.RosterFamilyLink(parent_id=parent.id, profile_id=old_profile.id))
+            portal.db.session.commit()
+            parent_id, old_profile_id, new_profile_id = parent.id, old_profile.id, new_profile.id
+
+        page = self.client.get('/register').data
+        self.assertNotIn(b'Claimed Child', page)
+
+        stale_choices = lambda: [(portal.db.session.get(portal.RosterProfile, new_profile_id), portal.db.session.get(portal.Team, self.team_id))]
+        with patch.object(portal, 'registration_player_choices', side_effect=stale_choices):
+            response = self.client.post('/register', data={'role':'parent','name':'Second Parent','email':'second-parent@example.com','password':'long-password','profile_id':new_profile_id,'join_code':'TEAM12'}, follow_redirects=True)
+        self.assertIn(b'already linked to a family account', response.data)
+        with portal.app.app_context():
+            self.assertIsNone(portal.User.query.filter_by(email='second-parent@example.com').first())
+            links = portal.RosterFamilyLink.query.all()
+            self.assertEqual([(parent_id, old_profile_id)], [(link.parent_id, link.profile_id) for link in links])
+
 
 if __name__=='__main__':
     unittest.main()
