@@ -88,6 +88,49 @@ class FamilyAccessTests(unittest.TestCase):
             mail.assert_not_called()
         self.assertIn(b'already verified',response.data)
 
+    def test_parent_registration_selects_existing_roster_player(self):
+        with portal.app.app_context():
+            profile = portal.RosterProfile(team_id=self.team_id, name='Roster Child', name_key='roster child', season='Fall 2026', as_of=date(2026, 9, 17), stats={})
+            portal.db.session.add(profile)
+            portal.db.session.commit()
+            profile_id = profile.id
+
+        page = self.client.get('/register')
+        self.assertIn(b'Roster Child', page.data)
+        self.assertIn(b'Parent or guardian', page.data)
+        self.assertNotIn(b'<option value="player">', page.data)
+
+        data = {'role':'parent','name':'New Parent','email':'new@example.com','password':'long-password','profile_id':profile_id,'join_code':'BADCODE'}
+        response = self.client.post('/register', data=data, follow_redirects=True)
+        self.assertIn(b'does not match', response.data)
+        with portal.app.app_context():
+            self.assertIsNone(portal.User.query.filter_by(email='new@example.com').first())
+
+        data['join_code'] = 'TEAM12'
+        with patch.object(portal, 'send_email', return_value=True):
+            response = self.client.post('/register', data=data, follow_redirects=True)
+        self.assertIn(b'Welcome, New Parent', response.data)
+        self.assertIn(b'Roster Child', response.data)
+        with portal.app.app_context():
+            parent = portal.User.query.filter_by(email='new@example.com').one()
+            link = portal.RosterFamilyLink.query.filter_by(parent_id=parent.id, profile_id=profile_id).one()
+            self.assertIsNotNone(link)
+            self.assertEqual(0, portal.User.query.filter_by(role='player').count())
+            self.assertIn(self.team_id, portal.portal_team_ids_for(parent))
+
+        self.assertIn(b'12U Blue', self.client.get('/calendar').data)
+        self.assertIn(b'12U Blue', self.client.get('/chats').data)
+
+    def test_registration_uses_latest_profile_once(self):
+        with portal.app.app_context():
+            portal.db.session.add_all([
+                portal.RosterProfile(team_id=self.team_id, name='Roster Child', name_key='roster child', season='Spring 2026', as_of=date(2026, 5, 1), stats={}),
+                portal.RosterProfile(team_id=self.team_id, name='Roster Child', name_key='roster child', season='Fall 2026', as_of=date(2026, 9, 17), stats={}),
+            ])
+            portal.db.session.commit()
+        page = self.client.get('/register').data
+        self.assertEqual(1, page.count(b'Roster Child'))
+
 
 if __name__=='__main__':
     unittest.main()
