@@ -1,0 +1,124 @@
+nav {
+  flex-wrap: wrap;
+  overflow: visible;
+  gap: 8px;
+}
+
+nav a,
+.navbtn {
+  white-space: normal;
+  text-align: center;
+}
+
+.roster-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.roster-team {
+  margin: 0;
+}
+
+.roster-team.selected {
+  border-color: var(--blue);
+}
+
+.roster-team h2 {
+  margin: 8px 0 0;
+}
+
+.roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.roster-list li {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 42px;
+  padding: 8px 0;
+}
+
+.roster-status {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.account-dot {
+  background: var(--muted);
+  border-radius: 50%;
+  display: inline-block;
+  height: 10px;
+  width: 10px;
+}
+
+.account-dot.linked {
+  background: var(--green);
+}
+
+.duplicate-badge {
+  background: rgba(245, 158, 11, .16);
+  border: 1px solid var(--yellow);
+  border-radius: 999px;
+  color: #fcd34d;
+  display: inline-block;
+  font-size: 11px;
+  padding: 4px 7px;
+}
+
+.roster-key {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+}
+
+@media (max-width: 850px) {
+  header {
+    position: static;
+  }
+
+  nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  nav a,
+  .navform,
+  .navbtn {
+    width: 100%;
+  }
+}
+
+@media (max-width: 600px) {
+  nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding: 0 12px 10px;
+  }
+
+  nav a,
+  .navbtn {
+    padding: 8px 5px;
+    font-size: 12px;
+  }
+
+  .roster-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .duplicate-badge {
+    border-radius: 6px;
+    max-width: 92px;
+    text-align: center;
+  }
+}
