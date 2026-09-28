@@ -101,7 +101,12 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
         if not a:
             abort(404)
         player = db.session.get(User, a.player_id) if a.player_id else None
-        if u.role != 'admin' and not (u.role == 'parent' and (a.parent_id == u.id or (player and player.parent_id == u.id))):
+        permitted = (
+            u.role == 'admin'
+            or (u.role == 'player' and a.player_id == u.id)
+            or (u.role == 'parent' and (a.parent_id == u.id or (player and player.parent_id == u.id)))
+        )
+        if not permitted:
             abort(403)
         return a
 
@@ -128,10 +133,15 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
         return {'finance_token': lambda: secrets.token_hex(16)}
 
     @app.route('/finances')
-    @role_required('parent')
+    @role_required('parent', 'player')
     def finances():
         u = current_user()
-        accounts = FinanceAccount.query.order_by(FinanceAccount.team_id, FinanceAccount.name, FinanceAccount.season).all() if u.role == 'admin' else FinanceAccount.query.filter(db.or_(FinanceAccount.parent_id == u.id, FinanceAccount.player_id.in_(db.select(User.id).where(User.parent_id == u.id, User.role == 'player')))).order_by(FinanceAccount.name).all()
+        if u.role == 'admin':
+            accounts = FinanceAccount.query.order_by(FinanceAccount.team_id, FinanceAccount.name, FinanceAccount.season).all()
+        elif u.role == 'player':
+            accounts = FinanceAccount.query.filter_by(player_id=u.id).order_by(FinanceAccount.name).all()
+        else:
+            accounts = FinanceAccount.query.filter(db.or_(FinanceAccount.parent_id == u.id, FinanceAccount.player_id.in_(db.select(User.id).where(User.parent_id == u.id, User.role == 'player')))).order_by(FinanceAccount.name).all()
         team_id = request.args.get('team_id', type=int)
         if team_id:
             accounts = [a for a in accounts if a.team_id == team_id]
@@ -218,7 +228,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
             return redirect(url_for('finances'))
 
     @app.route('/finances/<int:aid>')
-    @role_required('parent')
+    @role_required('parent', 'player')
     def finance_account(aid):
         a = get_account(aid)
         rows = entries(a)
@@ -284,7 +294,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
             return redirect(url_for('finance_account', aid=aid))
 
     @app.route('/finances/<int:aid>/report', methods=['POST'])
-    @role_required('parent')
+    @role_required('parent', 'player')
     def finance_report(aid):
         get_account(aid)
         try:
