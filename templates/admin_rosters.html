@@ -1,7 +1,8 @@
 {% extends "base.html" %}{% block content %}
 <a href="{{url_for('admin_panel')}}">← Account administration</a>
 <h1>Rosters</h1>
-<p class="muted">See every team roster, spot possible duplicates, and confirm which players have an account.</p>
+<p class="muted">See every team roster, spot possible duplicates, and confirm which players have a family account.</p>
+<div class="card"><strong>Children do not need their own login.</strong> Link a parent or guardian under <a href="{{url_for('admin_families')}}">Family Accounts &amp; Player Access</a>. Existing child logins remain optional.</div>
 {% if duplicate_teams %}<div class="warn"><strong>Possible duplicates found.</strong> Players marked below appear on more than one team. Confirm whether each listing is intentional.</div>{% endif %}
 <section class="roster-overview" aria-label="All team rosters">
 {% for team in teams %}<article class="card roster-team{% if team.id==team_id %} selected{% endif %}">
@@ -9,7 +10,7 @@
   <p class="muted">{{roster_overview[team.id]|length}} players</p>
   <ul class="roster-list">{% for item in roster_overview[team.id] %}<li>
     <span><strong>{{item.profile.name}}</strong>{% if item.profile.jersey %} <small>#{{item.profile.jersey}}</small>{% endif %}</span>
-    <span class="roster-status">{% if item.profile.name_key in duplicate_teams %}<span class="duplicate-badge" title="Also listed on {{duplicate_teams[item.profile.name_key]|join(', ')}}">Possible duplicate</span>{% endif %}<span class="account-dot {{'linked' if item.account_linked else ''}}" title="{{'Player account linked' if item.account_linked else 'No player account linked'}}"></span></span>
+    <span class="roster-status">{% if item.profile.name_key in duplicate_teams %}<span class="duplicate-badge" title="Also listed on {{duplicate_teams[item.profile.name_key]|join(', ')}}">Possible duplicate</span>{% endif %}<span class="account-dot {{'linked' if item.account_linked else ''}}" title="{{'Family account linked' if item.account_linked else 'No family account linked'}}"></span></span>
   </li>{% else %}<li class="muted">No roster players</li>{% endfor %}</ul>
 </article>{% endfor %}
 </section>
@@ -30,13 +31,13 @@
 {% for row in rows %}{% set profile=row.profile %}<article class="card">
   <div class="row between">
     <div><h2>{{profile.name}}{% if profile.jersey %} <small>#{{profile.jersey}}</small>{% endif %}</h2><p class="muted">{{profile.season}} · snapshot through {{profile.as_of}}</p></div>
-    <span>{% if profile.name_key in duplicate_teams %}<span class="duplicate-badge">Also listed on {{duplicate_teams[profile.name_key]|join(', ')}}</span>{% endif %} <span class="pill">{{'Player login linked' if row.account else 'No player login'}}</span></span>
+    <span>{% if profile.name_key in duplicate_teams %}<span class="duplicate-badge">Also listed on {{duplicate_teams[profile.name_key]|join(', ')}}</span>{% endif %} <span class="pill">{{'Family account linked' if row.parents else 'Existing child login linked' if row.account else 'Family account needed'}}</span></span>
   </div>
   <div class="grid4">
-    <div class="stat"><small>Player account</small><strong style="font-size:16px">{{row.account.name if row.account else 'Not linked'}}</strong></div>
-    <div class="stat"><small>Login email</small><strong style="font-size:14px">{{row.account.email if row.account else '—'}}</strong></div>
-    <div class="stat"><small>Parent account</small><strong style="font-size:16px">{{row.parents|map(attribute='name')|join(', ') if row.parents else 'Not claimed'}}</strong></div>
-    <div class="stat"><small>Email verified</small><strong>{{'Yes' if row.account and row.account.email_verified else 'No' if row.account else '—'}}</strong></div>
+    <div class="stat"><small>Family account</small><strong style="font-size:16px">{{row.parents|map(attribute='name')|join(', ') if row.parents else 'Not linked'}}</strong></div>
+    <div class="stat"><small>Family email</small><strong style="font-size:14px">{{row.parents|map(attribute='email')|join(', ') if row.parents else '—'}}</strong></div>
+    <div class="stat"><small>Child login</small><strong style="font-size:16px">{{row.account.name if row.account else 'Not needed'}}</strong></div>
+    <div class="stat"><small>Family email verified</small><strong>{{'Yes' if row.parents and row.parents|selectattr('email_verified')|list else 'No' if row.parents else '—'}}</strong></div>
   </div>
   <div class="formgrid">
     <form method="post" action="{{url_for('admin_roster_name',pid=profile.id)}}">
@@ -45,11 +46,11 @@
       <label>Jersey number<input name="jersey" value="{{profile.jersey}}" maxlength="12"></label>
       <button class="secondary">Save roster details</button>
     </form>
-    <form method="post" action="{{url_for('admin_roster_player_account',pid=profile.id)}}">
+    <details><summary>Optional existing child login</summary><form method="post" action="{{url_for('admin_roster_player_account',pid=profile.id)}}">
       <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
       <label>Player login<select name="player_id"><option value="">Not linked</option>{% for player in players %}<option value="{{player.id}}" {% if row.account and row.account.id==player.id %}selected{% endif %}>{{player.name}} · {{player.email}}</option>{% endfor %}</select></label>
-      <button>Save account link</button>
-    </form>
+      <button>Save optional login</button>
+    </form></details>
   </div>
 </article>{% else %}<div class="card"><p>No roster players have been imported for this team.</p></div>{% endfor %}
 {% endblock %}
