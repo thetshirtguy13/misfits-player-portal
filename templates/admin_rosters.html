@@ -1,7 +1,20 @@
 {% extends "base.html" %}{% block content %}
 <a href="{{url_for('admin_panel')}}">← Account administration</a>
-<h1>Team Rosters &amp; Accounts</h1>
-<p class="muted">Review one team at a time, correct imported names, and connect each roster player to the right player login.</p>
+<h1>Rosters</h1>
+<p class="muted">See every team roster, spot possible duplicates, and confirm which players have an account.</p>
+{% if duplicate_teams %}<div class="warn"><strong>Possible duplicates found.</strong> Players marked below appear on more than one team. Confirm whether each listing is intentional.</div>{% endif %}
+<section class="roster-overview" aria-label="All team rosters">
+{% for team in teams %}<article class="card roster-team{% if team.id==team_id %} selected{% endif %}">
+  <div class="row between"><div><span class="pill">{{team.age_group}}</span><h2>{{team.name}}</h2></div><a class="btn secondary" href="{{url_for('admin_rosters',team_id=team.id)}}">Manage</a></div>
+  <p class="muted">{{roster_overview[team.id]|length}} players</p>
+  <ul class="roster-list">{% for item in roster_overview[team.id] %}<li>
+    <span><strong>{{item.profile.name}}</strong>{% if item.profile.jersey %} <small>#{{item.profile.jersey}}</small>{% endif %}</span>
+    <span class="roster-status">{% if item.profile.name_key in duplicate_teams %}<span class="duplicate-badge" title="Also listed on {{duplicate_teams[item.profile.name_key]|join(', ')}}">Possible duplicate</span>{% endif %}<span class="account-dot {{'linked' if item.account_linked else ''}}" title="{{'Player account linked' if item.account_linked else 'No player account linked'}}"></span></span>
+  </li>{% else %}<li class="muted">No roster players</li>{% endfor %}</ul>
+</article>{% endfor %}
+</section>
+<p class="roster-key"><span class="account-dot linked"></span> Account linked <span class="account-dot"></span> No account linked</p>
+<h2>Manage selected team</h2>
 <form method="get" class="row card">
   <label for="team_id">Team</label>
   <select id="team_id" name="team_id">{% for team in teams %}<option value="{{team.id}}" {% if team.id==team_id %}selected{% endif %}>{{team.name}} · {{team.age_group}}</option>{% endfor %}</select>
@@ -17,7 +30,7 @@
 {% for row in rows %}{% set profile=row.profile %}<article class="card">
   <div class="row between">
     <div><h2>{{profile.name}}{% if profile.jersey %} <small>#{{profile.jersey}}</small>{% endif %}</h2><p class="muted">{{profile.season}} · snapshot through {{profile.as_of}}</p></div>
-    <span class="pill">{{'Player login linked' if row.account else 'No player login'}}</span>
+    <span>{% if profile.name_key in duplicate_teams %}<span class="duplicate-badge">Also listed on {{duplicate_teams[profile.name_key]|join(', ')}}</span>{% endif %} <span class="pill">{{'Player login linked' if row.account else 'No player login'}}</span></span>
   </div>
   <div class="grid4">
     <div class="stat"><small>Player account</small><strong style="font-size:16px">{{row.account.name if row.account else 'Not linked'}}</strong></div>
