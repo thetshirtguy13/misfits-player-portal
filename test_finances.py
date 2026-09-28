@@ -19,7 +19,7 @@ class FinanceTests(unittest.TestCase):
             portal.db.session.add(portal.TeamMembership(team_id=self.team_id, user_id=player.id, role='player'))
             portal.db.session.add(portal.RosterProfile(team_id=self.team_id, name='Boone Soper', name_key='boone soper', season='Fall 2026', as_of=date(2026,9,17)))
             portal.db.session.commit()
-            self.parent_id, self.other_parent_id = parent.id, other.id
+            self.parent_id, self.other_parent_id, self.player_id = parent.id, other.id, player.id
         self.login_as(self.admin_id)
         self.setup_accounts()
         with portal.app.app_context():
@@ -100,6 +100,22 @@ class FinanceTests(unittest.TestCase):
         self.assertEqual(120000, self.balance())
         self.login_as(self.coach_id)
         self.assertEqual(302, self.client.get('/finances').status_code)
+
+    def test_linked_player_can_view_only_their_own_statement(self):
+        self.prepare()
+        with portal.app.app_context():
+            other_account = portal.FinanceAccount(team_id=self.team_id, name='Other Player', name_key='other player', season='Fall 2026')
+            portal.db.session.add(other_account)
+            portal.db.session.commit()
+            other_account_id = other_account.id
+        self.login_as(self.player_id)
+        page = self.client.get('/finances')
+        self.assertEqual(200, page.status_code)
+        self.assertIn(b'Boone Soper', page.data)
+        self.assertNotIn(b'Other Player', page.data)
+        self.assertEqual(200, self.client.get(f'/finances/{self.aid}').status_code)
+        self.assertEqual(403, self.client.get(f'/finances/{other_account_id}').status_code)
+        self.assertIn(b'Payments', self.client.get('/dashboard').data)
 
     def test_sponsor_credit_duplicate_reference_and_reversal(self):
         self.prepare()

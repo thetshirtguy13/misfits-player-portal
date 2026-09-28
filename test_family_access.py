@@ -196,6 +196,24 @@ class FamilyAccessTests(unittest.TestCase):
         self.assertEqual(200, self.client.get(f'/family-roster/{profile_id}').status_code)
         self.assertIn(b'Roster Child', self.client.get('/dashboard').data)
 
+    def test_admin_rosters_tab_shows_every_team_and_flags_duplicate_names(self):
+        with portal.app.app_context():
+            profiles = [
+                portal.RosterProfile(team_id=self.team_id, name='Shared Player', name_key='shared player', season='Fall 2026', as_of=date(2026, 9, 17), stats={}),
+                portal.RosterProfile(team_id=self.other_team_id, name='Shared Player', name_key='shared player', season='Fall 2026', as_of=date(2026, 9, 17), stats={}),
+            ]
+            portal.db.session.add_all(profiles)
+            portal.db.session.commit()
+
+        self.login_as(self.admin_id)
+        page = self.client.get(f'/admin/rosters?team_id={self.team_id}')
+        self.assertEqual(200, page.status_code)
+        self.assertIn(b'Rosters', page.data)
+        self.assertIn(b'12U Blue', page.data)
+        self.assertIn(b'13U Gold', page.data)
+        self.assertEqual(2, page.data.count(b'Possible duplicate</span>'))
+        self.assertIn(b'href="/admin/rosters"', page.data)
+
     def test_admin_roster_name_update_applies_to_every_snapshot(self):
         with portal.app.app_context():
             profiles = [

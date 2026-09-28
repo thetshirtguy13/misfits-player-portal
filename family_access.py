@@ -42,15 +42,38 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
     @role_required('admin')
     def admin_rosters():
         teams = Team.query.order_by(Team.age_group, Team.name).all()
+        teams_by_id = {team.id: team for team in teams}
         team_id = request.args.get('team_id', type=int) or (teams[0].id if teams else None)
         if team_id and not any(team.id == team_id for team in teams):
             abort(404)
-        profiles = RosterProfile.query.filter_by(team_id=team_id).order_by(RosterProfile.name_key, RosterProfile.as_of.desc(), RosterProfile.id.desc()).all() if team_id else []
+        all_profiles = RosterProfile.query.order_by(RosterProfile.team_id, RosterProfile.name_key, RosterProfile.as_of.desc(), RosterProfile.id.desc()).all()
+        profiles = [profile for profile in all_profiles if profile.team_id == team_id]
+        all_profile_ids = [profile.id for profile in all_profiles]
+        all_player_links = RosterPlayerLink.query.filter(RosterPlayerLink.profile_id.in_(all_profile_ids)).all() if all_profile_ids else []
+        linked_profile_ids = {link.profile_id for link in all_player_links}
+        profile_ids_by_player = {}
+        latest_by_player = {}
+        teams_by_name = {}
+        for profile in all_profiles:
+            key = (profile.team_id, profile.name_key)
+            latest_by_player.setdefault(key, profile)
+            profile_ids_by_player.setdefault(key, []).append(profile.id)
+            teams_by_name.setdefault(profile.name_key, set()).add(profile.team_id)
+        roster_overview = {team.id: [] for team in teams}
+        for key, profile in latest_by_player.items():
+            roster_overview[profile.team_id].append({
+                'profile': profile,
+                'account_linked': any(profile_id in linked_profile_ids for profile_id in profile_ids_by_player[key]),
+            })
+        duplicate_teams = {
+            name_key: [teams_by_id[duplicate_team_id].name for duplicate_team_id in sorted(team_ids) if duplicate_team_id in teams_by_id]
+            for name_key, team_ids in teams_by_name.items() if len(team_ids) > 1
+        }
         latest = {}
         for profile in profiles:
             latest.setdefault(profile.name_key, profile)
         profile_ids = [profile.id for profile in profiles]
-        player_links = RosterPlayerLink.query.filter(RosterPlayerLink.profile_id.in_(profile_ids)).all() if profile_ids else []
+        player_links = [link for link in all_player_links if link.profile_id in profile_ids]
         family_links = RosterFamilyLink.query.filter(RosterFamilyLink.profile_id.in_(profile_ids)).all() if profile_ids else []
         player_by_profile = {link.profile_id: db.session.get(User, link.player_id) for link in player_links}
         parents_by_profile = {}
@@ -67,6 +90,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
         players = User.query.filter_by(role='player', is_active=True).order_by(User.name).all()
         newest = max(profiles, key=lambda profile: (profile.as_of, profile.id)) if profiles else None
         return render_template('admin_rosters.html', user=current_user(), teams=teams, team_id=team_id, rows=rows, players=players,
+            roster_overview=roster_overview, duplicate_teams=duplicate_teams,
             default_season=newest.season if newest else 'Fall 2026', default_as_of=(newest.as_of if newest else date.today()).isoformat())
 
     @app.route('/admin/rosters/add', methods=['POST'])
