@@ -1,4 +1,4 @@
-"""Admin-approved parent access to imported rosters without creating child logins."""
+"""Admin-approved family access to imported rosters without creating child logins."""
 from datetime import date
 from flask import abort, flash, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
@@ -20,9 +20,9 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
     def family_context():
         u = current_user()
         profiles = []
-        if u and u.role == 'parent':
+        if u and u.role in {'parent', 'coach'}:
             direct = RosterProfile.query.join(RosterFamilyLink, RosterFamilyLink.profile_id == RosterProfile.id).filter(RosterFamilyLink.parent_id == u.id).all()
-            child_ids = [child.id for child in User.query.filter_by(parent_id=u.id, role='player').all()]
+            child_ids = [child.id for child in User.query.filter_by(parent_id=u.id, role='player').all()] if u.role == 'parent' else []
             account = RosterProfile.query.join(RosterPlayerLink, RosterPlayerLink.profile_id == RosterProfile.id).filter(RosterPlayerLink.player_id.in_(child_ids)).all() if child_ids else []
             profiles = latest_profiles(direct + account)
         elif u and u.role == 'player':
@@ -188,7 +188,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
     @app.route('/admin/families')
     @role_required('admin')
     def admin_families():
-        parents = User.query.filter_by(role='parent', is_active=True).order_by(User.name).all()
+        parents = User.query.filter(User.role.in_(('parent', 'coach')), User.is_active.is_(True)).order_by(User.name).all()
         profiles = RosterProfile.query.order_by(RosterProfile.team_id, RosterProfile.name).all()
         links = RosterFamilyLink.query.all()
         return render_template('admin_families.html', user=current_user(), parents=parents, profiles=profiles,
@@ -213,7 +213,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
     def admin_link_roster_family(uid):
         parent = db.session.get(User, uid)
         profile = db.session.get(RosterProfile, request.form.get('profile_id', type=int)) if request.form.get('profile_id', type=int) else None
-        if not parent or parent.role != 'parent' or not parent.is_active or not profile:
+        if not parent or parent.role not in {'parent', 'coach'} or not parent.is_active or not profile:
             abort(400)
         if not RosterFamilyLink.query.filter_by(parent_id=uid, profile_id=profile.id).first():
             db.session.add(RosterFamilyLink(parent_id=uid, profile_id=profile.id))
@@ -222,7 +222,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
             except IntegrityError:
                 db.session.rollback()
             audit('roster_family_linked', f'parent_id={uid}; profile_id={profile.id}')
-        flash(f'{profile.name} is now visible under My Players for {parent.email}.')
+        flash(f'{profile.name} is now linked to {parent.name}.')
         return redirect(url_for('admin_families'))
 
     @app.route('/family-roster/<int:pid>')
@@ -234,7 +234,8 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
             abort(404)
         child_ids = [child.id for child in User.query.filter_by(parent_id=u.id, role='player').all()] if u.role == 'parent' else []
         parent_account_link = RosterPlayerLink.query.filter(RosterPlayerLink.player_id.in_(child_ids), RosterPlayerLink.profile_id == pid).first() if child_ids else None
-        allowed = u.role == 'admin' or (u.role == 'coach' and profile.team_id in team_ids_for(u)) or (u.role == 'parent' and (RosterFamilyLink.query.filter_by(parent_id=u.id, profile_id=pid).first() or parent_account_link)) or (u.role == 'player' and RosterPlayerLink.query.filter_by(player_id=u.id, profile_id=pid).first())
+        family_link = RosterFamilyLink.query.filter_by(parent_id=u.id, profile_id=pid).first() if u.role in {'parent', 'coach'} else None
+        allowed = u.role == 'admin' or (u.role == 'coach' and (profile.team_id in team_ids_for(u) or family_link)) or (u.role == 'parent' and (family_link or parent_account_link)) or (u.role == 'player' and RosterPlayerLink.query.filter_by(player_id=u.id, profile_id=pid).first())
         if not allowed:
             abort(403)
         return render_template('family_roster_profile.html', user=u, profile=profile, team=db.session.get(Team, profile.team_id),

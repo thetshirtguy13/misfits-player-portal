@@ -326,11 +326,12 @@ def team_ids_for(u):
 def portal_team_ids_for(u):
     if u.role=="admin": return [team.id for team in Team.query.order_by(Team.id).all()]
     team_ids=set(team_ids_for(u))
-    if u.role=="parent":
-        child_ids=[child.id for child in User.query.filter_by(parent_id=u.id,role="player").all()]
-        if child_ids:
-            memberships=TeamMembership.query.filter(TeamMembership.user_id.in_(child_ids),TeamMembership.approved==True).all()
-            team_ids.update(membership.team_id for membership in memberships)
+    if u.role in {"parent", "coach"}:
+        if u.role=="parent":
+            child_ids=[child.id for child in User.query.filter_by(parent_id=u.id,role="player").all()]
+            if child_ids:
+                memberships=TeamMembership.query.filter(TeamMembership.user_id.in_(child_ids),TeamMembership.approved==True).all()
+                team_ids.update(membership.team_id for membership in memberships)
         roster_team_ids=db.session.query(RosterProfile.team_id).join(RosterFamilyLink,RosterFamilyLink.profile_id==RosterProfile.id).filter(RosterFamilyLink.parent_id==u.id).distinct().all()
         team_ids.update(team_id for (team_id,) in roster_team_ids)
     return sorted(team_ids)
@@ -790,9 +791,9 @@ from family_access import install as install_family_access
 RosterFamilyLink, RosterPlayerLink = install_family_access(app, db, User, Team, TeamMembership, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter)
 
 @app.route("/my-players")
-@role_required("parent")
+@role_required("parent", "coach")
 def my_players():
-    u=current_user(); linked=User.query.filter_by(parent_id=u.id,role="player").all(); return render_template("my_players.html",user=u,linked=linked)
+    u=current_user(); linked=User.query.filter_by(parent_id=u.id,role="player").all() if u.role=="parent" else []; return render_template("my_players.html",user=u,linked=linked)
 
 # ---------------- Administration ----------------
 @app.route("/admin")

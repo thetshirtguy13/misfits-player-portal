@@ -232,6 +232,27 @@ class FamilyAccessTests(unittest.TestCase):
             self.assertEqual({'tucker ridgway'}, {profile.name_key for profile in updated})
             self.assertEqual({'25'}, {profile.jersey for profile in updated})
 
+    def test_admin_can_link_coach_account_to_family_roster(self):
+        with portal.app.app_context():
+            coach = portal.User(role='coach', name='Coach Parent', email='coach-parent@example.com', password_hash='x', is_active=True)
+            profile = portal.RosterProfile(team_id=self.other_team_id, name='Coach Child', name_key='coach child', season='Fall 2026', as_of=date(2026, 9, 17), stats={})
+            portal.db.session.add_all([coach, profile])
+            portal.db.session.commit()
+            coach_id, profile_id = coach.id, profile.id
+
+        self.login_as(self.admin_id)
+        page = self.client.get('/admin/families')
+        self.assertIn(b'Coach Parent', page.data)
+        response = self.client.post(f'/admin/families/{coach_id}/link', data={'profile_id':profile_id}, follow_redirects=True)
+        self.assertIn(b'Coach Child is now linked to Coach Parent', response.data)
+
+        self.login_as(coach_id)
+        self.assertEqual(200, self.client.get('/my-players').status_code)
+        self.assertEqual(200, self.client.get(f'/family-roster/{profile_id}').status_code)
+        self.assertIn(b'Coach Child', self.client.get('/dashboard').data)
+        with portal.app.app_context():
+            self.assertIn(self.other_team_id, portal.portal_team_ids_for(portal.db.session.get(portal.User, coach_id)))
+
     def test_admin_can_add_missing_roster_player(self):
         self.login_as(self.admin_id)
         response = self.client.post('/admin/rosters/add', data={'team_id':self.team_id,'name':'Brayden Brett','jersey':'','season':'Fall 2026','as_of':'2026-09-17'}, follow_redirects=True)
