@@ -449,6 +449,9 @@ def register():
         elif role=="parent":
             if selected_profile:
                 db.session.add(RosterFamilyLink(parent_id=u.id,profile_id=selected_profile.id))
+                for finance_account in FinanceAccount.query.filter_by(team_id=selected_profile.team_id, name_key=selected_profile.name_key).all():
+                    if not finance_account.parent_id:
+                        finance_account.parent_id = u.id
             approved_requests=ConsentRequest.query.filter_by(parent_email=email).filter(ConsentRequest.approved_at.isnot(None)).all()
             for approved_request in approved_requests:
                 player=db.session.get(User,approved_request.player_id)
@@ -786,9 +789,10 @@ def gamechanger():
 from roster_profiles import install as install_roster_profiles
 RosterProfile = install_roster_profiles(app, db, Team, current_user, team_ids_for, role_required, audit)
 from finances import install as install_finances
-FinanceSetting, FinanceAccount, FinanceEntry, PaymentNotice = install_finances(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, current_user, role_required)
 from family_access import install as install_family_access
-RosterFamilyLink, RosterPlayerLink = install_family_access(app, db, User, Team, TeamMembership, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter)
+FinanceAccount = None
+RosterFamilyLink, RosterPlayerLink = install_family_access(app, db, User, Team, TeamMembership, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter, lambda: FinanceAccount)
+FinanceSetting, FinanceAccount, FinanceEntry, PaymentNotice = install_finances(app, db, User, Team, TeamMembership, RosterProfile, RosterFamilyLink, AuditLog, current_user, role_required)
 
 @app.route("/my-players")
 @role_required("parent", "coach")

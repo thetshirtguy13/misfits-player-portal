@@ -34,7 +34,7 @@ def venmo_username(value):
     return value
 
 
-def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, current_user, role_required):
+def install(app, db, User, Team, TeamMembership, RosterProfile, RosterFamilyLink, AuditLog, current_user, role_required):
     class FinanceSetting(db.Model):
         id = db.Column(db.Integer, primary_key=True)
         venmo = db.Column(db.String(30), default='')
@@ -101,10 +101,16 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
         if not a:
             abort(404)
         player = db.session.get(User, a.player_id) if a.player_id else None
+        family_link = RosterFamilyLink.query.join(RosterProfile, RosterProfile.id == RosterFamilyLink.profile_id).filter(
+            RosterFamilyLink.parent_id == u.id,
+            RosterProfile.team_id == a.team_id,
+            RosterProfile.name_key == a.name_key,
+        ).first() if u.role in {'parent', 'coach'} else None
         permitted = (
             u.role == 'admin'
             or (u.role == 'player' and a.player_id == u.id)
             or (u.role == 'parent' and (a.parent_id == u.id or (player and player.parent_id == u.id)))
+            or family_link
         )
         if not permitted:
             abort(403)
@@ -133,7 +139,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
         return {'finance_token': lambda: secrets.token_hex(16)}
 
     @app.route('/finances')
-    @role_required('parent', 'player')
+    @role_required('parent', 'player', 'coach')
     def finances():
         u = current_user()
         if u.role == 'admin':
@@ -141,7 +147,12 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
         elif u.role == 'player':
             accounts = FinanceAccount.query.filter_by(player_id=u.id).order_by(FinanceAccount.name).all()
         else:
-            accounts = FinanceAccount.query.filter(db.or_(FinanceAccount.parent_id == u.id, FinanceAccount.player_id.in_(db.select(User.id).where(User.parent_id == u.id, User.role == 'player')))).order_by(FinanceAccount.name).all()
+            family_keys = db.session.query(RosterProfile.team_id, RosterProfile.name_key).join(RosterFamilyLink, RosterFamilyLink.profile_id == RosterProfile.id).filter(RosterFamilyLink.parent_id == u.id).distinct().all()
+            family_filters = [db.and_(FinanceAccount.team_id == linked_team_id, FinanceAccount.name_key == linked_name_key) for linked_team_id, linked_name_key in family_keys]
+            base_filters = [FinanceAccount.parent_id == u.id]
+            if u.role == 'parent':
+                base_filters.append(FinanceAccount.player_id.in_(db.select(User.id).where(User.parent_id == u.id, User.role == 'player')))
+            accounts = FinanceAccount.query.filter(db.or_(*(base_filters + family_filters))).order_by(FinanceAccount.name).all()
         team_id = request.args.get('team_id', type=int)
         if team_id:
             accounts = [a for a in accounts if a.team_id == team_id]
@@ -213,6 +224,12 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
                     matches = [p for p in players if key(p.name) == name_key]
                     if not a.player_id and len(matches) == 1:
                         a.player_id = matches[0].id
+                    family_ids = db.session.query(RosterFamilyLink.parent_id).join(RosterProfile, RosterProfile.id == RosterFamilyLink.profile_id).filter(
+                        RosterProfile.team_id == tid,
+                        RosterProfile.name_key == name_key,
+                    ).distinct().all()
+                    if not a.parent_id and len(family_ids) == 1:
+                        a.parent_id = family_ids[0][0]
                     # Stable keys make repeating setup safe; corrections use ledger entries.
                     for kind, amount, description in [('dues', charge, 'Season dues'), ('discount', -discount, 'Fall league discount')]:
                         operation = f'setup:{a.id}:{kind}'
@@ -228,7 +245,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
             return redirect(url_for('finances'))
 
     @app.route('/finances/<int:aid>')
-    @role_required('parent', 'player')
+    @role_required('parent', 'player', 'coach')
     def finance_account(aid):
         a = get_account(aid)
         rows = entries(a)
@@ -294,7 +311,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, AuditLog, curren
             return redirect(url_for('finance_account', aid=aid))
 
     @app.route('/finances/<int:aid>/report', methods=['POST'])
-    @role_required('parent', 'player')
+    @role_required('parent', 'player', 'coach')
     def finance_report(aid):
         get_account(aid)
         try:
