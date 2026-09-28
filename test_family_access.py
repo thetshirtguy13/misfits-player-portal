@@ -180,7 +180,8 @@ class FamilyAccessTests(unittest.TestCase):
         self.login_as(self.admin_id)
         page = self.client.get(f'/admin/rosters?team_id={self.team_id}')
         self.assertIn(b'Roster Child', page.data)
-        self.assertIn(b'No player login', page.data)
+        self.assertIn(b'Family account linked', page.data)
+        self.assertIn(b'Children do not need their own login', page.data)
         self.assertIn(b'Parent', page.data)
 
         response = self.client.post(f'/admin/rosters/{profile_id}/player-account', data={'player_id':player_id}, follow_redirects=True)
@@ -252,6 +253,26 @@ class FamilyAccessTests(unittest.TestCase):
         self.assertIn(b'Coach Child', self.client.get('/dashboard').data)
         with portal.app.app_context():
             self.assertIn(self.other_team_id, portal.portal_team_ids_for(portal.db.session.get(portal.User, coach_id)))
+
+    def test_family_link_is_the_player_account_and_unlocks_finances(self):
+        parent_id, other_id, profile_id = self.make_family()
+        with portal.app.app_context():
+            profile = portal.db.session.get(portal.RosterProfile, profile_id)
+            account = portal.FinanceAccount(team_id=profile.team_id, name=profile.name, name_key=profile.name_key, season=profile.season)
+            portal.db.session.add(account)
+            portal.db.session.commit()
+            account_id = account.id
+
+        self.login_as(self.admin_id)
+        response = self.client.post(f'/admin/families/{parent_id}/link', data={'profile_id':profile_id}, follow_redirects=True)
+        self.assertIn(b'Roster Child is now linked to Parent', response.data)
+        with portal.app.app_context():
+            self.assertEqual(parent_id, portal.db.session.get(portal.FinanceAccount, account_id).parent_id)
+            self.assertEqual(0, portal.User.query.filter_by(role='player').count())
+
+        self.login_as(parent_id)
+        self.assertEqual(200, self.client.get(f'/finances/{account_id}').status_code)
+        self.assertIn(b'Roster Child', self.client.get('/finances').data)
 
     def test_admin_can_add_missing_roster_player(self):
         self.login_as(self.admin_id)

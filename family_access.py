@@ -4,7 +4,7 @@ from flask import abort, flash, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
 
 
-def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter):
+def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, role_required, team_ids_for, audit, send_verification, limiter, finance_account_model=lambda: None):
     class RosterFamilyLink(db.Model):
         id = db.Column(db.Integer, primary_key=True)
         parent_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
@@ -51,6 +51,8 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
         all_profile_ids = [profile.id for profile in all_profiles]
         all_player_links = RosterPlayerLink.query.filter(RosterPlayerLink.profile_id.in_(all_profile_ids)).all() if all_profile_ids else []
         linked_profile_ids = {link.profile_id for link in all_player_links}
+        all_family_links = RosterFamilyLink.query.filter(RosterFamilyLink.profile_id.in_(all_profile_ids)).all() if all_profile_ids else []
+        family_linked_profile_ids = {link.profile_id for link in all_family_links}
         profile_ids_by_player = {}
         latest_by_player = {}
         teams_by_name = {}
@@ -63,7 +65,7 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
         for key, profile in latest_by_player.items():
             roster_overview[profile.team_id].append({
                 'profile': profile,
-                'account_linked': any(profile_id in linked_profile_ids for profile_id in profile_ids_by_player[key]),
+                'account_linked': any(profile_id in linked_profile_ids or profile_id in family_linked_profile_ids for profile_id in profile_ids_by_player[key]),
             })
         duplicate_teams = {
             name_key: [teams_by_id[duplicate_team_id].name for duplicate_team_id in sorted(team_ids) if duplicate_team_id in teams_by_id]
@@ -217,6 +219,12 @@ def install(app, db, User, Team, TeamMembership, RosterProfile, current_user, ro
             abort(400)
         if not RosterFamilyLink.query.filter_by(parent_id=uid, profile_id=profile.id).first():
             db.session.add(RosterFamilyLink(parent_id=uid, profile_id=profile.id))
+            FinanceAccount = finance_account_model()
+            if FinanceAccount:
+                accounts = FinanceAccount.query.filter_by(team_id=profile.team_id, name_key=profile.name_key).all()
+                for account in accounts:
+                    if not account.parent_id:
+                        account.parent_id = uid
             try:
                 db.session.commit()
             except IntegrityError:
