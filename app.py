@@ -13,7 +13,9 @@ import calendar as calendar_module
 import csv, io, os, json, secrets, smtplib, uuid
 import boto3
 from email.message import EmailMessage
+from urllib.parse import parse_qs, urlparse
 from learning_content import FIELD_IQ_LEVELS, LEVELS, PITCH_PLAN_LEVELS
+from practice_drills import PRACTICE_DRILLS
 
 app = Flask(__name__)
 app.config.update(
@@ -137,6 +139,7 @@ class Media(db.Model):
     owner_user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     player_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=True)
+    workout_id=db.Column(db.Integer, db.ForeignKey("workout.id"), nullable=True, index=True)
     object_key=db.Column(db.String(500), nullable=False)
     original_name=db.Column(db.String(255), nullable=False)
     content_type=db.Column(db.String(120), nullable=False)
@@ -298,7 +301,22 @@ def s3_client():
 
 def media_bucket(): return os.environ.get("S3_BUCKET","")
 
+def youtube_embed_url(value):
+    if not value: return ""
+    try: parsed=urlparse(value)
+    except ValueError: return ""
+    host=(parsed.hostname or "").lower(); video_id=""
+    if host in {"youtu.be","www.youtu.be"}:
+        video_id=parsed.path.strip("/").split("/",1)[0]
+    elif host in {"youtube.com","www.youtube.com","m.youtube.com"}:
+        if parsed.path=="/watch": video_id=parse_qs(parsed.query).get("v",[""])[0]
+        elif parsed.path.startswith(("/shorts/","/embed/")): video_id=parsed.path.split("/")[2]
+    if video_id and all(character.isalnum() or character in "-_" for character in video_id):
+        return f"https://www.youtube-nocookie.com/embed/{video_id}"
+    return ""
+
 def can_view_media(viewer, media):
+    if media.workout_id: return True
     if viewer.id==media.owner_user_id or viewer.id==media.player_id: return True
     if media.player_id:
         player=db.session.get(User,media.player_id)
@@ -365,15 +383,25 @@ def initialize_database():
         if db.engine.dialect.name=="postgresql":
             db.session.execute(text("ALTER TABLE schedule_event DROP CONSTRAINT IF EXISTS uq_schedule_event"))
         db.session.commit()
+    media_columns={column["name"] for column in inspect(db.engine).get_columns("media")}
+    if "workout_id" not in media_columns:
+        db.session.execute(text("ALTER TABLE media ADD COLUMN workout_id INTEGER REFERENCES workout(id)"))
+        db.session.commit()
     admin_email=os.environ.get("ADMIN_EMAIL","").strip().lower()
     if admin_email:
         designated_admin=User.query.filter_by(email=admin_email).first()
         if designated_admin and designated_admin.role!="admin":
             designated_admin.role="admin"
             db.session.commit()
-    if Workout.query.count()==0:
-        for c,t,m,l,e in WORKOUTS: db.session.add(Workout(category=c,title=t,minutes=m,level=l,exercises=e))
-        db.session.commit()
+    seeded_workouts=WORKOUTS+[(category,title,15,"All ages",instructions) for category,title,instructions in PRACTICE_DRILLS]
+    existing_workouts={(category,title) for category,title in db.session.query(Workout.category,Workout.title).all()}
+    added_workout=False
+    for category,title,minutes,level,exercises in seeded_workouts:
+        if (category,title) not in existing_workouts:
+            db.session.add(Workout(category=category,title=title,minutes=minutes,level=level,exercises=exercises))
+            existing_workouts.add((category,title))
+            added_workout=True
+    if added_workout: db.session.commit()
     seeded_event=False
     calendar_team=default_calendar_team()
     if calendar_team:
@@ -680,6 +708,91 @@ def workouts():
     if cat!="All": q=q.filter_by(category=cat)
     done={x.workout_id for x in WorkoutCompletion.query.filter_by(player_id=u.id,completed_on=date.today()).all()} if u.role=="player" else set()
     return render_template("workouts.html",user=u,workouts=q.all(),category=cat,completed_ids=done)
+
+@app.route("/workouts/add",methods=["POST"])
+@role_required("admin")
+def add_workout():
+    category=request.form.get("category","").strip()
+    title=request.form.get("title","").strip()
+    level=request.form.get("level","All ages").strip() or "All ages"
+    exercises=request.form.get("exercises","").strip()
+    video_url=request.form.get("video_url","").strip()
+    try: minutes=max(1,min(180,int(request.form.get("minutes",15))))
+    except (TypeError,ValueError): minutes=15
+    allowed_categories={"Throwing","Fielding","Catching","Baserunning","Batting","Pitching"}
+    if category not in allowed_categories or not title or not exercises:
+        flash("Add a category, title, and coaching instructions."); return redirect(url_for("workouts"))
+    if len(title)>160 or len(level)>30 or len(exercises)>5000:
+        flash("The drill information is too long."); return redirect(url_for("workouts"))
+    if video_url:
+        parsed=urlparse(video_url)
+        if parsed.scheme!="https" or not parsed.netloc or len(video_url)>500:
+            flash("Use a complete HTTPS video link."); return redirect(url_for("workouts"))
+    if Workout.query.filter_by(category=category,title=title).first():
+        flash("That drill is already in the library."); return redirect(url_for("workouts"))
+    workout=Workout(category=category,title=title,minutes=minutes,level=level,exercises=exercises,video_url=video_url)
+    db.session.add(workout); db.session.commit(); audit("workout_added",f"workout_id={workout.id}")
+    flash("Drill added. You can upload its demonstration video now."); return redirect(url_for("workout_detail",wid=workout.id))
+
+@app.route("/workout/<int:wid>")
+@login_required
+def workout_detail(wid):
+    workout=db.session.get(Workout,wid)
+    if not workout or not workout.active: return redirect(url_for("workouts"))
+    rows=Media.query.filter_by(workout_id=wid).order_by(Media.created_at.desc()).all()
+    videos=[]
+    if media_bucket():
+        for media in rows:
+            url=s3_client().generate_presigned_url("get_object",Params={"Bucket":media_bucket(),"Key":media.object_key},ExpiresIn=3600)
+            videos.append((media,url))
+    return render_template("workout_detail.html",user=current_user(),workout=workout,videos=videos,storage_ready=bool(media_bucket()),youtube_url=youtube_embed_url(workout.video_url))
+
+@app.route("/workout/<int:wid>/video",methods=["POST"])
+@role_required("admin")
+@limiter.limit("20 per day")
+def workout_video_upload(wid):
+    workout=db.session.get(Workout,wid)
+    if not workout: flash("Drill not found."); return redirect(url_for("workouts"))
+    if not media_bucket(): flash("Private video storage is not configured yet. You can use a YouTube link instead."); return redirect(url_for("workout_detail",wid=wid))
+    upload=request.files.get("media_file")
+    allowed={"video/mp4":"mp4","video/quicktime":"mov","video/webm":"webm"}
+    if not upload or upload.mimetype not in allowed:
+        flash("Upload an MP4, MOV, or WebM video."); return redirect(url_for("workout_detail",wid=wid))
+    key=f"drills/{wid}/{uuid.uuid4().hex}.{allowed[upload.mimetype]}"
+    try:
+        s3_client().put_object(Bucket=media_bucket(),Key=key,Body=upload.stream,ContentType=upload.mimetype)
+    except Exception:
+        app.logger.exception("DRILL VIDEO UPLOAD FAILED: workout_id=%s",wid)
+        flash("The video could not be uploaded. Please try again."); return redirect(url_for("workout_detail",wid=wid))
+    media=Media(owner_user_id=current_user().id,workout_id=wid,object_key=key,original_name=(upload.filename or "Drill video")[:255],content_type=upload.mimetype)
+    db.session.add(media); db.session.commit(); audit("workout_video_uploaded",f"workout_id={wid},media_id={media.id}")
+    flash("Drill video uploaded."); return redirect(url_for("workout_detail",wid=wid))
+
+@app.route("/workout/<int:wid>/video-link",methods=["POST"])
+@role_required("admin")
+def workout_video_link(wid):
+    workout=db.session.get(Workout,wid)
+    if not workout: flash("Drill not found."); return redirect(url_for("workouts"))
+    video_url=request.form.get("video_url","").strip()
+    if video_url:
+        parsed=urlparse(video_url)
+        if parsed.scheme!="https" or not parsed.netloc or len(video_url)>500:
+            flash("Use a complete HTTPS video link."); return redirect(url_for("workout_detail",wid=wid))
+    workout.video_url=video_url; db.session.commit(); audit("workout_video_link_updated",f"workout_id={wid}")
+    flash("Video link updated."); return redirect(url_for("workout_detail",wid=wid))
+
+@app.route("/workout/<int:wid>/video/<int:mid>/delete",methods=["POST"])
+@role_required("admin")
+def workout_video_delete(wid,mid):
+    media=Media.query.filter_by(id=mid,workout_id=wid).first()
+    if not media: flash("Video not found."); return redirect(url_for("workout_detail",wid=wid))
+    if media_bucket():
+        try: s3_client().delete_object(Bucket=media_bucket(),Key=media.object_key)
+        except Exception:
+            app.logger.exception("DRILL VIDEO DELETE FAILED: media_id=%s",mid)
+            flash("The video could not be removed from storage."); return redirect(url_for("workout_detail",wid=wid))
+    db.session.delete(media); db.session.commit(); audit("workout_video_deleted",f"workout_id={wid},media_id={mid}")
+    flash("Drill video removed."); return redirect(url_for("workout_detail",wid=wid))
 
 @app.route("/workout/<int:wid>/complete",methods=["POST"])
 @role_required("player")
