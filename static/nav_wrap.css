@@ -87,6 +87,10 @@ nav a,
     position: static;
   }
 
+  .top .user {
+    display: none;
+  }
+
   nav {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
