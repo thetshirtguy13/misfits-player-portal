@@ -1,14 +1,23 @@
 {% extends "base.html" %}
 {% block title %}Team Chats | Misfits Player Development{% endblock %}
 {% block content %}
-<section class="page-heading"><p class="eyebrow">Private team rooms</p><h1>Team Chats</h1><p class="muted">Messages are visible only to approved team members and administrators.</p></section>
+<link rel="manifest" href="{{url_for('static',filename='manifest.json')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='chat_v2.css',v='20261005b')}}">
+<section class="page-heading chat-list-heading">
+  <div><p class="eyebrow">Private team rooms</p><h1>Team Chats</h1><p class="muted">Messages stay here until an administrator deletes the team thread.</p></div>
+  <div class="chat-alert-actions">
+    <a class="btn secondary notification-link" href="{{url_for('notifications')}}">Alerts <span data-notification-count{% if not notification_count %} hidden{% endif %}>{{notification_count}}</span></a>
+    <button class="secondary" type="button" data-enable-notifications data-csrf="{{csrf_token()}}">Enable Notifications</button>
+  </div>
+</section>
 <div class="chat-team-list">
   {% for team in teams %}
   <a class="chat-team-row" style="--team-color:{{team_colors[team.id]}}" href="{{url_for('team_chat',team_id=team.id)}}">
-    <i></i><span><strong>{{team.name}}</strong><small>{{team.age_group}} team chat</small></span><b aria-hidden="true">›</b>
+    <i></i><span><strong>{{team.name}}</strong><small>{{team.age_group}} team chat</small></span>{% if unread.get(team.id) %}<em>{{unread[team.id]}}</em>{% endif %}<b aria-hidden="true">›</b>
   </a>
   {% else %}
   <section class="empty-state"><h2>No team chats yet</h2><p class="muted">Join a team to enter its private chat room.</p></section>
   {% endfor %}
 </div>
+<script src="{{url_for('static',filename='chat_notifications.js',v='20261005b')}}" defer></script>
 {% endblock %}

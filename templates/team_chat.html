@@ -1,25 +1,42 @@
 {% extends "base.html" %}
 {% block title %}{{team.name}} Chat | Misfits Player Development{% endblock %}
 {% block content %}
-<section class="chat-shell" style="--team-color:{{team_color}}">
+<link rel="manifest" href="{{url_for('static',filename='manifest.json')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='chat_v2.css',v='20261005b')}}">
+<section class="chat-shell" style="--team-color:{{team_color}}" data-chat-team="{{team.id}}" data-latest-message="{{latest_id}}">
   <header class="chat-header">
     <a href="{{url_for('team_chats')}}" aria-label="Back to team chats">‹</a>
     <i></i><div><p class="eyebrow">Private team chat</p><h1>{{team.name}}</h1></div>
-    <a class="btn secondary" href="{{url_for('team_calendar',team_id=team.id)}}">Calendar</a>
+    <div class="chat-header-actions"><a class="btn secondary notification-link" href="{{url_for('notifications')}}" aria-label="Notifications">Alerts <span data-notification-count{% if not notification_count %} hidden{% endif %}>{{notification_count}}</span></a><a class="btn secondary" href="{{url_for('team_calendar',team_id=team.id)}}">Calendar</a></div>
   </header>
+
+  {% if pinned %}
+  <section class="pinned-panel"><h2>Pinned Information</h2>{% for message in pinned %}<a href="#message-{{message.id}}"><strong>{{message.body}}</strong><small>{{message.created_at.strftime('%b %d')}}</small></a>{% endfor %}</section>
+  {% endif %}
+
+  <button class="new-message-alert" type="button" data-new-messages hidden>New messages available</button>
   <div class="message-list" aria-live="polite">
+    {% if older_before %}<a class="older-messages" href="{{url_for('team_chat',team_id=team.id,before=older_before)}}">View older messages</a>{% endif %}
     {% for message in messages %}{% set author=users.get(message.user_id) %}
-    <article class="chat-message{% if message.user_id==user.id %} own-message{% endif %}">
-      <div class="message-meta"><strong>{{author.name if author else 'Team member'}}{% if author and author.role=='admin' %}<span>Admin</span>{% endif %}</strong><time datetime="{{message.created_at.isoformat()}}">{{message.created_at.strftime('%b %d · %I:%M %p').replace(' 0',' ')}}</time></div>
-      <p>{{message.body}}</p>
+    <article id="message-{{message.id}}" class="chat-message{% if message.user_id==user.id %} own-message{% endif %}{% if message.pinned_at %} pinned-message{% endif %}">
+      <div class="message-meta"><strong>{{author.name if author else 'Team member'}}{% if author and author.role=='admin' %}<span>Admin</span>{% endif %}{% if message.pinned_at %}<span class="pin-label">Pinned</span>{% endif %}</strong><time datetime="{{message.created_at.isoformat()}}">{{message.created_at.strftime('%b %d · %I:%M %p').replace(' 0',' ')}}</time></div>
+      {% if message.is_deleted %}<p class="deleted-message">Message deleted</p>
+      {% elif message.kind=='poll' and polls.get(message.id) %}
+      {% set poll=polls[message.id] %}<div class="chat-poll"><h3>{{message.body}}</h3><form method="post" action="{{url_for('team_chat_vote',team_id=team.id,message_id=message.id)}}"><input type="hidden" name="csrf_token" value="{{csrf_token()}}">{% for option in poll.options %}<label class="poll-option"><input type="radio" name="option_id" value="{{option.row.id}}" {% if poll.selected==option.row.id %}checked{% endif %} required><span><b>{{option.row.text}}</b><small>{{option.votes}} vote{% if option.votes!=1 %}s{% endif %} · {{option.percent}}%</small><i style="--poll-width:{{option.percent}}%"></i></span></label>{% endfor %}<button class="secondary">{{'Change Vote' if poll.selected else 'Vote'}}</button></form><p class="muted small">{{poll.total}} total vote{% if poll.total!=1 %}s{% endif %}</p></div>
+      {% else %}<p>{{message.body}}</p>{% endif %}
+      {% if not message.is_deleted and (message.user_id==user.id or user.role=='admin' or user.role=='coach') %}<div class="message-actions">{% if user.role in ['coach','admin'] %}<form method="post" action="{{url_for('team_chat_message_pin',team_id=team.id,message_id=message.id)}}"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><button class="text-button">{{'Unpin' if message.pinned_at else 'Pin'}}</button></form>{% endif %}{% if message.user_id==user.id or user.role=='admin' %}<form method="post" action="{{url_for('team_chat_message_delete',team_id=team.id,message_id=message.id)}}"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><button class="text-button danger-text">Delete</button></form>{% endif %}</div>{% endif %}
     </article>
-    {% else %}<div class="chat-empty"><h2>Start the conversation</h2><p class="muted">This room is ready for team updates, reminders, and questions.</p></div>{% endfor %}
+    {% else %}<div class="chat-empty"><h2>Start the conversation</h2><p class="muted">This room is ready for team updates, reminders, questions, and polls.</p></div>{% endfor %}
   </div>
+
   <form class="chat-composer" method="post">
-    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
-    <label class="sr-only" for="chat-body">Message</label>
-    <textarea id="chat-body" name="body" maxlength="1000" rows="2" placeholder="Message {{team.name}}" required></textarea>
-    <button type="submit">Send</button>
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}"><label class="sr-only" for="chat-body">Message</label><textarea id="chat-body" name="body" maxlength="1000" rows="2" placeholder="Message {{team.name}}" required></textarea><button type="submit">Send</button>
   </form>
+  <div class="chat-tools">
+    <details><summary>Create a Poll</summary><form method="post" action="{{url_for('team_chat_poll',team_id=team.id)}}"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><label>Question<input name="question" maxlength="500" required></label><label>Choices, one per line<textarea name="options" rows="5" placeholder="Yes&#10;No&#10;Maybe" required></textarea></label><button>Post Poll</button></form></details>
+    <button class="secondary" type="button" data-enable-notifications data-csrf="{{csrf_token()}}">Enable Notifications</button>
+    {% if user.role=='admin' %}<details class="danger-zone"><summary>Delete Team Thread</summary><p class="muted">This permanently removes every message and poll in this team chat.</p><form method="post" action="{{url_for('team_chat_delete',team_id=team.id)}}"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><label>Enter {{team.name}} to confirm<input name="confirm_name" required></label><button class="dangerbtn">Delete Entire Thread</button></form></details>{% endif %}
+  </div>
 </section>
+<script src="{{url_for('static',filename='chat_notifications.js',v='20261005b')}}" defer></script>
 {% endblock %}

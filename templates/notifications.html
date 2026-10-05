@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Notifications | Misfits Player Development{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='chat_v2.css',v='20261005')}}">
+<div class="row between notification-heading"><div><p class="eyebrow">Messages and schedule</p><h1>Notifications</h1></div><form method="post" action="{{url_for('notifications_read')}}"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><button class="secondary">Mark All Read</button></form></div>
+<div class="notification-list">{% for notification in notifications %}<a class="notification-row{% if not notification.read_at %} unread{% endif %}" href="{{url_for('notification_open',notification_id=notification.id)}}"><span class="notification-kind">{{'Calendar' if notification.kind=='calendar' else 'Chat'}}</span><strong>{{notification.title}}</strong><p>{{notification.body}}</p><time>{{notification.created_at.strftime('%b %d · %I:%M %p').replace(' 0',' ')}}</time></a>{% else %}<section class="empty-state"><h2>You are all caught up</h2><p class="muted">New chats and calendar updates will appear here.</p></section>{% endfor %}</div>
+{% endblock %}
