@@ -1,3 +1,4 @@
+import io
 import os
 import unittest
 from unittest.mock import patch
@@ -40,6 +41,37 @@ class PortalFlowTests(unittest.TestCase):
             self.client.get("/login")
             self.client.get("/health")
         initialize.assert_not_called()
+
+    def test_practice_drills_are_seeded_without_duplicates(self):
+        with portal.app.app_context():
+            self.assertEqual(42, len(portal.PRACTICE_DRILLS))
+            self.assertIsNotNone(portal.Workout.query.filter_by(title="01. Four Steps to Throwing").first())
+            self.assertIsNotNone(portal.Workout.query.filter_by(title="42. Low, Long Pitching Stride").first())
+            original_count=portal.Workout.query.count()
+            portal.initialize_database()
+            self.assertEqual(original_count,portal.Workout.query.count())
+
+    def test_admin_can_add_drill_and_coach_cannot(self):
+        payload={"category":"Fielding","title":"Coach Demo Drill","level":"All ages","minutes":"12","exercises":"Ready position\nMove through the ball","video_url":"https://youtu.be/abc123"}
+        self.login_as(self.coach_id)
+        self.assertEqual(302,self.client.post("/workouts/add",data=payload).status_code)
+        with portal.app.app_context(): self.assertIsNone(portal.Workout.query.filter_by(title="Coach Demo Drill").first())
+        self.login_as(self.admin_id)
+        response=self.client.post("/workouts/add",data=payload,follow_redirects=True)
+        self.assertIn(b"Coach Demo Drill",response.data)
+        self.assertIn(b"youtube-nocookie.com/embed/abc123",response.data)
+
+    def test_admin_upload_associates_video_with_drill(self):
+        self.login_as(self.admin_id)
+        with portal.app.app_context(): workout=portal.Workout.query.filter_by(title="01. Four Steps to Throwing").one(); workout_id=workout.id
+        fake_file=(io.BytesIO(b"video-data"),"throwing.mp4")
+        with patch.dict(os.environ,{"S3_BUCKET":"test-bucket"}), patch.object(portal,"s3_client") as s3:
+            response=self.client.post(f"/workout/{workout_id}/video",data={"media_file":fake_file},content_type="multipart/form-data",follow_redirects=True)
+        self.assertIn(b"Drill video uploaded",response.data)
+        s3.return_value.put_object.assert_called_once()
+        with portal.app.app_context():
+            media=portal.Media.query.filter_by(workout_id=workout_id).one()
+            self.assertEqual("throwing.mp4",media.original_name)
 
     def login_as(self, user_id):
         with self.client.session_transaction() as session:
