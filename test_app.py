@@ -73,6 +73,26 @@ class PortalFlowTests(unittest.TestCase):
             media=portal.Media.query.filter_by(workout_id=workout_id).one()
             self.assertEqual("throwing.mp4",media.original_name)
 
+    def test_team_store_displays_live_shopify_products_and_filters(self):
+        product={"title":"Misfits Home Uniform","url":"https://thetshirtguy.co/products/home-uniform","image":"https://cdn.shopify.com/uniform.jpg","price":"$30.00","available":True,"category":"Uniforms"}
+        self.login_as(self.admin_id)
+        with patch.object(portal,"shop_products",return_value=([product],None)):
+            response=self.client.get("/shop?category=Uniforms")
+        self.assertEqual(200,response.status_code)
+        self.assertIn(b"Misfits Team Store",response.data)
+        self.assertIn(b"Misfits Home Uniform",response.data)
+        self.assertIn(b"$30.00",response.data)
+        self.assertIn(b"https://thetshirtguy.co/products/home-uniform",response.data)
+        self.assertIn("https://cdn.shopify.com",response.headers["Content-Security-Policy"])
+        self.assertIn(b"Team Store",self.client.get("/dashboard").data)
+
+    def test_team_store_has_shopify_fallback(self):
+        self.login_as(self.admin_id)
+        with patch.object(portal,"shop_products",return_value=([],"Live product details are temporarily unavailable.")):
+            response=self.client.get("/shop")
+        self.assertIn(b"Shopify connection notice",response.data)
+        self.assertIn(b"https://thetshirtguy.co/collections/misfits-baseball",response.data)
+
     def login_as(self, user_id):
         with self.client.session_transaction() as session:
             session["user_id"] = user_id

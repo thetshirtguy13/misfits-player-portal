@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Misfits Team Store{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='team_store.css',v='20261005')}}">
+<section class="store-heading">
+  <div>
+    <p class="eyebrow">Official apparel</p>
+    <h1>Misfits Team Store</h1>
+    <p class="muted">Team uniforms, player apparel, hats, and fanwear from The T-Shirt Guy.</p>
+  </div>
+  <a class="btn secondary store-external" href="{{collection_url}}" target="_blank" rel="noopener">View Full Store <span aria-hidden="true">↗</span></a>
+</section>
+
+<nav class="store-filters" aria-label="Store categories">
+  {% for item in categories %}<a class="{% if item==category %}active{% endif %}" href="{{url_for('team_store',category=item)}}">{{item}}</a>{% endfor %}
+</nav>
+
+{% if error %}<div class="store-notice"><strong>Shopify connection notice</strong><span>{{error}}</span><a href="{{collection_url}}" target="_blank" rel="noopener">Open the team collection</a></div>{% endif %}
+
+<section class="product-grid" aria-label="{{category}} products">
+  {% for product in products %}
+  <article class="product-card">
+    <a class="product-image" href="{{product.url}}" target="_blank" rel="noopener" aria-label="View {{product.title}} on Shopify">
+      {% if product.image %}<img src="{{product.image}}" alt="{{product.title}}" loading="{{'eager' if loop.index <= 4 else 'lazy'}}" referrerpolicy="no-referrer">{% else %}<span>Misfits</span>{% endif %}
+    </a>
+    <div class="product-info">
+      <div class="product-meta"><span>{{product.category}}</span><em class="{% if not product.available %}sold-out{% endif %}">{{'Available' if product.available else 'Sold out'}}</em></div>
+      <h2>{{product.title}}</h2>
+      <strong class="product-price">{{product.price}}</strong>
+      <a class="btn product-action" href="{{product.url}}" target="_blank" rel="noopener">Choose Options</a>
+    </div>
+  </article>
+  {% else %}
+  <div class="store-empty"><h2>No {{category|lower}} products are listed right now.</h2><a class="btn" href="{{collection_url}}" target="_blank" rel="noopener">Browse Shopify</a></div>
+  {% endfor %}
+</section>
+
+<footer class="store-checkout"><strong>Checkout securely on Shopify</strong><span>Inventory, payment, shipping, and order confirmation are handled by The T-Shirt Guy.</span></footer>
+{% endblock %}
