@@ -1,1 +1,46 @@
-{% extends "base.html" %}{% block content %}<h1>Coach Dashboard</h1><p class="muted">Only players sharing one of your teams appear here.</p><div class="card table"><table><tr><th>Player</th><th>Age</th><th>Position</th><th>Workouts</th><th>Minutes</th><th>Games</th><th>AVG</th><th>RBI</th></tr>{% for p,w,m,t in data %}<tr><td><a href="{{url_for('player_detail',pid=p.id)}}">{{p.name}}</a></td><td>{{p.age_group}}</td><td>{{p.position}}</td><td>{{w}}</td><td>{{m}}</td><td>{{t.games}}</td><td>{{'%.3f'|format(t.avg)}}</td><td>{{t.rbi}}</td></tr>{% else %}<tr><td colspan="8">Create a team and have players join with its code.</td></tr>{% endfor %}</table></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Team Player Overview{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='coach_roster.css',v='20261005')}}">
+<section class="coach-heading">
+  <div>
+    <p class="eyebrow">Coach workspace</p>
+    <h1>Team Player Overview</h1>
+    <p class="muted">Current team rosters, account connections, workouts, and imported statistics.</p>
+  </div>
+  {% if user.role=='admin' %}<a class="btn secondary" href="{{url_for('admin_rosters')}}">Manage Rosters</a>{% endif %}
+</section>
+
+<section class="coach-summary" aria-label="Roster summary">
+  <div class="stat"><small>Teams</small><strong>{{team_rows|length}}</strong></div>
+  <div class="stat"><small>Roster players</small><strong>{{total_players}}</strong></div>
+  <div class="stat"><small>Family/account linked</small><strong>{{linked_count}}</strong></div>
+  <div class="stat"><small>No family link</small><strong>{{total_players-linked_count}}</strong></div>
+</section>
+
+{% for group in team_rows %}
+<section class="card roster-dashboard-team">
+  <header class="roster-team-heading">
+    <div><span class="pill">{{group.team.age_group}}</span><h2>{{group.team.name}}</h2></div>
+    <strong>{{group.players|length}} players</strong>
+  </header>
+  <div class="table roster-dashboard-table"><table>
+    <thead><tr><th>Player</th><th>Jersey</th><th>Account</th><th>Season</th><th>GP</th><th>AVG</th><th>OPS</th><th>Workouts</th></tr></thead>
+    <tbody>{% for row in group.players %}{% set profile=row.profile %}{% set stats=profile.stats or {} %}
+      <tr>
+        <td class="player-name"><a href="{{url_for('family_roster_profile',pid=profile.id)}}">{{profile.name}}</a><small>Through {{profile.as_of}}</small></td>
+        <td>{{'#' ~ profile.jersey if profile.jersey else '—'}}</td>
+        <td><span class="account-status {{'linked' if row.linked else 'unlinked'}}">{{'Family linked' if row.families else 'Player login linked' if row.player_account else 'Not linked'}}</span>{% if row.families %}<small>{{row.families|map(attribute='name')|join(', ')}}</small>{% endif %}</td>
+        <td>{{profile.season}}</td>
+        <td>{{stats.get('GP','—')}}</td>
+        <td>{{'%.3f'|format(stats.get('AVG')) if stats.get('AVG') is not none else '—'}}</td>
+        <td>{{'%.3f'|format(stats.get('OPS')) if stats.get('OPS') is not none else '—'}}</td>
+        <td>{{row.workouts}}<small>{{row.minutes}} minutes</small></td>
+      </tr>
+    {% else %}<tr><td colspan="8" class="empty-roster">No roster players have been imported for this team.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>
+{% else %}
+<div class="card empty-roster"><h2>No assigned team rosters</h2><p class="muted">Assign this coach to a team or import a team roster to begin.</p></div>
+{% endfor %}
+{% endblock %}
