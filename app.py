@@ -10,8 +10,9 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from datetime import datetime, date
 from functools import wraps
 import calendar as calendar_module
-import csv, io, os, json, secrets, smtplib, uuid
+import csv, io, os, json, secrets, smtplib, uuid, time
 import boto3
+import requests
 from email.message import EmailMessage
 from urllib.parse import parse_qs, urlparse
 from base64 import urlsafe_b64encode
@@ -41,6 +42,11 @@ csrf = CSRFProtect(app)
 migrate = Migrate(app, db)
 limiter = Limiter(get_remote_address, app=app, default_limits=["300 per day", "100 per hour"], storage_uri="memory://")
 serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
+
+SHOP_URL="https://thetshirtguy.co"
+SHOP_COLLECTION_URL=f"{SHOP_URL}/collections/misfits-baseball"
+SHOP_PRODUCTS_URL=f"{SHOP_COLLECTION_URL}/products.json?limit=50"
+SHOP_CACHE={"expires_at":0,"products":[]}
 
 # ---------------- Models ----------------
 class User(db.Model):
@@ -417,6 +423,43 @@ def team_color_map(teams):
 def can_access_team(u, team_id):
     return u.role=="admin" or team_id in portal_team_ids_for(u)
 
+def shop_category(title):
+    value=title.casefold()
+    if "uniform" in value or "jersey" in value: return "Uniforms"
+    if "hoodie" in value: return "Hoodies"
+    if "hat" in value or "cap" in value: return "Hats"
+    if "pant" in value: return "Pants"
+    return "Fanwear"
+
+def shop_products():
+    now=time.time()
+    if SHOP_CACHE["products"] and SHOP_CACHE["expires_at"]>now: return SHOP_CACHE["products"],None
+    try:
+        response=requests.get(SHOP_PRODUCTS_URL,timeout=8,headers={"User-Agent":"MisfitsPlayerPortal/1.0"})
+        response.raise_for_status()
+        products=[]
+        for row in response.json().get("products",[]):
+            handle=str(row.get("handle","")).strip()
+            title=str(row.get("title","")).strip()
+            variants=row.get("variants") or []
+            prices=[float(variant["price"]) for variant in variants if variant.get("price")]
+            images=row.get("images") or []
+            if not handle or not title or not prices: continue
+            low,high=min(prices),max(prices)
+            products.append({
+                "title":title,
+                "url":f"{SHOP_URL}/products/{handle}",
+                "image":str(images[0].get("src","")).strip() if images else "",
+                "price":f"${low:,.2f}" if low==high else f"${low:,.2f} - ${high:,.2f}",
+                "available":any(bool(variant.get("available")) for variant in variants),
+                "category":shop_category(title),
+            })
+        SHOP_CACHE.update(products=products,expires_at=now+600)
+        return products,None
+    except Exception:
+        app.logger.exception("Shopify team store feed could not be loaded")
+        return SHOP_CACHE["products"],"Live product details are temporarily unavailable."
+
 def team_notification_users(team_id,exclude_user_id=None):
     users=User.query.filter_by(is_active=True).all()
     return [user for user in users if user.id!=exclude_user_id and can_access_team(user,team_id)]
@@ -530,7 +573,7 @@ def security_headers(resp):
     resp.headers["X-Content-Type-Options"]="nosniff"
     resp.headers["Referrer-Policy"]="strict-origin-when-cross-origin"
     resp.headers["Permissions-Policy"]="camera=(), microphone=(), geolocation=()"
-    resp.headers["Content-Security-Policy"]="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'self' https://*.myshopify.com https://*.square.site"
+    resp.headers["Content-Security-Policy"]="default-src 'self'; img-src 'self' data: https://cdn.shopify.com; style-src 'self' 'unsafe-inline'; script-src 'self'; frame-ancestors 'self' https://*.myshopify.com https://*.square.site"
     return resp
 
 # ---------------- Auth ----------------
@@ -973,6 +1016,16 @@ def workouts():
     if cat!="All": q=q.filter_by(category=cat)
     done={x.workout_id for x in WorkoutCompletion.query.filter_by(player_id=u.id,completed_on=date.today()).all()} if u.role=="player" else set()
     return render_template("workouts.html",user=u,workouts=q.all(),category=cat,completed_ids=done)
+
+@app.route("/shop")
+@login_required
+def team_store():
+    products,error=shop_products()
+    categories=["All","Uniforms","Fanwear","Hoodies","Hats","Pants"]
+    category=request.args.get("category","All").strip().title()
+    if category not in categories: category="All"
+    visible=products if category=="All" else [product for product in products if product["category"]==category]
+    return render_template("shop.html",user=current_user(),products=visible,categories=categories,category=category,error=error,collection_url=SHOP_COLLECTION_URL)
 
 @app.route("/workouts/add",methods=["POST"])
 @role_required("admin")
