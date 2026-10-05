@@ -243,6 +243,69 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"Admin is in every team room.",admin_post.data)
         self.assertIn(b"Admin",admin_post.data)
 
+    def test_chat_message_delete_and_pin_permissions(self):
+        self.login_as(self.coach_id)
+        self.client.post(f"/teams/{self.team_id}/chat",data={"body":"Bring both uniforms."})
+        with portal.app.app_context(): message=portal.ChatMessage.query.filter_by(body="Bring both uniforms.").one(); message_id=message.id
+        pinned=self.client.post(f"/teams/{self.team_id}/chat/message/{message_id}/pin",follow_redirects=True)
+        self.assertIn(b"Pinned Information",pinned.data)
+        deleted=self.client.post(f"/teams/{self.team_id}/chat/message/{message_id}/delete",follow_redirects=True)
+        self.assertIn(b"Message deleted",deleted.data)
+        with portal.app.app_context():
+            message=portal.db.session.get(portal.ChatMessage,message_id)
+            self.assertTrue(message.is_deleted)
+            self.assertIsNone(message.pinned_at)
+
+    def test_chat_poll_allows_one_changeable_vote_per_user(self):
+        self.login_as(self.coach_id)
+        response=self.client.post(f"/teams/{self.team_id}/chat/poll",data={"question":"Which practice time?","options":"5 PM\n6 PM\n7 PM"},follow_redirects=True)
+        self.assertIn(b"Which practice time?",response.data)
+        with portal.app.app_context():
+            message=portal.ChatMessage.query.filter_by(kind="poll").one()
+            options=portal.ChatPollOption.query.filter_by(message_id=message.id).order_by(portal.ChatPollOption.position).all()
+            message_id=message.id; first_id=options[0].id; second_id=options[1].id
+        self.client.post(f"/teams/{self.team_id}/chat/poll/{message_id}/vote",data={"option_id":first_id})
+        self.client.post(f"/teams/{self.team_id}/chat/poll/{message_id}/vote",data={"option_id":second_id})
+        with portal.app.app_context():
+            votes=portal.ChatPollVote.query.filter_by(message_id=message_id,user_id=self.coach_id).all()
+            self.assertEqual(1,len(votes))
+            self.assertEqual(second_id,votes[0].option_id)
+
+    def test_new_chat_and_calendar_events_create_team_notifications(self):
+        self.login_as(self.coach_id)
+        self.client.post(f"/teams/{self.team_id}/chat",data={"body":"Saturday arrival is 8 AM."})
+        with portal.app.app_context():
+            admin_alert=portal.PortalNotification.query.filter_by(user_id=self.admin_id,kind="chat").one()
+            self.assertIn("Saturday arrival",admin_alert.body)
+        self.login_as(self.admin_id)
+        self.client.post("/calendar",data={"team_id":self.team_id,"event_type":"practice","title":"Defense Practice","starts_on":"2026-10-12","start_time":"17:00","end_time":"19:00"})
+        with portal.app.app_context():
+            coach_alert=portal.PortalNotification.query.filter_by(user_id=self.coach_id,kind="calendar").one()
+            self.assertIn("Defense Practice",coach_alert.title)
+
+    def test_push_subscription_and_service_worker(self):
+        self.login_as(self.coach_id)
+        subscription={"endpoint":"https://push.example.test/abc","keys":{"p256dh":"public-key","auth":"auth-key"}}
+        response=self.client.post("/push/subscribe",json=subscription)
+        self.assertEqual(200,response.status_code)
+        with portal.app.app_context():
+            saved=portal.PushSubscription.query.filter_by(user_id=self.coach_id).one()
+            self.assertEqual(subscription["endpoint"],saved.endpoint)
+        worker=self.client.get("/service-worker.js")
+        self.assertEqual(200,worker.status_code)
+        self.assertEqual("/",worker.headers["Service-Worker-Allowed"])
+
+    def test_only_admin_can_delete_entire_chat_thread(self):
+        self.login_as(self.coach_id)
+        self.client.post(f"/teams/{self.team_id}/chat",data={"body":"Permanent until thread deletion."})
+        blocked=self.client.post(f"/teams/{self.team_id}/chat/delete",data={"confirm_name":"12U Blue"})
+        self.assertEqual(302,blocked.status_code)
+        with portal.app.app_context(): self.assertEqual(1,portal.ChatMessage.query.filter_by(team_id=self.team_id).count())
+        self.login_as(self.admin_id)
+        removed=self.client.post(f"/teams/{self.team_id}/chat/delete",data={"confirm_name":"12U Blue"},follow_redirects=True)
+        self.assertIn(b"chat thread deleted",removed.data)
+        with portal.app.app_context(): self.assertEqual(0,portal.ChatMessage.query.filter_by(team_id=self.team_id).count())
+
     def test_admin_can_assign_new_coach_to_team(self):
         with portal.app.app_context():
             new_coach=portal.User(role="coach",name="New Coach",email="newcoach@example.com",password_hash="x",consent_verified=True)

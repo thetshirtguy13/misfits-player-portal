@@ -14,6 +14,10 @@ import csv, io, os, json, secrets, smtplib, uuid
 import boto3
 from email.message import EmailMessage
 from urllib.parse import parse_qs, urlparse
+from base64 import urlsafe_b64encode
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+from pywebpush import WebPushException, webpush
 from learning_content import FIELD_IQ_LEVELS, LEVELS, PITCH_PLAN_LEVELS
 from practice_drills import PRACTICE_DRILLS
 
@@ -131,7 +135,56 @@ class ChatMessage(db.Model):
     team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False, index=True)
     user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     body=db.Column(db.String(1000), nullable=False)
+    kind=db.Column(db.String(20), nullable=False, default="text")
+    is_deleted=db.Column(db.Boolean, nullable=False, default=False)
+    deleted_at=db.Column(db.DateTime, nullable=True)
+    pinned_at=db.Column(db.DateTime, nullable=True, index=True)
+    pinned_by_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+class ChatPollOption(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    message_id=db.Column(db.Integer, db.ForeignKey("chat_message.id"), nullable=False, index=True)
+    text=db.Column(db.String(200), nullable=False)
+    position=db.Column(db.Integer, nullable=False, default=0)
+
+class ChatPollVote(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    message_id=db.Column(db.Integer, db.ForeignKey("chat_message.id"), nullable=False, index=True)
+    option_id=db.Column(db.Integer, db.ForeignKey("chat_poll_option.id"), nullable=False, index=True)
+    user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__=(db.UniqueConstraint("message_id","user_id",name="uq_poll_user_vote"),)
+
+class ChatReadState(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False, index=True)
+    user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    last_read_message_id=db.Column(db.Integer, default=0, nullable=False)
+    updated_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    __table_args__=(db.UniqueConstraint("team_id","user_id",name="uq_chat_read_state"),)
+
+class PortalNotification(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=True, index=True)
+    kind=db.Column(db.String(30), nullable=False)
+    title=db.Column(db.String(160), nullable=False)
+    body=db.Column(db.String(500), nullable=False)
+    target_url=db.Column(db.String(500), nullable=False)
+    read_at=db.Column(db.DateTime, nullable=True, index=True)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+
+class PushSubscription(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    user_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    endpoint=db.Column(db.String(1000), nullable=False, unique=True)
+    subscription_json=db.Column(db.Text, nullable=False)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+class AppSetting(db.Model):
+    key=db.Column(db.String(100), primary_key=True)
+    value=db.Column(db.Text, nullable=False)
 
 
 class Media(db.Model):
@@ -364,6 +417,52 @@ def team_color_map(teams):
 def can_access_team(u, team_id):
     return u.role=="admin" or team_id in portal_team_ids_for(u)
 
+def team_notification_users(team_id,exclude_user_id=None):
+    users=User.query.filter_by(is_active=True).all()
+    return [user for user in users if user.id!=exclude_user_id and can_access_team(user,team_id)]
+
+def vapid_keys():
+    private_pem=os.environ.get("VAPID_PRIVATE_KEY","").replace("\\n","\n").strip()
+    public_key=os.environ.get("VAPID_PUBLIC_KEY","").strip()
+    if private_pem and public_key: return private_pem,public_key
+    private_setting=db.session.get(AppSetting,"vapid_private_key")
+    public_setting=db.session.get(AppSetting,"vapid_public_key")
+    if private_setting and public_setting: return private_setting.value,public_setting.value
+    private_key=ec.generate_private_key(ec.SECP256R1())
+    private_pem=private_key.private_bytes(serialization.Encoding.PEM,serialization.PrivateFormat.PKCS8,serialization.NoEncryption()).decode()
+    public_bytes=private_key.public_key().public_bytes(serialization.Encoding.X962,serialization.PublicFormat.UncompressedPoint)
+    public_key=urlsafe_b64encode(public_bytes).rstrip(b"=").decode()
+    db.session.merge(AppSetting(key="vapid_private_key",value=private_pem))
+    db.session.merge(AppSetting(key="vapid_public_key",value=public_key))
+    db.session.commit()
+    return private_pem,public_key
+
+def send_push(user_id,payload):
+    subscriptions=PushSubscription.query.filter_by(user_id=user_id).all()
+    if not subscriptions: return
+    private_key,_=vapid_keys()
+    subject=os.environ.get("VAPID_SUBJECT") or f"mailto:{os.environ.get('ADMIN_EMAIL','admin@misfits.local')}"
+    for subscription in subscriptions:
+        try:
+            webpush(subscription_info=json.loads(subscription.subscription_json),data=json.dumps(payload),vapid_private_key=private_key,vapid_claims={"sub":subject},ttl=86400)
+        except WebPushException as exc:
+            status=getattr(getattr(exc,"response",None),"status_code",None)
+            if status in {404,410}: db.session.delete(subscription)
+            else: app.logger.warning("Push delivery failed for user %s: %s",user_id,exc)
+        except Exception:
+            app.logger.exception("Push delivery failed for user %s",user_id)
+    db.session.commit()
+
+def notify_team(team_id,kind,title,body,target_url,exclude_user_id=None):
+    recipients=team_notification_users(team_id,exclude_user_id)
+    notifications=[]
+    for recipient in recipients:
+        notification=PortalNotification(user_id=recipient.id,team_id=team_id,kind=kind,title=title[:160],body=body[:500],target_url=target_url[:500])
+        db.session.add(notification); notifications.append((recipient,notification))
+    db.session.commit()
+    for recipient,notification in notifications:
+        send_push(recipient.id,{"title":notification.title,"body":notification.body,"url":notification.target_url,"tag":f"{kind}-{team_id}"})
+
 def default_calendar_team():
     return Team.query.filter(Team.name.ilike("Misfits%")).order_by(Team.id).first() or Team.query.order_by(Team.id).first()
 
@@ -387,6 +486,17 @@ def initialize_database():
     if "workout_id" not in media_columns:
         db.session.execute(text("ALTER TABLE media ADD COLUMN workout_id INTEGER REFERENCES workout(id)"))
         db.session.commit()
+    chat_columns={column["name"] for column in inspect(db.engine).get_columns("chat_message")}
+    chat_migrations={
+        "kind":"ALTER TABLE chat_message ADD COLUMN kind VARCHAR(20) NOT NULL DEFAULT 'text'",
+        "is_deleted":"ALTER TABLE chat_message ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE",
+        "deleted_at":"ALTER TABLE chat_message ADD COLUMN deleted_at TIMESTAMP",
+        "pinned_at":"ALTER TABLE chat_message ADD COLUMN pinned_at TIMESTAMP",
+        "pinned_by_id":"ALTER TABLE chat_message ADD COLUMN pinned_by_id INTEGER REFERENCES user(id)",
+    }
+    for column,statement in chat_migrations.items():
+        if column not in chat_columns: db.session.execute(text(statement))
+    if any(column not in chat_columns for column in chat_migrations): db.session.commit()
     admin_email=os.environ.get("ADMIN_EMAIL","").strip().lower()
     if admin_email:
         designated_admin=User.query.filter_by(email=admin_email).first()
@@ -626,6 +736,8 @@ def team_calendar():
             return redirect(url_for("team_calendar",team_id=event_team.id,year=starts_on.year,month=starts_on.month))
         event=ScheduleEvent(team_id=event_team.id,title=title,event_type=event_type,starts_on=starts_on,start_time=start_time,end_time=end_time,created_by_id=u.id)
         db.session.add(event); db.session.commit(); audit("calendar_event_added",f"event_id={event.id}")
+        event_time=start_time.strftime("%I:%M %p").lstrip("0")
+        notify_team(event_team.id,"calendar",f"New {EVENT_TYPES[event_type]}: {title}",f"{event_team.name} - {starts_on.strftime('%b %d')} at {event_time}",url_for("team_calendar",team_id=event_team.id,year=starts_on.year,month=starts_on.month),exclude_user_id=u.id)
         flash("Calendar event added.")
         return redirect(url_for("team_calendar",team_id=event_team.id,year=starts_on.year,month=starts_on.month))
 
@@ -652,7 +764,10 @@ def team_calendar():
 @login_required
 def team_chats():
     u=current_user(); teams=visible_teams_for(u)
-    return render_template("team_chats.html",user=u,teams=teams,team_colors=team_color_map(Team.query.order_by(Team.id).all()))
+    states={state.team_id:state.last_read_message_id for state in ChatReadState.query.filter_by(user_id=u.id).all()}
+    unread={team.id:ChatMessage.query.filter(ChatMessage.team_id==team.id,ChatMessage.id>states.get(team.id,0),ChatMessage.is_deleted==False).count() for team in teams}
+    notification_count=PortalNotification.query.filter_by(user_id=u.id,read_at=None).count()
+    return render_template("team_chats.html",user=u,teams=teams,team_colors=team_color_map(Team.query.order_by(Team.id).all()),unread=unread,notification_count=notification_count)
 
 @app.route("/teams/<int:team_id>/chat",methods=["GET","POST"])
 @login_required
@@ -669,12 +784,162 @@ def team_chat(team_id):
         else:
             message=ChatMessage(team_id=team.id,user_id=u.id,body=body)
             db.session.add(message); db.session.commit(); audit("team_chat_message",f"team_id={team.id},message_id={message.id}")
+            notify_team(team.id,"chat",f"New message in {team.name}",f"{u.name}: {body}",url_for("team_chat",team_id=team.id),exclude_user_id=u.id)
         return redirect(url_for("team_chat",team_id=team.id))
-    messages=ChatMessage.query.filter_by(team_id=team.id).order_by(ChatMessage.created_at.desc(),ChatMessage.id.desc()).limit(100).all()[::-1]
+    before=request.args.get("before",type=int)
+    query=ChatMessage.query.filter_by(team_id=team.id)
+    if before: query=query.filter(ChatMessage.id<before)
+    page_rows=query.order_by(ChatMessage.id.desc()).limit(101).all()
+    has_older=len(page_rows)>100; messages=page_rows[:100][::-1]
+    older_before=messages[0].id if has_older and messages else None
     user_ids={message.user_id for message in messages}
     users={member.id:member for member in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+    message_ids=[message.id for message in messages]
+    options=ChatPollOption.query.filter(ChatPollOption.message_id.in_(message_ids)).order_by(ChatPollOption.position,ChatPollOption.id).all() if message_ids else []
+    votes=ChatPollVote.query.filter(ChatPollVote.message_id.in_(message_ids)).all() if message_ids else []
+    options_by_message={}
+    vote_counts={}; user_votes={vote.message_id:vote.option_id for vote in votes if vote.user_id==u.id}
+    for vote in votes: vote_counts[vote.option_id]=vote_counts.get(vote.option_id,0)+1
+    for option in options: options_by_message.setdefault(option.message_id,[]).append(option)
+    polls={}
+    for message_id,poll_options in options_by_message.items():
+        total=sum(vote_counts.get(option.id,0) for option in poll_options)
+        polls[message_id]={"total":total,"selected":user_votes.get(message_id),"options":[{"row":option,"votes":vote_counts.get(option.id,0),"percent":round(vote_counts.get(option.id,0)*100/total) if total else 0} for option in poll_options]}
+    latest_id=ChatMessage.query.with_entities(db.func.max(ChatMessage.id)).filter_by(team_id=team.id).scalar() or 0
+    state=ChatReadState.query.filter_by(team_id=team.id,user_id=u.id).first()
+    if state: state.last_read_message_id=max(state.last_read_message_id,latest_id); state.updated_at=datetime.utcnow()
+    else: db.session.add(ChatReadState(team_id=team.id,user_id=u.id,last_read_message_id=latest_id))
+    PortalNotification.query.filter_by(user_id=u.id,team_id=team.id,kind="chat",read_at=None).update({"read_at":datetime.utcnow()})
+    db.session.commit()
+    pinned=ChatMessage.query.filter(ChatMessage.team_id==team.id,ChatMessage.pinned_at.isnot(None),ChatMessage.is_deleted==False).order_by(ChatMessage.pinned_at.desc()).all()
     colors=team_color_map(Team.query.order_by(Team.id).all())
-    return render_template("team_chat.html",user=u,team=team,messages=messages,users=users,team_color=colors.get(team.id,TEAM_COLORS[0]))
+    notification_count=PortalNotification.query.filter_by(user_id=u.id,read_at=None).count()
+    return render_template("team_chat.html",user=u,team=team,messages=messages,users=users,team_color=colors.get(team.id,TEAM_COLORS[0]),polls=polls,pinned=pinned,latest_id=latest_id,older_before=older_before,notification_count=notification_count)
+
+@app.route("/teams/<int:team_id>/chat/poll",methods=["POST"])
+@login_required
+@limiter.limit("20 per hour")
+def team_chat_poll(team_id):
+    u=current_user(); team=db.session.get(Team,team_id)
+    if not team or not can_access_team(u,team_id): flash("You do not have access to that team chat."); return redirect(url_for("team_chats"))
+    question=request.form.get("question","").strip()[:500]
+    options=[]
+    for value in request.form.get("options","").splitlines():
+        cleaned=value.strip()[:200]
+        if cleaned and cleaned.casefold() not in {item.casefold() for item in options}: options.append(cleaned)
+    if not question or len(options)<2:
+        flash("A poll needs a question and at least two different choices."); return redirect(url_for("team_chat",team_id=team_id))
+    options=options[:6]
+    message=ChatMessage(team_id=team_id,user_id=u.id,body=question,kind="poll")
+    db.session.add(message); db.session.flush()
+    db.session.add_all([ChatPollOption(message_id=message.id,text=value,position=index) for index,value in enumerate(options)])
+    db.session.commit(); audit("team_chat_poll",f"team_id={team.id},message_id={message.id}")
+    notify_team(team.id,"chat",f"New poll in {team.name}",f"{u.name}: {question}",url_for("team_chat",team_id=team.id),exclude_user_id=u.id)
+    return redirect(url_for("team_chat",team_id=team_id))
+
+@app.route("/teams/<int:team_id>/chat/poll/<int:message_id>/vote",methods=["POST"])
+@login_required
+def team_chat_vote(team_id,message_id):
+    u=current_user(); message=ChatMessage.query.filter_by(id=message_id,team_id=team_id,kind="poll",is_deleted=False).first()
+    if not message or not can_access_team(u,team_id): return redirect(url_for("team_chats"))
+    option=ChatPollOption.query.filter_by(id=request.form.get("option_id",type=int),message_id=message_id).first()
+    if not option: flash("Choose a valid poll option."); return redirect(url_for("team_chat",team_id=team_id))
+    vote=ChatPollVote.query.filter_by(message_id=message_id,user_id=u.id).first()
+    if vote: vote.option_id=option.id; vote.created_at=datetime.utcnow()
+    else: db.session.add(ChatPollVote(message_id=message_id,option_id=option.id,user_id=u.id))
+    db.session.commit(); return redirect(url_for("team_chat",team_id=team_id))
+
+@app.route("/teams/<int:team_id>/chat/message/<int:message_id>/delete",methods=["POST"])
+@login_required
+def team_chat_message_delete(team_id,message_id):
+    u=current_user(); message=ChatMessage.query.filter_by(id=message_id,team_id=team_id).first()
+    if not message or not can_access_team(u,team_id) or (message.user_id!=u.id and u.role!="admin"):
+        flash("You can only delete your own messages."); return redirect(url_for("team_chat",team_id=team_id))
+    message.is_deleted=True; message.deleted_at=datetime.utcnow(); message.pinned_at=None; message.pinned_by_id=None; message.body=""
+    db.session.commit(); audit("team_chat_message_deleted",f"team_id={team_id},message_id={message_id}")
+    return redirect(url_for("team_chat",team_id=team_id))
+
+@app.route("/teams/<int:team_id>/chat/message/<int:message_id>/pin",methods=["POST"])
+@role_required("coach","admin")
+def team_chat_message_pin(team_id,message_id):
+    u=current_user(); message=ChatMessage.query.filter_by(id=message_id,team_id=team_id,is_deleted=False).first()
+    if not message or not can_access_team(u,team_id): return redirect(url_for("team_chats"))
+    if message.pinned_at: message.pinned_at=None; message.pinned_by_id=None
+    else: message.pinned_at=datetime.utcnow(); message.pinned_by_id=u.id
+    db.session.commit(); audit("team_chat_message_pin",f"team_id={team_id},message_id={message_id},pinned={bool(message.pinned_at)}")
+    return redirect(url_for("team_chat",team_id=team_id))
+
+@app.route("/teams/<int:team_id>/chat/delete",methods=["POST"])
+@role_required("admin")
+def team_chat_delete(team_id):
+    team=db.session.get(Team,team_id)
+    if not team or request.form.get("confirm_name","").strip()!=team.name:
+        flash("Enter the exact team name to delete the thread."); return redirect(url_for("team_chat",team_id=team_id))
+    message_ids=[message_id for (message_id,) in db.session.query(ChatMessage.id).filter_by(team_id=team_id).all()]
+    if message_ids:
+        ChatPollVote.query.filter(ChatPollVote.message_id.in_(message_ids)).delete(synchronize_session=False)
+        ChatPollOption.query.filter(ChatPollOption.message_id.in_(message_ids)).delete(synchronize_session=False)
+        ChatMessage.query.filter_by(team_id=team_id).delete()
+    ChatReadState.query.filter_by(team_id=team_id).delete(); db.session.commit(); audit("team_chat_deleted",f"team_id={team_id}")
+    flash(f"{team.name} chat thread deleted."); return redirect(url_for("team_chats"))
+
+@app.route("/teams/<int:team_id>/chat/feed")
+@login_required
+def team_chat_feed(team_id):
+    if not can_access_team(current_user(),team_id): return jsonify({"error":"forbidden"}),403
+    latest=ChatMessage.query.with_entities(db.func.max(ChatMessage.id)).filter_by(team_id=team_id).scalar() or 0
+    return jsonify({"latest_id":latest,"changed":latest>request.args.get("after",0,type=int)})
+
+@app.route("/notifications")
+@login_required
+def notifications():
+    rows=PortalNotification.query.filter_by(user_id=current_user().id).order_by(PortalNotification.created_at.desc()).limit(100).all()
+    return render_template("notifications.html",user=current_user(),notifications=rows)
+
+@app.route("/notifications/read",methods=["POST"])
+@login_required
+def notifications_read():
+    PortalNotification.query.filter_by(user_id=current_user().id,read_at=None).update({"read_at":datetime.utcnow()}); db.session.commit()
+    return redirect(url_for("notifications"))
+
+@app.route("/notifications/<int:notification_id>/open")
+@login_required
+def notification_open(notification_id):
+    notification=PortalNotification.query.filter_by(id=notification_id,user_id=current_user().id).first()
+    if not notification: return redirect(url_for("notifications"))
+    if not notification.read_at: notification.read_at=datetime.utcnow(); db.session.commit()
+    return redirect(notification.target_url)
+
+@app.route("/notifications/unread")
+@login_required
+def notifications_unread():
+    row=PortalNotification.query.filter_by(user_id=current_user().id,read_at=None).order_by(PortalNotification.created_at.desc()).first()
+    return jsonify({"count":PortalNotification.query.filter_by(user_id=current_user().id,read_at=None).count(),"latest":{"id":row.id,"title":row.title,"body":row.body,"url":row.target_url} if row else None})
+
+@app.route("/push/public-key")
+@login_required
+def push_public_key(): return jsonify({"public_key":vapid_keys()[1]})
+
+@app.route("/push/subscribe",methods=["POST"])
+@login_required
+def push_subscribe():
+    data=request.get_json(silent=True) or {}; endpoint=str(data.get("endpoint","")).strip(); keys=data.get("keys") or {}
+    if not endpoint or not keys.get("p256dh") or not keys.get("auth") or len(endpoint)>1000: return jsonify({"error":"invalid subscription"}),400
+    subscription=PushSubscription.query.filter_by(endpoint=endpoint).first()
+    payload=json.dumps({"endpoint":endpoint,"expirationTime":data.get("expirationTime"),"keys":{"p256dh":keys["p256dh"],"auth":keys["auth"]}})
+    if subscription: subscription.user_id=current_user().id; subscription.subscription_json=payload
+    else: db.session.add(PushSubscription(user_id=current_user().id,endpoint=endpoint,subscription_json=payload))
+    db.session.commit(); return jsonify({"ok":True})
+
+@app.route("/push/unsubscribe",methods=["POST"])
+@login_required
+def push_unsubscribe():
+    endpoint=str((request.get_json(silent=True) or {}).get("endpoint","")).strip()
+    PushSubscription.query.filter_by(user_id=current_user().id,endpoint=endpoint).delete(); db.session.commit(); return jsonify({"ok":True})
+
+@app.route("/service-worker.js")
+def service_worker():
+    response=app.send_static_file("sw.js"); response.headers["Service-Worker-Allowed"]="/"; response.headers["Cache-Control"]="no-cache"; return response
 
 @app.route("/learn")
 @login_required
@@ -1005,7 +1270,15 @@ def admin_delete_player(pid):
     RosterPlayerLink.query.filter_by(player_id=player.id).delete()
     GameStat.query.filter_by(player_id=player.id).delete()
     TeamMembership.query.filter_by(user_id=player.id).delete()
-    ChatMessage.query.filter_by(user_id=player.id).delete()
+    message_ids=[message_id for (message_id,) in db.session.query(ChatMessage.id).filter_by(user_id=player.id).all()]
+    if message_ids:
+        ChatPollVote.query.filter(ChatPollVote.message_id.in_(message_ids)).delete(synchronize_session=False)
+        ChatPollOption.query.filter(ChatPollOption.message_id.in_(message_ids)).delete(synchronize_session=False)
+        ChatMessage.query.filter_by(user_id=player.id).delete()
+    ChatPollVote.query.filter_by(user_id=player.id).delete()
+    ChatReadState.query.filter_by(user_id=player.id).delete()
+    PortalNotification.query.filter_by(user_id=player.id).delete()
+    PushSubscription.query.filter_by(user_id=player.id).delete()
     ConsentRequest.query.filter_by(player_id=player.id).delete()
     Media.query.filter((Media.owner_user_id==player.id)|(Media.player_id==player.id)).delete(synchronize_session=False)
     AuditLog.query.filter_by(user_id=player.id).delete()
@@ -1084,6 +1357,7 @@ def delete_account():
     if not check_password_hash(u.password_hash,request.form.get("password","")): flash("Password did not match."); return redirect(url_for("account"))
     if u.role=="parent": User.query.filter_by(parent_id=u.id).update({"parent_id":None})
     WorkoutCompletion.query.filter_by(player_id=u.id).delete(); GameStat.query.filter_by(player_id=u.id).delete(); TeamMembership.query.filter_by(user_id=u.id).delete(); ConsentRequest.query.filter_by(player_id=u.id).delete(); RosterPlayerLink.query.filter_by(player_id=u.id).delete(); Media.query.filter((Media.owner_user_id==u.id)|(Media.player_id==u.id)).delete(synchronize_session=False)
+    ChatPollVote.query.filter_by(user_id=u.id).delete(); ChatReadState.query.filter_by(user_id=u.id).delete(); PortalNotification.query.filter_by(user_id=u.id).delete(); PushSubscription.query.filter_by(user_id=u.id).delete()
     u.email=f"deleted-{u.id}-{secrets.token_hex(4)}@invalid.local"; u.name="Deleted User"; u.password_hash=generate_password_hash(secrets.token_urlsafe(40)); u.is_active=False
     db.session.commit(); audit("account_deleted",who=u); session.clear(); flash("Account deleted."); return redirect(url_for("login"))
 
