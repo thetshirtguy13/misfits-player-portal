@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{workout.title}}{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='drill_library.css',v='20261005')}}">
+<a class="drill-back" href="{{url_for('workouts')}}">Back to Drill Library</a>
+<div class="drill-detail-heading">
+  <span class="pill">{{workout.category}}</span>
+  <h1>{{workout.title}}</h1>
+  <p class="muted">{{workout.minutes}} minutes · {{workout.level}}</p>
+</div>
+
+<div class="drill-detail-grid">
+  <section>
+    {% if videos %}
+      {% for media,video_url in videos %}
+      <article class="card drill-video-card">
+        <video controls playsinline preload="metadata" src="{{video_url}}"></video>
+        <div class="row between">
+          <div><strong>{{media.original_name}}</strong><small class="muted">Uploaded {{media.created_at.strftime('%B %d, %Y')}}</small></div>
+          {% if user.role=='admin' %}<form method="post" action="{{url_for('workout_video_delete',wid=workout.id,mid=media.id)}}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="dangerbtn smallbtn">Delete</button></form>{% endif %}
+        </div>
+      </article>
+      {% endfor %}
+    {% elif youtube_url %}
+      <div class="drill-video-frame"><iframe src="{{youtube_url}}" title="{{workout.title}} demonstration" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+    {% elif workout.video_url %}
+      <div class="card"><a class="btn" href="{{workout.video_url}}" target="_blank" rel="noopener noreferrer">Open Demonstration Video</a></div>
+    {% else %}
+      <div class="drill-video-empty"><strong>Demonstration video coming soon</strong><p class="muted">The written progression is ready to use now.</p></div>
+    {% endif %}
+  </section>
+
+  <aside>
+    <div class="card drill-steps">
+      <h2>Coaching Progression</h2>
+      {% for instruction in workout.exercises.split('\n') %}<div class="exercise">{{instruction}}</div>{% endfor %}
+    </div>
+    {% if user.role=='admin' %}
+    <div class="card">
+      <h2>Upload Demonstration</h2>
+      {% if storage_ready %}
+      <form method="post" action="{{url_for('workout_video_upload',wid=workout.id)}}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="media-file">MP4, MOV, or WebM, up to 200 MB</label>
+        <input id="media-file" type="file" name="media_file" accept="video/mp4,video/quicktime,video/webm" required>
+        <button>Upload Video</button>
+      </form>
+      {% else %}
+      <div class="warn">Private storage is not configured. Add an HTTPS YouTube link when creating a drill, or configure the existing S3 storage settings.</div>
+      {% endif %}
+      <form method="post" action="{{url_for('workout_video_link',wid=workout.id)}}" class="video-link-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="video-url">Or attach a YouTube/video link</label>
+        <input id="video-url" type="url" name="video_url" maxlength="500" value="{{workout.video_url}}" placeholder="https://www.youtube.com/watch?v=...">
+        <button class="secondary">Save Video Link</button>
+      </form>
+    </div>
+    {% endif %}
+  </aside>
+</div>
+
+{% if user.role=='player' %}
+<div class="card drill-complete">
+  <h2>Record This Drill</h2>
+  <form method="post" action="{{url_for('complete_workout',wid=workout.id)}}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="notes">Player notes</label><textarea id="notes" name="notes" maxlength="1000"></textarea>
+    <button>Mark Complete</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

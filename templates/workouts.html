@@ -1,1 +1,54 @@
-{% extends "base.html" %}{% block content %}<div class="row between"><div><h1>Home Workouts</h1><p class="muted">Pitching, catching, batting, and fielding programs.</p></div><form><select name="category" onchange="this.form.submit()">{% for c in ['All','Pitching','Catching','Batting','Fielding'] %}<option {% if c==category %}selected{% endif %}>{{c}}</option>{% endfor %}</select></form></div><div class="cards">{% for w in workouts %}<div class="card workout {% if w.id in completed_ids %}done{% endif %}"><span class="pill">{{w.category}}</span><h2>{{w.title}}</h2><p class="muted">{{w.minutes}} minutes • {{w.level}}</p>{% for e in w.exercises.split('\n') %}<div class="exercise">{{e}}</div>{% endfor %}{% if w.video_url %}<p><a href="{{w.video_url}}" rel="noopener noreferrer">Training video</a></p>{% endif %}{% if user.role=='player' %}<form method="post" action="{{url_for('complete_workout',wid=w.id)}}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Notes</label><textarea name="notes" maxlength="1000"></textarea><button>{% if w.id in completed_ids %}Completed Today{% else %}Mark Complete{% endif %}</button></form>{% endif %}</div>{% endfor %}</div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Practice Drill Library{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='drill_library.css',v='20261005')}}">
+<div class="row between drill-heading">
+  <div>
+    <p class="eyebrow">Player development</p>
+    <h1>Practice Drill Library</h1>
+    <p class="muted">Coach-led progressions with demonstration videos.</p>
+  </div>
+  <form class="drill-filter">
+    <label for="category">Category</label>
+    <select id="category" name="category" onchange="this.form.submit()">
+      {% for c in ['All','Throwing','Fielding','Catching','Baserunning','Batting','Pitching'] %}
+      <option {% if c==category %}selected{% endif %}>{{c}}</option>
+      {% endfor %}
+    </select>
+  </form>
+</div>
+
+{% if user.role=='admin' %}
+<details class="card drill-admin">
+  <summary>Add a new drill</summary>
+  <form method="post" action="{{url_for('add_workout')}}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="formgrid">
+      <div><label for="new-category">Category</label><select id="new-category" name="category" required>{% for c in ['Throwing','Fielding','Catching','Baserunning','Batting','Pitching'] %}<option>{{c}}</option>{% endfor %}</select></div>
+      <div><label for="new-title">Drill name</label><input id="new-title" name="title" maxlength="160" required></div>
+      <div><label for="new-level">Level</label><input id="new-level" name="level" value="All ages" maxlength="30"></div>
+      <div><label for="new-minutes">Minutes</label><input id="new-minutes" name="minutes" type="number" value="15" min="1" max="180"></div>
+    </div>
+    <label for="new-exercises">Coaching instructions</label>
+    <textarea id="new-exercises" name="exercises" rows="5" maxlength="5000" placeholder="Add one coaching cue or step per line." required></textarea>
+    <label for="new-video-url">Optional YouTube link</label>
+    <input id="new-video-url" name="video_url" type="url" maxlength="500" placeholder="https://www.youtube.com/watch?v=...">
+    <button>Add Drill</button>
+  </form>
+</details>
+{% endif %}
+
+<div class="drill-grid">
+  {% for w in workouts %}
+  <article class="card drill-card {% if w.id in completed_ids %}done{% endif %}">
+    <div class="row between"><span class="pill">{{w.category}}</span><span class="muted small">{{w.minutes}} min</span></div>
+    <h2>{{w.title}}</h2>
+    <p class="muted">{{w.level}}</p>
+    <p class="drill-preview">{{w.exercises.split('\n')[0]}}</p>
+    <a class="btn secondary" href="{{url_for('workout_detail',wid=w.id)}}">Open Drill{% if w.video_url %} and Video{% endif %}</a>
+  </article>
+  {% else %}
+  <div class="empty-state"><p>No drills are available in this category.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
