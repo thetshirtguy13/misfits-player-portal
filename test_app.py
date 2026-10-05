@@ -160,18 +160,32 @@ class PortalFlowTests(unittest.TestCase):
             self.assertIn(b"Player One", self.client.get("/media").data)
 
     def test_admin_sees_all_teams_and_players(self):
-        self.register()
+        with portal.app.app_context():
+            parent=portal.User(role="parent",name="Roster Parent",email="roster-parent@example.com",password_hash="x",is_active=True)
+            deleted=portal.User(role="player",name="Deleted User",email="deleted@example.com",password_hash="x",is_active=False)
+            first=portal.RosterProfile(team_id=self.team_id,name="Roster Player",name_key="roster player",jersey="12",season="Fall 2026",as_of=portal.date(2026,9,17),stats={"GP":8,"AVG":.375,"OPS":.950})
+            second=portal.RosterProfile(team_id=self.other_team_id,name="Other Team Player",name_key="other team player",season="Fall 2026",as_of=portal.date(2026,9,17),stats={})
+            portal.db.session.add_all([parent,deleted,first,second]); portal.db.session.flush()
+            portal.db.session.add(portal.RosterFamilyLink(parent_id=parent.id,profile_id=first.id)); portal.db.session.commit()
         self.login_as(self.admin_id)
         teams = self.client.get("/teams")
         players = self.client.get("/coach")
         admin = self.client.get("/admin")
         self.assertIn(b"12U Blue", teams.data)
         self.assertIn(b"13U Gold", teams.data)
-        self.assertIn(b"Player One", players.data)
+        self.assertIn(b"Team Player Overview",players.data)
+        self.assertIn(b"Roster Player",players.data)
+        self.assertIn(b"Other Team Player",players.data)
+        self.assertIn(b"Roster Parent",players.data)
+        self.assertNotIn(b"Deleted User",players.data)
         self.assertIn(b"Account Administration", admin.data)
         self.assertIn(b"Coach Accounts", admin.data)
         self.assertIn(b"coach@example.com", admin.data)
-        self.assertIn(b"parent@example.com", admin.data)
+
+        self.login_as(self.coach_id)
+        coach_players=self.client.get("/coach")
+        self.assertIn(b"Roster Player",coach_players.data)
+        self.assertNotIn(b"Other Team Player",coach_players.data)
 
     def test_calendar_shows_seeded_events_and_navigation(self):
         self.login_as(self.admin_id)

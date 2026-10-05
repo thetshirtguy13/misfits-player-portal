@@ -1175,16 +1175,47 @@ def join_team():
 @role_required("coach")
 def coach():
     u=current_user()
-    if u.role=="admin":
-        players=User.query.filter_by(role="player").all()
-    else:
-        tids=team_ids_for(u); mids=TeamMembership.query.filter(TeamMembership.team_id.in_(tids),TeamMembership.role=="player",TeamMembership.approved==True).all() if tids else []
-        players=[db.session.get(User,m.user_id) for m in mids]
-    seen=set(); data=[]
-    for p in players:
-        if not p or p.id in seen: continue
-        seen.add(p.id); cs=WorkoutCompletion.query.filter_by(player_id=p.id).all(); data.append((p,len(cs),sum(x.minutes for x in cs),player_totals(p.id)))
-    return render_template("coach.html",user=u,data=data)
+    tids=team_ids_for(u)
+    teams=Team.query.filter(Team.id.in_(tids)).order_by(Team.age_group,Team.name).all() if tids else []
+    profiles=RosterProfile.query.filter(RosterProfile.team_id.in_(tids)).order_by(
+        RosterProfile.team_id,RosterProfile.name_key,RosterProfile.as_of.desc(),RosterProfile.id.desc()
+    ).all() if tids else []
+    latest={}; profile_ids={}
+    for profile in profiles:
+        key=(profile.team_id,profile.name_key)
+        latest.setdefault(key,profile)
+        profile_ids.setdefault(key,[]).append(profile.id)
+    all_profile_ids=[profile_id for ids in profile_ids.values() for profile_id in ids]
+    family_links=RosterFamilyLink.query.filter(RosterFamilyLink.profile_id.in_(all_profile_ids)).all() if all_profile_ids else []
+    player_links=RosterPlayerLink.query.filter(RosterPlayerLink.profile_id.in_(all_profile_ids)).all() if all_profile_ids else []
+    user_ids={link.parent_id for link in family_links}|{link.player_id for link in player_links}
+    linked_users={user.id:user for user in User.query.filter(User.id.in_(user_ids),User.is_active.is_(True)).all()} if user_ids else {}
+    family_by_profile={}
+    for link in family_links:
+        if link.parent_id in linked_users:
+            family_by_profile.setdefault(link.profile_id,set()).add(link.parent_id)
+    player_by_profile={link.profile_id:link.player_id for link in player_links if link.player_id in linked_users}
+    rows_by_team={team.id:[] for team in teams}
+    linked_count=0
+    for key,profile in latest.items():
+        snapshot_ids=profile_ids[key]
+        family_ids={user_id for profile_id in snapshot_ids for user_id in family_by_profile.get(profile_id,set())}
+        player_id=next((player_by_profile[profile_id] for profile_id in snapshot_ids if profile_id in player_by_profile),None)
+        families=sorted((linked_users[user_id] for user_id in family_ids),key=lambda user:user.name)
+        player_account=linked_users.get(player_id)
+        completions=WorkoutCompletion.query.filter_by(player_id=player_id).all() if player_id else []
+        linked=bool(families or player_account)
+        linked_count+=int(linked)
+        rows_by_team[profile.team_id].append({
+            "profile":profile,
+            "families":families,
+            "player_account":player_account,
+            "linked":linked,
+            "workouts":len(completions),
+            "minutes":sum(completion.minutes for completion in completions),
+        })
+    team_rows=[{"team":team,"players":rows_by_team[team.id]} for team in teams]
+    return render_template("coach.html",user=u,team_rows=team_rows,total_players=len(latest),linked_count=linked_count)
 
 @app.route("/gamechanger",methods=["GET","POST"])
 @role_required("coach")
