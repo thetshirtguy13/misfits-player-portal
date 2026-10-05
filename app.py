@@ -492,7 +492,7 @@ def initialize_database():
         "is_deleted":"ALTER TABLE chat_message ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT FALSE",
         "deleted_at":"ALTER TABLE chat_message ADD COLUMN deleted_at TIMESTAMP",
         "pinned_at":"ALTER TABLE chat_message ADD COLUMN pinned_at TIMESTAMP",
-        "pinned_by_id":"ALTER TABLE chat_message ADD COLUMN pinned_by_id INTEGER REFERENCES user(id)",
+        "pinned_by_id":'ALTER TABLE chat_message ADD COLUMN pinned_by_id INTEGER REFERENCES "user"(id)',
     }
     for column,statement in chat_migrations.items():
         if column not in chat_columns: db.session.execute(text(statement))
