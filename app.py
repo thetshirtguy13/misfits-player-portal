@@ -114,6 +114,16 @@ class WorkoutCompletion(db.Model):
     notes=db.Column(db.Text, default="")
     created_at=db.Column(db.DateTime, default=datetime.utcnow)
 
+class BaseballScenario(db.Model):
+    id=db.Column(db.Integer, primary_key=True)
+    team_id=db.Column(db.Integer, db.ForeignKey("team.id"), nullable=False, index=True)
+    author_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    title=db.Column(db.String(140), nullable=False)
+    situation=db.Column(db.String(240), default="")
+    design_json=db.Column(db.Text, nullable=False)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at=db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
 class GameStat(db.Model):
     id=db.Column(db.Integer, primary_key=True)
     player_id=db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
@@ -1008,6 +1018,58 @@ def pitch_plan():
 @app.route("/field-guides")
 @login_required
 def field_guides(): return render_template("field_guides.html", user=current_user())
+
+@app.route("/scenario-builder",methods=["GET","POST"])
+@login_required
+def scenario_builder():
+    u=current_user(); teams=visible_teams_for(u); editable=u.role in {"coach","admin"}
+    if request.method=="POST":
+        if not editable:
+            flash("Only coaches and administrators can change team scenarios.")
+            return redirect(url_for("scenario_builder"))
+        action=request.form.get("action","save")
+        scenario_id=request.form.get("scenario_id",type=int)
+        existing=db.session.get(BaseballScenario,scenario_id) if scenario_id else None
+        if action=="delete":
+            if not existing or not can_access_team(u,existing.team_id):
+                flash("That scenario is not available to your account.")
+            else:
+                db.session.delete(existing); db.session.commit(); flash("Scenario deleted.")
+            return redirect(url_for("scenario_builder"))
+        team_id=request.form.get("team_id",type=int)
+        title=request.form.get("title","").strip()
+        situation=request.form.get("situation","").strip()
+        raw_design=request.form.get("design_json","").strip()
+        if not team_id or not can_access_team(u,team_id) or not db.session.get(Team,team_id):
+            flash("Choose a team you can manage."); return redirect(url_for("scenario_builder"))
+        if not title or len(title)>140 or len(situation)>240 or not raw_design or len(raw_design)>100000:
+            flash("Add a short title and a valid scenario."); return redirect(url_for("scenario_builder"))
+        try:
+            design=json.loads(raw_design)
+            if not isinstance(design,dict) or not isinstance(design.get("actions"),list) or len(design["actions"])>100:
+                raise ValueError
+        except (ValueError,TypeError,json.JSONDecodeError):
+            flash("The scenario could not be saved. Please reload the builder and try again.")
+            return redirect(url_for("scenario_builder"))
+        if existing:
+            if not can_access_team(u,existing.team_id):
+                flash("That scenario is not available to your account."); return redirect(url_for("scenario_builder"))
+            existing.team_id=team_id; existing.title=title; existing.situation=situation; existing.design_json=json.dumps(design,separators=(",",":")); existing.updated_at=datetime.utcnow()
+            scenario=existing
+        else:
+            scenario=BaseballScenario(team_id=team_id,author_id=u.id,title=title,situation=situation,design_json=json.dumps(design,separators=(",",":")))
+            db.session.add(scenario)
+        db.session.commit(); flash("Scenario saved to the team library.")
+        return redirect(url_for("scenario_builder",scenario_id=scenario.id))
+    team_ids=[team.id for team in teams]
+    scenarios=BaseballScenario.query.filter(BaseballScenario.team_id.in_(team_ids)).order_by(BaseballScenario.updated_at.desc()).all() if team_ids else []
+    payload=[]
+    for scenario in scenarios:
+        try: design=json.loads(scenario.design_json)
+        except (TypeError,json.JSONDecodeError): design={"actions":[]}
+        team=db.session.get(Team,scenario.team_id)
+        payload.append({"id":scenario.id,"team_id":scenario.team_id,"team":team.name if team else "Team","title":scenario.title,"situation":scenario.situation,"design":design})
+    return render_template("scenario_builder.html",user=u,teams=teams,scenarios=scenarios,scenario_payload=payload,editable=editable,selected_id=request.args.get("scenario_id",type=int))
 
 @app.route("/workouts")
 @login_required

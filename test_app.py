@@ -73,6 +73,52 @@ class PortalFlowTests(unittest.TestCase):
             media=portal.Media.query.filter_by(workout_id=workout_id).one()
             self.assertEqual("throwing.mp4",media.original_name)
 
+    def test_scenario_builder_has_field_tools_and_team_presets(self):
+        self.login_as(self.coach_id)
+        response=self.client.get("/scenario-builder")
+        self.assertEqual(200,response.status_code)
+        self.assertIn(b"Baseball Scenario Builder",response.data)
+        self.assertIn(b"Fly Ball + R3",response.data)
+        self.assertIn(b"Ball Flight",response.data)
+        self.assertIn(b"Cutoff",response.data)
+        self.assertIn(b"12U Blue",response.data)
+        self.assertNotIn(b"13U Gold",response.data)
+
+    def test_coach_can_save_and_update_team_scenario(self):
+        self.login_as(self.coach_id)
+        design='{"version":1,"positions":{},"ball":{"x":50,"y":87},"actions":[{"type":"hit","entity":"ball","actor":"Batter","from":{"x":50,"y":87},"to":{"x":24,"y":23}}]}'
+        response=self.client.post("/scenario-builder",data={"team_id":self.team_id,"title":"Tag at Third","situation":"One out","design_json":design},follow_redirects=True)
+        self.assertIn(b"Scenario saved to the team library",response.data)
+        self.assertIn(b"Tag at Third",response.data)
+        with portal.app.app_context():
+            scenario=portal.BaseballScenario.query.filter_by(title="Tag at Third").one()
+            scenario_id=scenario.id
+            self.assertEqual(self.team_id,scenario.team_id)
+        self.client.post("/scenario-builder",data={"scenario_id":scenario_id,"team_id":self.team_id,"title":"Tag and Score","situation":"Updated","design_json":design})
+        with portal.app.app_context():
+            self.assertEqual("Tag and Score",portal.db.session.get(portal.BaseballScenario,scenario_id).title)
+
+    def test_coach_cannot_save_scenario_for_another_team(self):
+        self.login_as(self.coach_id)
+        response=self.client.post("/scenario-builder",data={"team_id":self.other_team_id,"title":"Blocked","design_json":"{\"actions\":[]}"},follow_redirects=True)
+        self.assertIn(b"Choose a team you can manage",response.data)
+        with portal.app.app_context(): self.assertIsNone(portal.BaseballScenario.query.filter_by(title="Blocked").first())
+
+    def test_parent_can_watch_but_cannot_change_team_scenario(self):
+        with portal.app.app_context():
+            parent=portal.User(role="parent",name="Parent Viewer",email="viewer@example.com",password_hash="x",consent_verified=True)
+            child=portal.User(role="player",name="Player Viewer",email="player-viewer@example.com",password_hash="x",consent_verified=True)
+            portal.db.session.add_all([parent,child]); portal.db.session.flush(); child.parent_id=parent.id
+            portal.db.session.add(portal.TeamMembership(team_id=self.team_id,user_id=child.id,role="player",approved=True))
+            portal.db.session.add(portal.BaseballScenario(team_id=self.team_id,author_id=self.coach_id,title="Relay Home",situation="Two outs",design_json='{"actions":[]}'))
+            portal.db.session.commit(); parent_id=parent.id
+        self.login_as(parent_id)
+        response=self.client.get("/scenario-builder")
+        self.assertIn(b"Relay Home",response.data)
+        self.assertNotIn(b"Save to Team",response.data)
+        denied=self.client.post("/scenario-builder",data={"team_id":self.team_id,"title":"Nope","design_json":"{\"actions\":[]}"},follow_redirects=True)
+        self.assertIn(b"Only coaches and administrators",denied.data)
+
     def test_team_store_displays_live_shopify_products_and_filters(self):
         product={"title":"Misfits Home Uniform","url":"https://thetshirtguy.co/products/home-uniform","image":"https://cdn.shopify.com/uniform.jpg","price":"$30.00","available":True,"category":"Uniforms"}
         self.login_as(self.admin_id)
