@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Baseball Scenario Builder{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261006')}}">
+<section id="scenario-app" class="scenario-app" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
+  <div class="builder-heading">
+    <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
+    <div class="playback-controls">
+      <button type="button" class="builder-btn quiet" id="restart-button" title="Restart scenario">Restart</button>
+      <button type="button" class="builder-btn play" id="play-button">Play Scenario</button>
+    </div>
+  </div>
+
+  {% if editable %}
+  <form method="post" id="scenario-form" class="scenario-meta">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+    <input type="hidden" name="scenario_id" id="scenario-id">
+    <input type="hidden" name="design_json" id="design-json">
+    <div><label for="scenario-title">Scenario name</label><input id="scenario-title" name="title" maxlength="140" placeholder="Fly ball, runner on third" required></div>
+    <div><label for="scenario-situation">Situation or coaching call</label><input id="scenario-situation" name="situation" maxlength="240" placeholder="One out, runner tags on the catch"></div>
+    <div><label for="scenario-team">Team</label><select id="scenario-team" name="team_id" required>{% for team in teams %}<option value="{{team.id}}">{{team.age_group}} {{team.name}}</option>{% endfor %}</select></div>
+    <button type="submit" class="builder-btn save">Save to Team</button>
+  </form>
+
+  <div class="preset-bar" aria-label="Scenario presets">
+    <span>Start</span>
+    <button type="button" class="preset-button active" data-preset="fly-r3">Fly Ball + R3</button>
+    <button type="button" class="preset-button" data-preset="ground-r1">Ground Ball + R1</button>
+    <button type="button" class="preset-button" data-preset="bunt-r1">Bunt Defense</button>
+    <button type="button" class="preset-button" data-preset="empty">Empty Field</button>
+  </div>
+
+  <div class="tool-bar" aria-label="Scenario action tools">
+    <button type="button" class="tool-button active" data-tool="setup"><b>+</b><span>Setup</span></button>
+    <button type="button" class="tool-button" data-tool="move"><b>&#8594;</b><span>Move</span></button>
+    <button type="button" class="tool-button" data-tool="throw"><b>&#8644;</b><span>Throw</span></button>
+    <button type="button" class="tool-button" data-tool="hit"><b>&#9679;</b><span>Ball Flight</span></button>
+    <button type="button" class="tool-button" data-tool="cover"><b>C</b><span>Cover</span></button>
+    <button type="button" class="tool-button" data-tool="backup"><b>B</b><span>Backup</span></button>
+    <button type="button" class="tool-button" data-tool="cutoff"><b>X</b><span>Cutoff</span></button>
+    <button type="button" class="tool-button" data-tool="tag"><b>T</b><span>Tag / Run</span></button>
+    <button type="button" class="tool-button" id="undo-button"><b>&#8630;</b><span>Undo</span></button>
+  </div>
+  {% endif %}
+
+  <div class="builder-layout">
+    <div class="field-column">
+      <div class="field-status"><strong id="scenario-status">Fly Ball + R3</strong><span id="instruction-text">Drag markers to set the field, or choose a tool to add a step.</span></div>
+      <div id="baseball-field" class="baseball-field" aria-label="Interactive baseball field">
+        <svg class="field-art" viewBox="0 0 1000 760" role="img" aria-label="Baseball field diagram">
+          <defs><linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c6e45"/><stop offset="1" stop-color="#075135"/></linearGradient></defs>
+          <path d="M500 735 L45 280 Q500 -100 955 280 Z" fill="url(#grass)" stroke="#57a97e" stroke-width="5"/>
+          <path d="M500 708 L205 413 L500 118 L795 413 Z" fill="#b9824c" stroke="#d5a56f" stroke-width="4"/>
+          <path d="M500 642 L271 413 L500 184 L729 413 Z" fill="#158052" stroke="#79be96" stroke-width="3"/>
+          <circle cx="500" cy="413" r="42" fill="#b9824c" stroke="#d5a56f" stroke-width="4"/>
+          <circle cx="500" cy="708" r="48" fill="#b9824c"/>
+          <path d="M500 708 L45 280 M500 708 L955 280" fill="none" stroke="#f5f5e8" stroke-width="5"/>
+          <path d="M500 692 l16 16 -16 16 -16 -16 z M729 397 l16 16 -16 16 -16 -16 z M500 168 l16 16 -16 16 -16 -16 z M271 397 l16 16 -16 16 -16 -16 z" fill="#fff" stroke="#d8d8d0" stroke-width="2"/>
+          <rect x="492" y="403" width="16" height="4" rx="2" fill="#fff"/>
+          <path d="M500 640 Q500 575 500 515" fill="none" stroke="#d5a56f" stroke-width="3" stroke-dasharray="8 10" opacity=".8"/>
+        </svg>
+        <div id="movement-layer" class="movement-layer"></div>
+        <div id="marker-layer" class="marker-layer"></div>
+      </div>
+      <div class="play-progress"><div id="play-progress-bar"></div></div>
+    </div>
+
+    <aside class="builder-side">
+      <section class="timeline-panel">
+        <div class="panel-title"><div><span>Sequence</span><strong id="step-count">0 steps</strong></div>{% if editable %}<button type="button" id="clear-button" class="text-button">Clear</button>{% endif %}</div>
+        <ol id="timeline" class="timeline"></ol>
+        <div id="empty-timeline" class="empty-timeline">Add a movement or ball action to build the sequence.</div>
+      </section>
+      <section class="library-panel">
+        <div class="panel-title"><div><span>Team Library</span><strong>{{scenarios|length}} saved</strong></div></div>
+        <div class="scenario-library">
+          {% for scenario in scenarios %}
+          <article class="library-item" data-scenario-id="{{scenario.id}}">
+            <button type="button" class="open-scenario"><span>{{scenario.title}}</span><small>{{scenario.situation or 'Team scenario'}}</small></button>
+            <span class="team-chip">{% for team in teams %}{% if team.id==scenario.team_id %}{{team.age_group}}{% endif %}{% endfor %}</span>
+            {% if editable %}<form method="post" class="delete-scenario"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="action" value="delete"><input type="hidden" name="scenario_id" value="{{scenario.id}}"><button title="Delete scenario" aria-label="Delete {{scenario.title}}">&times;</button></form>{% endif %}
+          </article>
+          {% else %}<p class="library-empty">No team scenarios saved yet.</p>{% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>
+<script src="{{url_for('static',filename='scenario_builder.js',v='20261006')}}" defer></script>
+{% endblock %}
