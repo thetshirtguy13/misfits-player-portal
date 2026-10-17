@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Baseball Scenario Builder{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261012')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261012')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017b')}}">
 <section id="scenario-app" class="scenario-app sport-baseball" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
   <div class="builder-heading">
     <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
@@ -72,14 +72,14 @@
           <g clip-path="url(#field-clip)">
             <rect width="1000" height="760" fill="url(#mow-stripes)"/>
             <path d="M91 302 Q128 128 294 64 Q500 -10 706 64 Q872 128 909 302" fill="none" stroke="url(#warning-track)" stroke-width="34"/>
-            <path d="M500 716 L205 413 L500 116 L795 413 Z" fill="url(#infield-dirt)" stroke="#e29a58" stroke-width="3"/>
-            <path d="M500 649 L271 413 L500 181 L729 413 Z" fill="#08724d" stroke="#36e6aa" stroke-opacity=".55" stroke-width="3"/>
-            <path d="M500 649 L271 413 L500 181 L729 413 Z" fill="url(#mow-stripes)" opacity=".55"/>
-            <circle cx="500" cy="413" r="45" fill="url(#infield-dirt)" stroke="#e29a58" stroke-width="3"/>
-            <circle cx="500" cy="704" r="54" fill="url(#infield-dirt)"/>
-            <path d="M500 716 L72 302 M500 716 L928 302" fill="none" stroke="#d9fff5" stroke-width="5" filter="url(#field-glow)"/>
-            <path d="M500 716 L271 413 L500 181 L729 413 Z" fill="none" stroke="#f2b66f" stroke-width="7" opacity=".72"/>
-            <path d="M500 716 L271 413 M500 716 L729 413 M271 413 L500 181 M729 413 L500 181" fill="none" stroke="#f8d5a5" stroke-width="2" opacity=".35"/>
+            <path class="infield-skin" d="M500 722 L245 521 L500 270 L755 521 Z" fill="url(#infield-dirt)" stroke="#d89455" stroke-width="3"/>
+            <path class="infield-grass" d="M500 660 L318 521 L500 347 L682 521 Z" fill="#08724d" stroke="#176b4f" stroke-width="3"/>
+            <path class="infield-grass-stripes" d="M500 660 L318 521 L500 347 L682 521 Z" fill="url(#mow-stripes)" opacity=".62"/>
+            <circle class="mound-dirt" cx="500" cy="521" r="43" fill="url(#infield-dirt)" stroke="#d89455" stroke-width="3"/>
+            <circle class="home-dirt" cx="500" cy="704" r="54" fill="url(#infield-dirt)"/>
+            <path class="foul-lines" d="M500 710 L72 302 M500 710 L928 302" fill="none" stroke="#f7f4e9" stroke-width="4"/>
+            <path class="base-paths" d="M500 704 L302 521 L500 332 L698 521 Z" fill="none" stroke="#d8a36b" stroke-width="8" opacity=".86"/>
+            <path class="diamond-guide" d="M500 704 L302 521 M500 704 L698 521 M302 521 L500 332 M698 521 L500 332" fill="none" stroke="#f3d3a6" stroke-width="2" opacity=".3"/>
             <rect width="1000" height="760" fill="url(#field-light)"/>
           </g>
           <path class="outfield-wall" d="M72 302 Q108 113 284 45 Q500 -35 716 45 Q892 113 928 302" fill="none"/>
@@ -88,9 +88,9 @@
           <g class="foul-poles" fill="#d9ff46" filter="url(#field-glow)"><rect x="67" y="257" width="8" height="48" rx="2"/><rect x="925" y="257" width="8" height="48" rx="2"/></g>
           <g class="field-details" fill="none" stroke="#e9fff9" stroke-width="3" opacity=".7"><path d="M447 682 h-31 v-72 h26"/><path d="M553 682 h31 v-72 h-26"/><path d="M219 545 h-118 v54 h108 M781 545 h118 v54 h-108" stroke="#ff5cc9" stroke-width="5"/></g>
           <g class="dugout-labels" fill="#ff98df" font-family="system-ui,sans-serif" font-size="14" font-weight="900" letter-spacing="2"><text x="111" y="537">DUGOUT</text><text x="817" y="537">DUGOUT</text></g>
-          <g class="bases" fill="#fff" stroke="#d9fff5" stroke-width="3" filter="url(#base-shadow)"><path d="M500 692 l17 14 -8 22 h-18 l-8 -22 z"/><rect x="716" y="400" width="26" height="26" transform="rotate(45 729 413)"/><rect x="487" y="168" width="26" height="26" transform="rotate(45 500 181)"/><rect x="258" y="400" width="26" height="26" transform="rotate(45 271 413)"/></g>
-          <rect x="490" y="406" width="20" height="6" rx="2" fill="#fff" filter="url(#base-shadow)"/>
-          <path d="M500 648 Q500 577 500 497" fill="none" stroke="#ffba68" stroke-width="3" stroke-dasharray="9 11" opacity=".72"/>
+          <g class="bases" fill="#fff" stroke="#d6d6cf" stroke-width="2" filter="url(#base-shadow)"><path d="M500 688 l17 14 -8 22 h-18 l-8 -22 z"/><rect x="685" y="508" width="26" height="26" transform="rotate(45 698 521)"/><rect x="487" y="319" width="26" height="26" transform="rotate(45 500 332)"/><rect x="289" y="508" width="26" height="26" transform="rotate(45 302 521)"/></g>
+          <rect class="pitching-rubber" x="490" y="517" width="20" height="6" rx="2" fill="#fff" filter="url(#base-shadow)"/>
+          <path class="centerline" d="M500 659 Q500 604 500 565" fill="none" stroke="#d6a067" stroke-width="2" stroke-dasharray="7 11" opacity=".55"/>
         </svg>
         <div id="movement-layer" class="movement-layer"></div>
         <div id="marker-layer" class="marker-layer"></div>
