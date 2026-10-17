@@ -91,6 +91,10 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"Realistic baseball diamond",response.data)
         self.assertIn(b'id="warning-track"',response.data)
         self.assertIn(b'class="infield-grass" d="M500 650 L340 521 L500 368 L660 521 Z"',response.data)
+        self.assertIn(b'class="home-plate" d="M483 688 H517 V703 L500 720 L483 703 Z"',response.data)
+        self.assertIn(b'class="first-base" x="676" y="503"',response.data)
+        self.assertIn(b'class="third-base" x="298" y="503"',response.data)
+        self.assertIn(b'class="right-handed-batters-box"',response.data)
         self.assertIn(b'class="dugout-labels"',response.data)
         self.assertIn(b"sport-baseball",response.data)
         self.assertIn(b">400<",response.data)
@@ -99,8 +103,8 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b'id="insert-button"',response.data)
         self.assertIn(b'id="redraw-button"',response.data)
         self.assertIn(b'data-runner="R1"',response.data)
-        self.assertIn(b"scenario_builder_v2.css?v=20261017d",response.data)
-        self.assertIn(b"scenario_builder.js?v=20261017d",response.data)
+        self.assertIn(b"scenario_builder_v2.css?v=20261017e",response.data)
+        self.assertIn(b"scenario_builder.js?v=20261017e",response.data)
         self.assertNotIn(b"13U Gold",response.data)
 
         script=self.client.get("/static/scenario_builder.js")
@@ -110,6 +114,9 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b'pickoff-third',script.data)
         self.assertIn(b'rundown-third-home',script.data)
         self.assertIn(b'Every defender moves',script.data)
+        self.assertIn(b'homePlate:{x:50,y:93}',script.data)
+        self.assertIn(b'homeCover:{x:50,y:89}',script.data)
+        self.assertIn(b'rightHandedBox:{x:44.5,y:91}',script.data)
 
     def test_coach_can_save_and_update_team_scenario(self):
         self.login_as(self.coach_id)
