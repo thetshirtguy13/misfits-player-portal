@@ -18,7 +18,7 @@
   const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9" };
   const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run" };
   const spots = {
-    homePlate:{x:50,y:93}, homeCover:{x:50,y:89}, catcherStart:{x:50,y:96}, rightHandedBox:{x:44.5,y:91},
+    homePlate:{x:50,y:93}, homeCover:{x:50,y:86}, catcherStart:{x:50,y:95}, rightHandedBox:{x:44.5,y:93},
     firstBase:{x:69,y:68}, secondBase:{x:50,y:44}, thirdBase:{x:31,y:68}
   };
   const defaults = {
@@ -34,7 +34,7 @@
   let playToken = 0;
 
   function copy(value) { return JSON.parse(JSON.stringify(value)); }
-  function freshDesign() { return { version:1, positions:copy(defaults), ball:{x:50,y:89}, actions:[] }; }
+  function freshDesign() { return { version:1, positions:copy(defaults), ball:{...spots.homePlate}, actions:[] }; }
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
   function fieldPoint(event) {
     const box=field.getBoundingClientRect();
@@ -214,7 +214,7 @@
     if(name==="fly-r3") {
       design.positions.R3.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:24,y:27}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:24,y:27}},
         {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:25,y:28}},
         {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:36,y:57}},
         {type:"tag",entity:"R3",actor:"R3",from:{...spots.thirdBase},to:{...spots.homePlate}},
@@ -226,7 +226,7 @@
     } else if(name==="ground-r1") {
       design.positions.R1.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:39,y:54}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:39,y:54}},
         {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
         {type:"move",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:39,y:54}},
         {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
@@ -238,7 +238,7 @@
     } else if(name==="bunt-r1") {
       design.positions.R1.active=true; design.positions.BR.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:44,y:79}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:44,y:79}},
         {type:"move",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:44,y:79}},
         {type:"move",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:56,y:77}},
         {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{...spots.firstBase}},
@@ -256,7 +256,7 @@
     } else if(name==="left-single") {
       design.positions.BR.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:22,y:33}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:22,y:33}},
         {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:22,y:33}},
         {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:29,y:27}},
         {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:58,y:20}},
@@ -274,7 +274,7 @@
     } else if(name==="left-r2") {
       design.positions.R2.active=true; design.positions.BR.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:20,y:31}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:20,y:31}},
         {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:20,y:31}},
         {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:28,y:25}},
         {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:58,y:19}},
@@ -293,7 +293,7 @@
     } else if(name==="right-single") {
       design.positions.BR.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:78,y:33}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:78,y:33}},
         {type:"move",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:78,y:33}},
         {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:71,y:27}},
         {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:42,y:20}},
