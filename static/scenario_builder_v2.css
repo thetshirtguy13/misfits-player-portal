@@ -30,4 +30,12 @@
 .timeline .step-copy{text-align:left}
 .timeline-help{color:#6f8299;font-size:10px;margin:6px 0 0}
 .scenario-app.insert-mode #insert-button,.scenario-app.redraw-mode #redraw-button{background:var(--orange);color:#1f0b00}
+.situation-picker{align-items:center;display:flex;gap:9px;min-width:min(460px,55vw)}
+.situation-picker span{color:var(--cyan);font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;white-space:nowrap}
+.situation-picker select{background:#101f34;border:1px solid #476684;border-radius:6px;color:#f4fffb;margin:0;min-width:260px;padding:8px 34px 8px 10px;width:100%}
 @media(max-width:760px){.speed-control{display:none}.sport-baseball .distance-markers{font-size:15px}.timeline li{grid-template-columns:25px minmax(0,1fr) auto}.timeline-order{display:none}}
+@media(max-width:620px){.preset-bar{align-items:stretch;flex-wrap:wrap;overflow-x:hidden}.situation-picker{align-items:stretch;flex-direction:column;gap:4px;min-width:100%}.situation-picker select{min-width:0}.preset-bar>span{align-self:center}}
+.scenario-app.viewer .preset-bar{display:flex}.scenario-app.viewer .runner-toggle,.scenario-app.viewer .preset-bar>span{display:none}
+.field-play-button{background:linear-gradient(135deg,#1bdba9,#08a97e);border:2px solid #b7ffe8;border-radius:7px;bottom:9%;box-shadow:0 5px 18px #001c14cc,0 0 18px rgba(36,242,194,.24);color:#001b14;font-size:12px;font-weight:900;padding:9px 12px;position:absolute;right:3%;z-index:8}
+.field-play-button:hover{background:#38efbd;transform:translateY(-1px)}.field-play-button:disabled{cursor:wait;opacity:.78}
+@media(max-width:620px){.field-play-button{bottom:7%;font-size:11px;padding:8px 10px;right:2%}}

@@ -12,6 +12,7 @@
   const status = document.getElementById("scenario-status");
   const instruction = document.getElementById("instruction-text");
   const playButton = document.getElementById("play-button");
+  const fieldPlayButton = document.getElementById("field-play-button");
   const progressBar = document.getElementById("play-progress-bar");
   const saved = JSON.parse(app.dataset.scenarios || "[]");
   const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9" };
@@ -159,7 +160,7 @@
     selected=null; instruction.textContent="Step saved. Select it to insert, redraw, or reorder."; renderAll();
   }
   function handleField(event) {
-    if(!editable || playing || event.target.closest(".field-marker,.field-ball")) return;
+    if(!editable || playing || event.target.closest(".field-marker,.field-ball,.field-play-button")) return;
     const destination=fieldPoint(event);
     if(tool==="setup") {
       if(!selected){instruction.textContent="Select a marker, then choose its starting position.";return;}
@@ -183,7 +184,7 @@
   }
   async function play() {
     if(playing || !design.actions.length) return;
-    playing=true; selected=null; const token=++playToken; playButton.textContent="Playing";
+    playing=true; selected=null; const token=++playToken; setPlayButtonText("Playing"); fieldPlayButton.disabled=true;
     renderSnapshot(snapshot(0)); progressBar.style.width="0%";
     for(let index=0;index<design.actions.length;index+=1){
       if(token!==playToken) break;
@@ -193,9 +194,10 @@
       await tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((index+amount)/design.actions.length)*100}%`;},token);
       await new Promise(resolve=>setTimeout(resolve,180));
     }
-    if(token===playToken){playing=false;playButton.textContent="Replay Scenario";renderSnapshot(snapshot());renderTimeline();progressBar.style.width="100%";instruction.textContent="Scenario complete.";}
+    if(token===playToken){playing=false;setPlayButtonText("Replay Scenario");fieldPlayButton.disabled=false;renderSnapshot(snapshot());renderTimeline();progressBar.style.width="100%";instruction.textContent="Scenario complete.";}
   }
-  function stopPlayback() { playing=false; playToken+=1; playButton.textContent="Play Scenario"; }
+  function setPlayButtonText(text){playButton.textContent=text;if(fieldPlayButton)fieldPlayButton.textContent=text;}
+  function stopPlayback() { playing=false; playToken+=1; setPlayButtonText("Play Scenario"); if(fieldPlayButton)fieldPlayButton.disabled=false; }
   function normalizeDesign(candidate) {
     const clean=freshDesign();
     if(candidate && candidate.positions) Object.entries(candidate.positions).forEach(([id,value])=>{if(clean.positions[id]&&Number.isFinite(value.x)&&Number.isFinite(value.y)) Object.assign(clean.positions[id],point(value.x,value.y),{active:value.active!==false});});
@@ -229,17 +231,23 @@
       ];
       setMeta("Ground Ball, Runner on First","Middle infield double-play responsibilities");
     } else if(name==="bunt-r1") {
-      design.positions.R1.active=true;
+      design.positions.R1.active=true; design.positions.BR.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:45,y:78}},
-        {type:"move",entity:"C",actor:"C",from:{x:50,y:91},to:{x:45,y:78}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:44,y:79}},
+        {type:"move",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:44,y:79}},
+        {type:"move",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:56,y:77}},
         {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:70,y:68}},
-        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:30,y:68}},
+        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:89}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:38,y:76}},
+        {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:20,y:70}},
+        {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:50,y:34}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:82,y:68}},
         {type:"tag",entity:"R1",actor:"R1",from:{x:70,y:68},to:{x:50,y:44}},
-        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:82,y:66}},
-        {type:"throw",entity:"ball",actor:"C",from:{x:45,y:78},to:{x:70,y:68}}
+        {type:"tag",entity:"BR",actor:"BR",from:{x:53,y:88},to:{x:70,y:68}},
+        {type:"throw",entity:"ball",actor:"3B",from:{x:44,y:79},to:{x:70,y:68}}
       ];
-      setMeta("Bunt Defense, Runner on First","Field the bunt, cover first and second, back up the throw");
+      setMeta("Bunt Defense, Runner on First","Third baseman fields, first baseman charges, second covers first, short covers third, catcher protects home, and all three outfielders back up the rotation");
     } else if(name==="left-single") {
       design.positions.BR.active=true;
       design.actions=[
@@ -277,15 +285,70 @@
         {type:"throw",entity:"ball",actor:"SS",from:{x:35,y:57},to:{x:50,y:89}}
       ];
       setMeta("Left Field Hit, Runner on Second","Left fields the ball, short lines up the throw home, pitcher backs up the plate, every base is covered, and both runners advance");
+    } else if(name==="right-single") {
+      design.positions.BR.active=true;
+      design.actions=[
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:78,y:33}},
+        {type:"move",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:78,y:33}},
+        {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:71,y:27}},
+        {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:42,y:20}},
+        {type:"cutoff",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:66,y:55}},
+        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:30,y:68}},
+        {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:70,y:68}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:58,y:51}},
+        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:89}},
+        {type:"tag",entity:"BR",actor:"BR",from:{x:53,y:88},to:{x:70,y:68}},
+        {type:"throw",entity:"ball",actor:"RF",from:{x:78,y:33},to:{x:66,y:55}},
+        {type:"throw",entity:"ball",actor:"2B",from:{x:66,y:55},to:{x:50,y:44}}
+      ];
+      setMeta("Single to Right Field","Right fields it, center and left back up, second is cutoff, short covers second, corner bases are covered, pitcher backs the play, and catcher protects home");
+    } else if(name==="pickoff-third") {
+      design.positions.R3={x:36,y:74,runner:true,active:true}; design.ball={x:50,y:68};
+      design.actions=[
+        {type:"move",entity:"P",actor:"P",from:{x:50,y:68},to:{x:47,y:70}},
+        {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:30,y:68}},
+        {type:"backup",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:24,y:72}},
+        {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:17,y:73}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:70,y:68}},
+        {type:"move",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:39,y:22}},
+        {type:"move",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:66,y:25}},
+        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:89}},
+        {type:"tag",entity:"R3",actor:"R3",from:{x:36,y:74},to:{x:30,y:68}},
+        {type:"throw",entity:"ball",actor:"P",from:{x:47,y:70},to:{x:30,y:68}}
+      ];
+      setMeta("Pickoff Attempt at Third","Pitcher uses a quick step and throw, third applies the tag, short and left back up third, middle infielders protect their bases, and catcher stays home");
+    } else if(name==="rundown-third-home") {
+      design.positions.R3={x:40,y:78,runner:true,active:true}; design.ball={x:30,y:68};
+      design.actions=[
+        {type:"move",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:37,y:76}},
+        {type:"move",entity:"C",actor:"C",from:{x:50,y:91},to:{x:47,y:86}},
+        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:30,y:68}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:55,y:94}},
+        {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:20,y:74}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:70,y:68}},
+        {type:"move",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:39,y:23}},
+        {type:"move",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:65,y:25}},
+        {type:"tag",entity:"R3",actor:"R3",from:{x:40,y:78},to:{x:46,y:85}},
+        {type:"throw",entity:"ball",actor:"3B",from:{x:37,y:76},to:{x:47,y:86}},
+        {type:"move",entity:"C",actor:"C",from:{x:47,y:86},to:{x:39,y:77}},
+        {type:"tag",entity:"R3",actor:"R3",from:{x:46,y:85},to:{x:34,y:72}},
+        {type:"throw",entity:"ball",actor:"C",from:{x:39,y:77},to:{x:30,y:68}},
+        {type:"tag",entity:"SS",actor:"SS",from:{x:30,y:68},to:{x:34,y:72}}
+      ];
+      setMeta("Rundown: Third to Home","Third and catcher close the lane with one throw, short rotates to third, pitcher backs up home, left backs third, and every remaining defender protects a base or backup lane");
     } else setMeta(""," ");
-    document.querySelectorAll(".preset-button").forEach(button=>button.classList.toggle("active",button.dataset.preset===name));
+    const picker=document.getElementById("scenario-preset-select"); if(picker) picker.value=name;
     status.textContent=name==="empty" ? "New Scenario" : document.getElementById("scenario-title").value;
     instruction.textContent="Adjust the setup or add the next action."; renderAll();
   }
   function setMeta(titleValue,situationValue,teamId=null,id="") {
+    const title=document.getElementById("scenario-title"),situation=document.getElementById("scenario-situation");
+    if(title) title.value=titleValue;
+    if(situation) situation.value=situationValue.trim();
     if(!editable) return;
-    document.getElementById("scenario-title").value=titleValue;
-    document.getElementById("scenario-situation").value=situationValue.trim();
     document.getElementById("scenario-id").value=id;
     if(teamId) document.getElementById("scenario-team").value=String(teamId);
   }
@@ -293,16 +356,17 @@
   function loadScenario(row) {
     stopPlayback(); design=normalizeDesign(row.design); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
     setMeta(row.title,row.situation,row.team_id,row.id); status.textContent=row.title; instruction.textContent=row.situation||"Press Play Scenario to watch the responsibilities.";
-    document.querySelectorAll(".preset-button").forEach(button=>button.classList.remove("active")); renderAll();
+    renderAll();
   }
 
   field.addEventListener("pointerup",handleField);
   playButton.addEventListener("click",play);
+  fieldPlayButton.addEventListener("click",play);
   document.getElementById("restart-button").addEventListener("click",()=>previewThrough(0));
   window.addEventListener("resize",renderPaths);
+  document.getElementById("scenario-preset-select")?.addEventListener("change",event=>applyPreset(event.target.value));
   if(editable){
     document.querySelectorAll(".tool-button[data-tool]").forEach(button=>button.addEventListener("click",()=>{tool=button.dataset.tool;selected=null;document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item===button));instruction.textContent=tool==="hit" ? "Choose where the ball is hit." : tool==="setup" ? "Select a marker, then choose its starting position." : `Select a player, then choose where they ${names[tool].toLowerCase()}.`;}));
-    document.querySelectorAll(".preset-button[data-preset]").forEach(button=>button.addEventListener("click",()=>applyPreset(button.dataset.preset)));
     document.querySelectorAll(".runner-toggle").forEach(button=>button.addEventListener("click",()=>{const runner=design.positions[button.dataset.runner];runner.active=!runner.active;renderAll();}));
     document.getElementById("insert-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}actionMode=actionMode==="insert"?"append":"insert";app.classList.toggle("insert-mode",actionMode==="insert");app.classList.remove("redraw-mode");instruction.textContent=actionMode==="insert"?"The next action will be inserted after the selected step.":"New actions will be added to the end.";});
     document.getElementById("redraw-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}const action=design.actions[selectedStep];tool=action.type;selected=action.type==="hit"?null:action.actor;actionMode="replace";app.classList.add("redraw-mode");app.classList.remove("insert-mode");document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item.dataset.tool===tool));previewThrough(selectedStep);instruction.textContent=`Choose a new destination for step ${selectedStep+1}.`;});
@@ -313,5 +377,5 @@
   document.querySelectorAll(".library-item").forEach(item=>item.querySelector(".open-scenario").addEventListener("click",()=>{const row=saved.find(entry=>String(entry.id)===item.dataset.scenarioId);if(row)loadScenario(row);}));
 
   const selectedId=Number(app.dataset.selectedId||0),selectedScenario=saved.find(row=>row.id===selectedId);
-  if(selectedScenario) loadScenario(selectedScenario); else if(editable) applyPreset("fly-r3"); else if(saved.length) loadScenario(saved[0]); else renderAll();
+  if(selectedScenario) loadScenario(selectedScenario); else if(saved.length&&!editable) loadScenario(saved[0]); else applyPreset("fly-r3");
 })();
