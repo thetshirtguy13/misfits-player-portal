@@ -4,7 +4,7 @@ from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
-from sqlalchemy import inspect, text
+from sqlalchemy import and_, func, inspect, or_, text
 from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from datetime import datetime, date
@@ -818,7 +818,11 @@ def team_calendar():
 def team_chats():
     u=current_user(); teams=visible_teams_for(u)
     states={state.team_id:state.last_read_message_id for state in ChatReadState.query.filter_by(user_id=u.id).all()}
-    unread={team.id:ChatMessage.query.filter(ChatMessage.team_id==team.id,ChatMessage.id>states.get(team.id,0),ChatMessage.is_deleted==False).count() for team in teams}
+    unread={team.id:0 for team in teams}
+    unread_filters=[and_(ChatMessage.team_id==team.id,ChatMessage.id>states.get(team.id,0)) for team in teams]
+    if unread_filters:
+        counts=db.session.query(ChatMessage.team_id,func.count(ChatMessage.id)).filter(ChatMessage.is_deleted==False,or_(*unread_filters)).group_by(ChatMessage.team_id).all()
+        unread.update(dict(counts))
     notification_count=PortalNotification.query.filter_by(user_id=u.id,read_at=None).count()
     return render_template("team_chats.html",user=u,teams=teams,team_colors=team_color_map(Team.query.order_by(Team.id).all()),unread=unread,notification_count=notification_count)
 
