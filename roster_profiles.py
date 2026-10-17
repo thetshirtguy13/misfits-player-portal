@@ -90,7 +90,8 @@ def install(app, db, Team, current_user, team_ids_for, role_required, audit):
             except (ValueError, UnicodeError, csv.Error) as exc:
                 db.session.rollback()
                 flash(str(exc))
-            return redirect(url_for('development_roster', team_id=team_id))
+            destination = 'admin_rosters' if u.role == 'admin' else 'development_roster'
+            return redirect(url_for(destination, team_id=team_id))
         profiles = RosterProfile.query.filter_by(team_id=team_id).order_by(RosterProfile.season.desc(), RosterProfile.name).all() if team_id else []
         return render_template('development_roster.html', user=u, teams=teams, team_id=team_id, profiles=profiles, fields=fields, today=date.today().isoformat())
 
@@ -105,6 +106,7 @@ def install(app, db, Team, current_user, team_ids_for, role_required, audit):
         db.session.commit()
         audit('development_profile_updated', f'profile_id={pid}')
         flash('Development notes saved.')
-        return redirect(url_for('development_roster', team_id=profile.team_id))
+        destination = 'admin_rosters' if current_user().role == 'admin' or request.form.get('return_to') == 'admin_rosters' else 'development_roster'
+        return redirect(url_for(destination, team_id=profile.team_id))
 
     return RosterProfile
