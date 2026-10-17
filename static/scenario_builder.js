@@ -17,8 +17,8 @@
   const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9" };
   const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run" };
   const defaults = {
-    P:{x:50,y:54}, C:{x:50,y:91}, "1B":{x:69,y:52}, "2B":{x:60,y:37}, "3B":{x:31,y:52}, SS:{x:40,y:37}, LF:{x:24,y:19}, CF:{x:50,y:10}, RF:{x:76,y:19},
-    R1:{x:73,y:54,runner:true,active:false}, R2:{x:50,y:23,runner:true,active:false}, R3:{x:27,y:54,runner:true,active:false}, BR:{x:53,y:86,runner:true,active:false}
+    P:{x:50,y:68}, C:{x:50,y:91}, "1B":{x:68,y:61}, "2B":{x:59,y:49}, "3B":{x:32,y:61}, SS:{x:41,y:49}, LF:{x:24,y:22}, CF:{x:50,y:13}, RF:{x:76,y:22},
+    R1:{x:70,y:68,runner:true,active:false}, R2:{x:50,y:44,runner:true,active:false}, R3:{x:30,y:68,runner:true,active:false}, BR:{x:53,y:88,runner:true,active:false}
   };
   let design = freshDesign();
   let tool = "setup";
@@ -29,7 +29,7 @@
   let playToken = 0;
 
   function copy(value) { return JSON.parse(JSON.stringify(value)); }
-  function freshDesign() { return { version:1, positions:copy(defaults), ball:{x:50,y:87}, actions:[] }; }
+  function freshDesign() { return { version:1, positions:copy(defaults), ball:{x:50,y:89}, actions:[] }; }
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
   function fieldPoint(event) {
     const box=field.getBoundingClientRect();
@@ -208,38 +208,75 @@
     if(name==="fly-r3") {
       design.positions.R3.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:87},to:{x:24,y:23}},
-        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:19},to:{x:26,y:25}},
-        {type:"cutoff",entity:"SS",actor:"SS",from:{x:40,y:37},to:{x:37,y:45}},
-        {type:"tag",entity:"R3",actor:"R3",from:{x:27,y:54},to:{x:50,y:88}},
-        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:87}},
-        {type:"throw",entity:"ball",actor:"LF",from:{x:26,y:25},to:{x:37,y:45}},
-        {type:"throw",entity:"ball",actor:"SS",from:{x:37,y:45},to:{x:50,y:87}}
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:24,y:27}},
+        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:25,y:28}},
+        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:36,y:57}},
+        {type:"tag",entity:"R3",actor:"R3",from:{x:30,y:68},to:{x:50,y:90}},
+        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:89}},
+        {type:"throw",entity:"ball",actor:"LF",from:{x:25,y:28},to:{x:36,y:57}},
+        {type:"throw",entity:"ball",actor:"SS",from:{x:36,y:57},to:{x:50,y:89}}
       ];
       setMeta("Fly Ball, Runner on Third","Outfield catch, tag-up, cutoff, and play at home");
     } else if(name==="ground-r1") {
       design.positions.R1.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:87},to:{x:39,y:42}},
-        {type:"move",entity:"SS",actor:"SS",from:{x:40,y:37},to:{x:39,y:42}},
-        {type:"cover",entity:"2B",actor:"2B",from:{x:60,y:37},to:{x:51,y:25}},
-        {type:"tag",entity:"R1",actor:"R1",from:{x:73,y:54},to:{x:51,y:25}},
-        {type:"throw",entity:"ball",actor:"SS",from:{x:39,y:42},to:{x:51,y:25}},
-        {type:"throw",entity:"ball",actor:"2B",from:{x:51,y:25},to:{x:69,y:52}}
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:39,y:54}},
+        {type:"move",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:39,y:54}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
+        {type:"tag",entity:"R1",actor:"R1",from:{x:70,y:68},to:{x:50,y:44}},
+        {type:"throw",entity:"ball",actor:"SS",from:{x:39,y:54},to:{x:50,y:44}},
+        {type:"throw",entity:"ball",actor:"2B",from:{x:50,y:44},to:{x:70,y:68}}
       ];
       setMeta("Ground Ball, Runner on First","Middle infield double-play responsibilities");
     } else if(name==="bunt-r1") {
       design.positions.R1.active=true;
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:87},to:{x:45,y:73}},
-        {type:"move",entity:"C",actor:"C",from:{x:50,y:91},to:{x:45,y:73}},
-        {type:"cover",entity:"2B",actor:"2B",from:{x:60,y:37},to:{x:69,y:52}},
-        {type:"cover",entity:"SS",actor:"SS",from:{x:40,y:37},to:{x:50,y:23}},
-        {type:"tag",entity:"R1",actor:"R1",from:{x:73,y:54},to:{x:50,y:23}},
-        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:19},to:{x:82,y:48}},
-        {type:"throw",entity:"ball",actor:"C",from:{x:45,y:73},to:{x:69,y:52}}
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:45,y:78}},
+        {type:"move",entity:"C",actor:"C",from:{x:50,y:91},to:{x:45,y:78}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:70,y:68}},
+        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:50,y:44}},
+        {type:"tag",entity:"R1",actor:"R1",from:{x:70,y:68},to:{x:50,y:44}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:82,y:66}},
+        {type:"throw",entity:"ball",actor:"C",from:{x:45,y:78},to:{x:70,y:68}}
       ];
       setMeta("Bunt Defense, Runner on First","Field the bunt, cover first and second, back up the throw");
+    } else if(name==="left-single") {
+      design.positions.BR.active=true;
+      design.actions=[
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:22,y:33}},
+        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:22,y:33}},
+        {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:29,y:27}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:58,y:20}},
+        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:34,y:55}},
+        {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:30,y:68}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:70,y:68}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:23,y:74}},
+        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:89}},
+        {type:"tag",entity:"BR",actor:"BR",from:{x:53,y:88},to:{x:70,y:68}},
+        {type:"throw",entity:"ball",actor:"LF",from:{x:22,y:33},to:{x:34,y:55}},
+        {type:"throw",entity:"ball",actor:"SS",from:{x:34,y:55},to:{x:50,y:44}}
+      ];
+      setMeta("Single to Left Field","Every defender moves: left fields it, center and right back up, short is cutoff, bases are covered, pitcher backs up third, and catcher protects home");
+    } else if(name==="left-r2") {
+      design.positions.R2.active=true; design.positions.BR.active=true;
+      design.actions=[
+        {type:"hit",entity:"ball",actor:"Batter",from:{x:50,y:89},to:{x:20,y:31}},
+        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:20,y:31}},
+        {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:28,y:25}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:58,y:19}},
+        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:35,y:57}},
+        {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{x:30,y:68}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{x:70,y:68}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:50,y:96}},
+        {type:"cover",entity:"C",actor:"C",from:{x:50,y:91},to:{x:50,y:89}},
+        {type:"tag",entity:"R2",actor:"R2",from:{x:50,y:44},to:{x:50,y:89}},
+        {type:"tag",entity:"BR",actor:"BR",from:{x:53,y:88},to:{x:70,y:68}},
+        {type:"throw",entity:"ball",actor:"LF",from:{x:20,y:31},to:{x:35,y:57}},
+        {type:"throw",entity:"ball",actor:"SS",from:{x:35,y:57},to:{x:50,y:89}}
+      ];
+      setMeta("Left Field Hit, Runner on Second","Left fields the ball, short lines up the throw home, pitcher backs up the plate, every base is covered, and both runners advance");
     } else setMeta(""," ");
     document.querySelectorAll(".preset-button").forEach(button=>button.classList.toggle("active",button.dataset.preset===name));
     status.textContent=name==="empty" ? "New Scenario" : document.getElementById("scenario-title").value;
