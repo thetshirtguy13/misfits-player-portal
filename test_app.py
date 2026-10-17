@@ -103,8 +103,8 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b'id="insert-button"',response.data)
         self.assertIn(b'id="redraw-button"',response.data)
         self.assertIn(b'data-runner="R1"',response.data)
-        self.assertIn(b"scenario_builder_v2.css?v=20261017e",response.data)
-        self.assertIn(b"scenario_builder.js?v=20261017e",response.data)
+        self.assertIn(b"scenario_builder_v2.css?v=20261017f",response.data)
+        self.assertIn(b"scenario_builder.js?v=20261017f",response.data)
         self.assertNotIn(b"13U Gold",response.data)
 
         script=self.client.get("/static/scenario_builder.js")
@@ -115,8 +115,11 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b'rundown-third-home',script.data)
         self.assertIn(b'Every defender moves',script.data)
         self.assertIn(b'homePlate:{x:50,y:93}',script.data)
-        self.assertIn(b'homeCover:{x:50,y:89}',script.data)
-        self.assertIn(b'rightHandedBox:{x:44.5,y:91}',script.data)
+        self.assertIn(b'homeCover:{x:50,y:86}',script.data)
+        self.assertIn(b'catcherStart:{x:50,y:95}',script.data)
+        self.assertIn(b'rightHandedBox:{x:44.5,y:93}',script.data)
+        self.assertIn(b'ball:{...spots.homePlate}',script.data)
+        self.assertIn(b'to:{...spots.homePlate}',script.data)
 
     def test_coach_can_save_and_update_team_scenario(self):
         self.login_as(self.coach_id)
