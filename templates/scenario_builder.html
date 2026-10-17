@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Baseball Scenario Builder{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261012')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017b')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261012')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017c')}}">
 <section id="scenario-app" class="scenario-app sport-baseball" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
   <div class="builder-heading">
     <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
@@ -28,6 +28,8 @@
     <button type="button" class="preset-button active" data-preset="fly-r3">Fly Ball + R3</button>
     <button type="button" class="preset-button" data-preset="ground-r1">Ground Ball + R1</button>
     <button type="button" class="preset-button" data-preset="bunt-r1">Bunt Defense</button>
+    <button type="button" class="preset-button" data-preset="left-single">Single to LF</button>
+    <button type="button" class="preset-button" data-preset="left-r2">LF + Runner 2nd</button>
     <button type="button" class="preset-button" data-preset="empty">Empty Field</button>
     <span>Runners</span>
     <button type="button" class="preset-button runner-toggle" data-runner="R1">1st</button>
@@ -55,10 +57,10 @@
       <div id="baseball-field" class="baseball-field" aria-label="Interactive baseball field">
         <svg class="field-art" viewBox="0 0 1000 760" role="img" aria-label="Realistic baseball diamond with outfield wall, warning track, grass, dirt, bases and foul lines">
           <defs>
-            <linearGradient id="field-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b7653"/><stop offset=".62" stop-color="#07583e"/><stop offset="1" stop-color="#043a30"/></linearGradient>
-            <linearGradient id="infield-dirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c17d45"/><stop offset="1" stop-color="#754426"/></linearGradient>
-            <linearGradient id="warning-track" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b36f3c"/><stop offset="1" stop-color="#684029"/></linearGradient>
-            <radialGradient id="field-light" cx="50%" cy="72%" r="68%"><stop offset="0" stop-color="#67f5bd" stop-opacity=".18"/><stop offset=".68" stop-color="#16d99a" stop-opacity=".03"/><stop offset="1" stop-color="#001712" stop-opacity=".38"/></radialGradient>
+            <linearGradient id="field-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#347b48"/><stop offset=".62" stop-color="#24663d"/><stop offset="1" stop-color="#174a34"/></linearGradient>
+            <linearGradient id="infield-dirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c99663"/><stop offset="1" stop-color="#925c38"/></linearGradient>
+            <linearGradient id="warning-track" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b98258"/><stop offset="1" stop-color="#805034"/></linearGradient>
+            <radialGradient id="field-light" cx="50%" cy="72%" r="68%"><stop offset="0" stop-color="#d7f2d5" stop-opacity=".08"/><stop offset=".72" stop-color="#ffffff" stop-opacity="0"/><stop offset="1" stop-color="#06170f" stop-opacity=".27"/></radialGradient>
             <pattern id="mow-stripes" width="150" height="150" patternUnits="userSpaceOnUse" patternTransform="rotate(42)"><rect width="75" height="150" fill="#baffdc" opacity=".055"/><rect x="75" width="75" height="150" fill="#001c15" opacity=".055"/></pattern>
             <clipPath id="field-clip"><path d="M500 724 L72 302 Q108 113 284 45 Q500 -35 716 45 Q892 113 928 302 Z"/></clipPath>
             <filter id="field-glow" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -72,9 +74,9 @@
           <g clip-path="url(#field-clip)">
             <rect width="1000" height="760" fill="url(#mow-stripes)"/>
             <path d="M91 302 Q128 128 294 64 Q500 -10 706 64 Q872 128 909 302" fill="none" stroke="url(#warning-track)" stroke-width="34"/>
-            <path class="infield-skin" d="M500 722 L245 521 L500 270 L755 521 Z" fill="url(#infield-dirt)" stroke="#d89455" stroke-width="3"/>
-            <path class="infield-grass" d="M500 660 L318 521 L500 347 L682 521 Z" fill="#08724d" stroke="#176b4f" stroke-width="3"/>
-            <path class="infield-grass-stripes" d="M500 660 L318 521 L500 347 L682 521 Z" fill="url(#mow-stripes)" opacity=".62"/>
+            <path class="infield-skin" d="M500 722 L235 521 Q238 397 344 318 Q500 214 656 318 Q762 397 765 521 Z" fill="url(#infield-dirt)" stroke="#d2a06d" stroke-width="3"/>
+            <path class="infield-grass" d="M500 660 L318 521 Q337 418 414 370 Q500 319 586 370 Q663 418 682 521 Z" fill="#276c41" stroke="#1d5938" stroke-width="3"/>
+            <path class="infield-grass-stripes" d="M500 660 L318 521 Q337 418 414 370 Q500 319 586 370 Q663 418 682 521 Z" fill="url(#mow-stripes)" opacity=".52"/>
             <circle class="mound-dirt" cx="500" cy="521" r="43" fill="url(#infield-dirt)" stroke="#d89455" stroke-width="3"/>
             <circle class="home-dirt" cx="500" cy="704" r="54" fill="url(#infield-dirt)"/>
             <path class="foul-lines" d="M500 710 L72 302 M500 710 L928 302" fill="none" stroke="#f7f4e9" stroke-width="4"/>
@@ -119,5 +121,5 @@
     </aside>
   </div>
 </section>
-<script src="{{url_for('static',filename='scenario_builder.js',v='20261017')}}" defer></script>
+<script src="{{url_for('static',filename='scenario_builder.js',v='20261017c')}}" defer></script>
 {% endblock %}
