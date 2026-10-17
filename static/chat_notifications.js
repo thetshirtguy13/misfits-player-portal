@@ -46,20 +46,31 @@
       badges.forEach(badge=>{badge.textContent=data.count;badge.hidden=!data.count;});
     }catch(error){}
   }
-  updateUnread(); setInterval(updateUnread,20000);
+  updateUnread(); setInterval(updateUnread,10000);
+
+  document.querySelectorAll('.poll-vote-form').forEach(form=>form.addEventListener('submit',()=>{
+    const button=form.querySelector('button');
+    if(button){button.disabled=true;button.classList.add('submitting');}
+  }));
+  document.querySelector('.chat-composer')?.addEventListener('submit',event=>{
+    const button=event.currentTarget.querySelector('button[type="submit"]');
+    if(button){button.disabled=true;button.textContent='Sending';}
+  });
 
   if(shell){
-    const team=shell.dataset.chatTeam; const latest=Number(shell.dataset.latestMessage||0); const alert=document.querySelector('[data-new-messages]');
+    const team=shell.dataset.chatTeam; let latest=Number(shell.dataset.latestMessage||0); const alert=document.querySelector('[data-new-messages]');
     alert?.addEventListener('click',()=>location.reload());
     setInterval(async()=>{
+      if(document.hidden) return;
       try{
-        const response=await fetch(`/teams/${team}/chat/feed?after=${latest}`,{headers:{'Accept':'application/json'}});
+        const response=await fetch(`/teams/${team}/chat/feed?after=${latest}`,{cache:'no-store',headers:{'Accept':'application/json'}});
         const data=await response.json();
         if(data.changed){
+          latest=data.latest_id;
           const draft=document.querySelector('#chat-body')?.value.trim();
           if(draft){alert.hidden=false;}else{location.reload();}
         }
       }catch(error){}
-    },10000);
+    },2500);
   }
 })();

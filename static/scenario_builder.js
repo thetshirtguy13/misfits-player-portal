@@ -14,7 +14,7 @@
   const playButton = document.getElementById("play-button");
   const progressBar = document.getElementById("play-progress-bar");
   const saved = JSON.parse(app.dataset.scenarios || "[]");
-  const colors = { move: "#f97316", throw: "#f8fafc", hit: "#ef4444", cover: "#22d3ee", backup: "#a78bfa", cutoff: "#a3e635", tag: "#fb7185" };
+  const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9" };
   const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run" };
   const defaults = {
     P:{x:50,y:54}, C:{x:50,y:91}, "1B":{x:69,y:52}, "2B":{x:60,y:37}, "3B":{x:31,y:52}, SS:{x:40,y:37}, LF:{x:24,y:19}, CF:{x:50,y:10}, RF:{x:76,y:19},
@@ -23,6 +23,8 @@
   let design = freshDesign();
   let tool = "setup";
   let selected = null;
+  let selectedStep = null;
+  let actionMode = "append";
   let playing = false;
   let playToken = 0;
 
@@ -47,6 +49,17 @@
     const positions={};
     Object.keys(design.positions).forEach(id => positions[id]=activePosition(id,through));
     return {positions,ball:ballPosition(through)};
+  }
+  function refreshActionOrigins(){
+    const positions=copy(design.positions);let ball=copy(design.ball);
+    design.actions.forEach(action=>{
+      if(action.entity==="ball"){
+        action.from=action.type==="throw"&&positions[action.actor] ? copy(positions[action.actor]) : copy(ball);
+        ball=copy(action.to);
+      }else if(positions[action.entity]){
+        action.from=copy(positions[action.entity]);positions[action.entity]=copy(action.to);
+      }
+    });
   }
   function setPosition(element,position) {
     element.style.left=`${position.x}%`; element.style.top=`${position.y}%`;
@@ -98,19 +111,27 @@
   function renderTimeline(current=-1) {
     timeline.innerHTML="";
     design.actions.forEach((action,index) => {
-      const item=document.createElement("li"); if(index===current) item.classList.add("current");
+      const item=document.createElement("li"); if(index===current) item.classList.add("current"); if(index===selectedStep) item.classList.add("selected-step");
       const number=document.createElement("span"); number.className="step-number"; number.textContent=index+1;
       const copyBox=document.createElement("button"); copyBox.type="button"; copyBox.className="step-copy text-button";
       const strong=document.createElement("strong"); strong.textContent=actionLabel(action);
       const small=document.createElement("small"); small.textContent=names[action.type];
-      copyBox.append(strong,small); copyBox.addEventListener("click",() => previewThrough(index+1,index));
+      copyBox.append(strong,small); copyBox.addEventListener("click",() => {selectedStep=index;previewThrough(index+1,index);});
       item.append(number,copyBox);
-      if(editable){const remove=document.createElement("button");remove.type="button";remove.className="remove-step";remove.textContent="\u00d7";remove.title="Remove step";remove.addEventListener("click",()=>{design.actions.splice(index,1);renderAll();});item.append(remove);}
+      if(editable){
+        const order=document.createElement("span");order.className="timeline-order";
+        const earlier=document.createElement("button");earlier.type="button";earlier.textContent="\u2191";earlier.title="Move step earlier";earlier.disabled=index===0;earlier.addEventListener("click",()=>moveStep(index,-1));
+        const later=document.createElement("button");later.type="button";later.textContent="\u2193";later.title="Move step later";later.disabled=index===design.actions.length-1;later.addEventListener("click",()=>moveStep(index,1));
+        order.append(earlier,later);item.append(order);
+        const remove=document.createElement("button");remove.type="button";remove.className="remove-step";remove.textContent="\u00d7";remove.title="Remove step";remove.addEventListener("click",()=>{design.actions.splice(index,1);refreshActionOrigins();selectedStep=null;renderAll();});item.append(remove);
+      }
       timeline.appendChild(item);
     });
     stepCount.textContent=`${design.actions.length} step${design.actions.length===1 ? "" : "s"}`;
     emptyTimeline.hidden=design.actions.length>0;
+    document.querySelectorAll(".runner-toggle").forEach(button=>button.classList.toggle("active",Boolean(design.positions[button.dataset.runner]?.active)));
   }
+  function moveStep(index,direction){const target=index+direction;if(target<0||target>=design.actions.length)return;[design.actions[index],design.actions[target]]=[design.actions[target],design.actions[index]];refreshActionOrigins();selectedStep=target;renderAll();}
   function renderAll(through=design.actions.length,current=-1) {
     ensureMarkers(); renderSnapshot(snapshot(through)); renderPaths(); renderTimeline(current); syncForm();
   }
@@ -121,16 +142,21 @@
     else instruction.textContent=`Choose the destination for ${id}.`;
   }
   function addAction(destination) {
+    const index=actionMode==="replace"&&selectedStep!==null ? selectedStep : actionMode==="insert"&&selectedStep!==null ? selectedStep+1 : design.actions.length;
+    let action;
     if(tool==="hit") {
-      design.actions.push({type:"hit",entity:"ball",actor:"Batter",from:ballPosition(),to:destination});
+      action={type:"hit",entity:"ball",actor:"Batter",from:ballPosition(index),to:destination};
     } else if(!selected || selected==="ball") {
       instruction.textContent="Select a player or runner first."; return;
     } else if(tool==="throw") {
-      design.actions.push({type:"throw",entity:"ball",actor:selected,from:activePosition(selected),to:destination});
+      action={type:"throw",entity:"ball",actor:selected,from:activePosition(selected,index),to:destination};
     } else {
-      design.actions.push({type:tool,entity:selected,actor:selected,from:activePosition(selected),to:destination});
+      action={type:tool,entity:selected,actor:selected,from:activePosition(selected,index),to:destination};
     }
-    selected=null; instruction.textContent="Step added. Add the next responsibility or press Play Scenario."; renderAll();
+    if(actionMode==="replace") design.actions.splice(index,1,action); else design.actions.splice(index,0,action);
+    refreshActionOrigins();
+    selectedStep=index; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
+    selected=null; instruction.textContent="Step saved. Select it to insert, redraw, or reorder."; renderAll();
   }
   function handleField(event) {
     if(!editable || playing || event.target.closest(".field-marker,.field-ball")) return;
@@ -163,7 +189,8 @@
       if(token!==playToken) break;
       const action=design.actions[index],before=snapshot(index),moving=action.entity==="ball" ? markerLayer.querySelector('[data-id="ball"]') : markerLayer.querySelector(`[data-id="${action.entity}"]`);
       renderTimeline(index); renderSnapshot(before,action); instruction.textContent=actionLabel(action);
-      await tween(action.from,action.to,action.type==="throw"||action.type==="hit" ? 700 : 950,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((index+amount)/design.actions.length)*100}%`;},token);
+      const speed=Number(document.getElementById("playback-speed")?.value||1);
+      await tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((index+amount)/design.actions.length)*100}%`;},token);
       await new Promise(resolve=>setTimeout(resolve,180));
     }
     if(token===playToken){playing=false;playButton.textContent="Replay Scenario";renderSnapshot(snapshot());renderTimeline();progressBar.style.width="100%";instruction.textContent="Scenario complete.";}
@@ -177,7 +204,7 @@
     return clean;
   }
   function applyPreset(name) {
-    stopPlayback(); design=freshDesign(); selected=null;
+    stopPlayback(); design=freshDesign(); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
     if(name==="fly-r3") {
       design.positions.R3.active=true;
       design.actions=[
@@ -227,7 +254,7 @@
   }
   function syncForm(){if(editable)document.getElementById("design-json").value=JSON.stringify(design);}
   function loadScenario(row) {
-    stopPlayback(); design=normalizeDesign(row.design); selected=null;
+    stopPlayback(); design=normalizeDesign(row.design); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
     setMeta(row.title,row.situation,row.team_id,row.id); status.textContent=row.title; instruction.textContent=row.situation||"Press Play Scenario to watch the responsibilities.";
     document.querySelectorAll(".preset-button").forEach(button=>button.classList.remove("active")); renderAll();
   }
@@ -238,9 +265,12 @@
   window.addEventListener("resize",renderPaths);
   if(editable){
     document.querySelectorAll(".tool-button[data-tool]").forEach(button=>button.addEventListener("click",()=>{tool=button.dataset.tool;selected=null;document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item===button));instruction.textContent=tool==="hit" ? "Choose where the ball is hit." : tool==="setup" ? "Select a marker, then choose its starting position." : `Select a player, then choose where they ${names[tool].toLowerCase()}.`;}));
-    document.querySelectorAll(".preset-button").forEach(button=>button.addEventListener("click",()=>applyPreset(button.dataset.preset)));
-    document.getElementById("undo-button").addEventListener("click",()=>{design.actions.pop();renderAll();});
-    document.getElementById("clear-button").addEventListener("click",()=>{design.actions=[];renderAll();});
+    document.querySelectorAll(".preset-button[data-preset]").forEach(button=>button.addEventListener("click",()=>applyPreset(button.dataset.preset)));
+    document.querySelectorAll(".runner-toggle").forEach(button=>button.addEventListener("click",()=>{const runner=design.positions[button.dataset.runner];runner.active=!runner.active;renderAll();}));
+    document.getElementById("insert-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}actionMode=actionMode==="insert"?"append":"insert";app.classList.toggle("insert-mode",actionMode==="insert");app.classList.remove("redraw-mode");instruction.textContent=actionMode==="insert"?"The next action will be inserted after the selected step.":"New actions will be added to the end.";});
+    document.getElementById("redraw-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}const action=design.actions[selectedStep];tool=action.type;selected=action.type==="hit"?null:action.actor;actionMode="replace";app.classList.add("redraw-mode");app.classList.remove("insert-mode");document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item.dataset.tool===tool));previewThrough(selectedStep);instruction.textContent=`Choose a new destination for step ${selectedStep+1}.`;});
+    document.getElementById("undo-button").addEventListener("click",()=>{design.actions.pop();refreshActionOrigins();selectedStep=null;renderAll();});
+    document.getElementById("clear-button").addEventListener("click",()=>{design.actions=[];selectedStep=null;actionMode="append";app.classList.remove("insert-mode","redraw-mode");renderAll();});
     document.getElementById("scenario-form").addEventListener("submit",syncForm);
   } else app.classList.add("viewer");
   document.querySelectorAll(".library-item").forEach(item=>item.querySelector(".open-scenario").addEventListener("click",()=>{const row=saved.find(entry=>String(entry.id)===item.dataset.scenarioId);if(row)loadScenario(row);}));
