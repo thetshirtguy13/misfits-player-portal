@@ -85,6 +85,12 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"Realistic baseball diamond",response.data)
         self.assertIn(b'id="warning-track"',response.data)
         self.assertIn(b'class="dugout-labels"',response.data)
+        self.assertIn(b"sport-baseball",response.data)
+        self.assertIn(b">400<",response.data)
+        self.assertIn(b'id="playback-speed"',response.data)
+        self.assertIn(b'id="insert-button"',response.data)
+        self.assertIn(b'id="redraw-button"',response.data)
+        self.assertIn(b'data-runner="R1"',response.data)
         self.assertNotIn(b"13U Gold",response.data)
 
     def test_coach_can_save_and_update_team_scenario(self):
@@ -341,14 +347,18 @@ class PortalFlowTests(unittest.TestCase):
 
     def test_chat_poll_allows_one_changeable_vote_per_user(self):
         self.login_as(self.coach_id)
-        response=self.client.post(f"/teams/{self.team_id}/chat/poll",data={"question":"Which practice time?","options":"5 PM\n6 PM\n7 PM"},follow_redirects=True)
+        response=self.client.post(f"/teams/{self.team_id}/chat/poll",data={"question":"Which practice time?","options":"5 PM\n5:30 PM\n6 PM\n6:30 PM\n7 PM\n7:30 PM\n8 PM\nCannot attend"},follow_redirects=True)
         self.assertIn(b"Which practice time?",response.data)
+        self.assertIn(b"poll-answer",response.data)
         with portal.app.app_context():
             message=portal.ChatMessage.query.filter_by(kind="poll").one()
             options=portal.ChatPollOption.query.filter_by(message_id=message.id).order_by(portal.ChatPollOption.position).all()
+            self.assertEqual(8,len(options))
             message_id=message.id; first_id=options[0].id; second_id=options[1].id
         self.client.post(f"/teams/{self.team_id}/chat/poll/{message_id}/vote",data={"option_id":first_id})
-        self.client.post(f"/teams/{self.team_id}/chat/poll/{message_id}/vote",data={"option_id":second_id})
+        voted=self.client.post(f"/teams/{self.team_id}/chat/poll/{message_id}/vote",data={"option_id":second_id},follow_redirects=True)
+        self.assertIn(b"100%",voted.data)
+        self.assertIn(b"Tap an answer to vote",voted.data)
         with portal.app.app_context():
             votes=portal.ChatPollVote.query.filter_by(message_id=message_id,user_id=self.coach_id).all()
             self.assertEqual(1,len(votes))

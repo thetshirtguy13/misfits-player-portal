@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from datetime import datetime, date
 from functools import wraps
+from threading import Thread
 import calendar as calendar_module
 import csv, io, os, json, secrets, smtplib, uuid, time
 import boto3
@@ -513,8 +514,13 @@ def notify_team(team_id,kind,title,body,target_url,exclude_user_id=None):
         notification=PortalNotification(user_id=recipient.id,team_id=team_id,kind=kind,title=title[:160],body=body[:500],target_url=target_url[:500])
         db.session.add(notification); notifications.append((recipient,notification))
     db.session.commit()
-    for recipient,notification in notifications:
-        send_push(recipient.id,{"title":notification.title,"body":notification.body,"url":notification.target_url,"tag":f"{kind}-{team_id}"})
+    jobs=[(recipient.id,{"title":notification.title,"body":notification.body,"url":notification.target_url,"tag":f"{kind}-{team_id}"}) for recipient,notification in notifications]
+    def deliver_pushes():
+        with app.app_context():
+            for user_id,payload in jobs: send_push(user_id,payload)
+            db.session.remove()
+    if app.config.get("TESTING"): deliver_pushes()
+    elif jobs: Thread(target=deliver_pushes,name=f"push-team-{team_id}",daemon=True).start()
 
 def default_calendar_team():
     return Team.query.filter(Team.name.ilike("Misfits%")).order_by(Team.id).first() or Team.query.order_by(Team.id).first()
@@ -886,7 +892,7 @@ def team_chat_poll(team_id):
         if cleaned and cleaned.casefold() not in {item.casefold() for item in options}: options.append(cleaned)
     if not question or len(options)<2:
         flash("A poll needs a question and at least two different choices."); return redirect(url_for("team_chat",team_id=team_id))
-    options=options[:6]
+    options=options[:10]
     message=ChatMessage(team_id=team_id,user_id=u.id,body=question,kind="poll")
     db.session.add(message); db.session.flush()
     db.session.add_all([ChatPollOption(message_id=message.id,text=value,position=index) for index,value in enumerate(options)])
