@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Baseball Scenario Builder{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261012')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017c')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261017d')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017d')}}">
 <section id="scenario-app" class="scenario-app sport-baseball" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
   <div class="builder-heading">
     <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
@@ -22,15 +22,26 @@
     <div><label for="scenario-team">Team</label><select id="scenario-team" name="team_id" required>{% for team in teams %}<option value="{{team.id}}">{{team.age_group}} {{team.name}}</option>{% endfor %}</select></div>
     <button type="submit" class="builder-btn save">Save to Team</button>
   </form>
+  {% endif %}
 
-  <div class="preset-bar" aria-label="Scenario presets">
-    <span>Start</span>
-    <button type="button" class="preset-button active" data-preset="fly-r3">Fly Ball + R3</button>
-    <button type="button" class="preset-button" data-preset="ground-r1">Ground Ball + R1</button>
-    <button type="button" class="preset-button" data-preset="bunt-r1">Bunt Defense</button>
-    <button type="button" class="preset-button" data-preset="left-single">Single to LF</button>
-    <button type="button" class="preset-button" data-preset="left-r2">LF + Runner 2nd</button>
-    <button type="button" class="preset-button" data-preset="empty">Empty Field</button>
+  <div class="preset-bar" aria-label="Situation library">
+    <label class="situation-picker"><span>Situation Library</span><select id="scenario-preset-select">
+      <optgroup label="Outfield Rotations">
+        <option value="fly-r3">Fly Ball + Runner on 3rd</option>
+        <option value="left-single">Single to Left Field</option>
+        <option value="left-r2">Left Field Hit + Runner on 2nd</option>
+        <option value="right-single">Single to Right Field</option>
+      </optgroup>
+      <optgroup label="Infield and Small Ball">
+        <option value="ground-r1">Ground Ball + Runner on 1st</option>
+        <option value="bunt-r1">Bunt Defense + Runner on 1st</option>
+      </optgroup>
+      <optgroup label="Base Defense">
+        <option value="pickoff-third">Pickoff Attempt at 3rd</option>
+        <option value="rundown-third-home">Rundown: 3rd to Home</option>
+      </optgroup>
+      <option value="empty">Empty Field</option>
+    </select></label>
     <span>Runners</span>
     <button type="button" class="preset-button runner-toggle" data-runner="R1">1st</button>
     <button type="button" class="preset-button runner-toggle" data-runner="R2">2nd</button>
@@ -38,6 +49,7 @@
     <button type="button" class="preset-button runner-toggle" data-runner="BR">Batter</button>
   </div>
 
+  {% if editable %}
   <div class="tool-bar" aria-label="Scenario action tools">
     <button type="button" class="tool-button active" data-tool="setup"><b>+</b><span>Setup</span></button>
     <button type="button" class="tool-button" data-tool="move"><b>&#8594;</b><span>Move</span></button>
@@ -96,6 +108,7 @@
         </svg>
         <div id="movement-layer" class="movement-layer"></div>
         <div id="marker-layer" class="marker-layer"></div>
+        <button type="button" class="field-play-button" id="field-play-button" aria-label="Play scenario from the field">Play Scenario</button>
       </div>
       <div class="play-progress"><div id="play-progress-bar"></div></div>
     </div>
@@ -121,5 +134,5 @@
     </aside>
   </div>
 </section>
-<script src="{{url_for('static',filename='scenario_builder.js',v='20261017c')}}" defer></script>
+<script src="{{url_for('static',filename='scenario_builder.js',v='20261017d')}}" defer></script>
 {% endblock %}
