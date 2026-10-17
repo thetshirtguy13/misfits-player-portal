@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% block content %}
 <a href="{{url_for('admin_panel')}}">← Account administration</a>
-<h1>Rosters</h1>
-<p class="muted">See every team roster, spot possible duplicates, and confirm which players have a family account.</p>
+<h1>Team Rosters</h1>
+<p class="muted">Manage roster names, family access, imported statistics, and player development notes in one place.</p>
 <div class="card"><strong>Children do not need their own login.</strong> Link a parent or guardian under <a href="{{url_for('admin_families')}}">Family Accounts &amp; Player Access</a>. Existing child logins remain optional.</div>
 {% if duplicate_teams %}<div class="warn"><strong>Possible duplicates found.</strong> Players marked below appear on more than one team. Confirm whether each listing is intentional.</div>{% endif %}
 <section class="roster-overview" aria-label="All team rosters">
@@ -21,6 +21,16 @@
   <select id="team_id" name="team_id">{% for team in teams %}<option value="{{team.id}}" {% if team.id==team_id %}selected{% endif %}>{{team.name}} · {{team.age_group}}</option>{% endfor %}</select>
   <button>View roster</button>
 </form>
+{% if team_id %}<details class="card"><summary>Import or refresh roster and statistics</summary>
+  <p>Upload or paste a GameChanger CSV. Reimporting the same player and season updates that snapshot while preserving coaching notes.</p>
+  <form method="post" action="{{url_for('development_roster')}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="team_id" value="{{team_id}}">
+    <div class="formgrid"><label>Season<input name="season" value="{{default_season}}" maxlength="80" required></label><label>Stats through<input type="date" name="as_of" value="{{default_as_of}}" required></label></div>
+    <label>Roster CSV<input type="file" name="csv_file" accept=".csv,text/csv"></label>
+    <label>Or paste CSV text<textarea name="csv_text" rows="6" placeholder="Player,Jersey,GP,PA,AB,H,AVG,OBP,OPS,SLG,SB,BB,R,RBI"></textarea></label>
+    <button>Import roster and statistics</button>
+  </form>
+</details>{% endif %}
 {% if team_id %}<details class="card"><summary>Add a missing roster player</summary>
   <form method="post" action="{{url_for('admin_roster_add')}}">
     <input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="team_id" value="{{team_id}}">
@@ -39,6 +49,8 @@
     <div class="stat"><small>Child login</small><strong style="font-size:16px">{{row.account.name if row.account else 'Not needed'}}</strong></div>
     <div class="stat"><small>Family email verified</small><strong>{{'Yes' if row.parents and row.parents|selectattr('email_verified')|list else 'No' if row.parents else '—'}}</strong></div>
   </div>
+  {% set stats=profile.stats or {} %}
+  <div class="table"><table><thead><tr><th>GP</th><th>PA</th><th>AB</th><th>H</th><th>AVG</th><th>OBP</th><th>OPS</th><th>SLG</th><th>SB</th><th>BB</th><th>R</th><th>RBI</th></tr></thead><tbody><tr>{% for field in ['GP','PA','AB','H','AVG','OBP','OPS','SLG','SB','BB','R','RBI'] %}<td>{% if stats.get(field) is none %}—{% elif field in ['AVG','OBP','OPS','SLG'] %}{{'%.3f'|format(stats.get(field))}}{% else %}{{stats.get(field)}}{% endif %}</td>{% endfor %}</tr></tbody></table></div>
   <div class="formgrid">
     <form method="post" action="{{url_for('admin_roster_name',pid=profile.id)}}">
       <input type="hidden" name="csrf_token" value="{{csrf_token()}}">
@@ -52,5 +64,11 @@
       <button>Save optional login</button>
     </form></details>
   </div>
+  <details><summary>Development focus and coach observations</summary><form method="post" action="{{url_for('update_development_profile',pid=profile.id)}}">
+    <input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="return_to" value="admin_rosters">
+    <label>Next practice focus<input name="focus" maxlength="500" value="{{profile.focus}}" placeholder="One clear, measurable goal"></label>
+    <label>Coach observations<textarea name="notes" maxlength="4000" placeholder="Technique, decisions, communication, and progress">{{profile.notes}}</textarea></label>
+    <button>Save development notes</button>
+  </form></details>
 </article>{% else %}<div class="card"><p>No roster players have been imported for this team.</p></div>{% endfor %}
 {% endblock %}
