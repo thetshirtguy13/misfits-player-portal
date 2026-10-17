@@ -1,2 +1,2 @@
-{"name":"Misfits Player Portal","short_name":"Misfits","start_url":"/dashboard","display":"standalone","background_color":"#08101f","theme_color":"#08101f","icons":[{"src":"/static/misfits-icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]}
+{"id":"/","name":"Misfits Player Portal","short_name":"Misfits","description":"Schedules, team chats, player development, payments, and team resources.","start_url":"/dashboard?source=pwa","scope":"/","display":"standalone","background_color":"#08101f","theme_color":"#08101f","icons":[{"src":"/static/icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},{"src":"/static/icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}]}
 

@@ -1,11 +1,8 @@
-self.addEventListener('push',event=>{
-  let data={title:'Misfits Player Portal',body:'You have a new update.',url:'/chats'};
-  try{if(event.data)data={...data,...event.data.json()};}catch(error){}
-  event.waitUntil(self.registration.showNotification(data.title,{body:data.body,icon:'/static/misfits-icon.svg',badge:'/static/misfits-icon.svg',tag:data.tag||'misfits-update',data:{url:data.url||'/chats'}}));
-});
-self.addEventListener('notificationclick',event=>{
-  event.notification.close();
-  const target=new URL(event.notification.data?.url||'/chats',self.location.origin).href;
-  event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(windows=>{for(const window of windows){if(window.url===target&&'focus' in window)return window.focus();}return clients.openWindow(target);}));
-});
+const CACHE_NAME='misfits-static-v1';
+const APP_ASSETS=['/static/manifest.json','/static/icon-192.png','/static/icon-512.png'];
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_ASSETS)).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{const request=event.request;if(request.method!=='GET')return;const url=new URL(request.url);if(url.origin!==self.location.origin||!url.pathname.startsWith('/static/'))return;event.respondWith(caches.match(request).then(cached=>{const fresh=fetch(request).then(response=>{if(response.ok)caches.open(CACHE_NAME).then(cache=>cache.put(request,response.clone()));return response;}).catch(()=>cached);return cached||fresh;}));});
+self.addEventListener('push',event=>{let data={title:'Misfits Player Portal',body:'You have a new update.',url:'/chats'};try{if(event.data)data={...data,...event.data.json()};}catch(error){}event.waitUntil(self.registration.showNotification(data.title,{body:data.body,icon:'/static/icon-192.png',badge:'/static/icon-192.png',tag:data.tag||'misfits-update',data:{url:data.url||'/chats'}}));});
+self.addEventListener('notificationclick',event=>{event.notification.close();const target=new URL(event.notification.data?.url||'/chats',self.location.origin).href;event.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(windows=>{for(const window of windows){if(window.url===target&&'focus' in window)return window.focus();}return clients.openWindow(target);}));});
 
