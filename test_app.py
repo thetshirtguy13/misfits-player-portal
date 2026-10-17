@@ -90,6 +90,7 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b"12U Blue",response.data)
         self.assertIn(b"Realistic baseball diamond",response.data)
         self.assertIn(b'id="warning-track"',response.data)
+        self.assertIn(b'class="infield-grass" d="M500 650 L340 521 L500 368 L660 521 Z"',response.data)
         self.assertIn(b'class="dugout-labels"',response.data)
         self.assertIn(b"sport-baseball",response.data)
         self.assertIn(b">400<",response.data)
