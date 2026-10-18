@@ -55,6 +55,13 @@
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
   function midpoint(from,to) { return point((from.x+to.x)/2,(from.y+to.y)/2); }
   function behindTarget(from,to,ratio=.35) { return point(to.x+(to.x-from.x)*ratio,to.y+(to.y-from.y)*ratio); }
+  function catcherCanBackFirst(ballPoint) { return ballPoint.x>=spots.firstBase.x; }
+  function catcherFirstBackup(ballPoint) {
+    return point(
+      spots.firstBase.x+(spots.firstBase.x-ballPoint.x)*.2,
+      spots.firstBase.y+(spots.firstBase.y-ballPoint.y)*.2
+    );
+  }
   function fieldPoint(event) {
     const box=field.getBoundingClientRect();
     return point(((event.clientX-box.left)/box.width)*100,((event.clientY-box.top)/box.height)*100);
@@ -417,7 +424,11 @@
     addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
     addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
     if(target===spots.homeCover){addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",{x:55,y:96},2);}
-    else {addAction(actions,"backup","C","C",isNoRunnerMiddleFly?midpoint(spots.homePlate,spots.firstBase):behindTarget(spots.homePlate,spots.firstBase,.28),2);addAction(actions,"backup","P","P",point((target.x+50)/2,(target.y+68)/2),2);}
+    else {
+      if(catcherCanBackFirst(hitPoint))addAction(actions,"backup","C","C",catcherFirstBackup(hitPoint),2);
+      else addAction(actions,"cover","C","C",{...spots.homeCover},2);
+      addAction(actions,"backup","P","P",point((target.x+50)/2,(target.y+68)/2),2);
+    }
     if(result==="hit"){
       runnerAdvance(actions,"BR",spots.firstBase,2);
       if(state.runners.includes("R3"))runnerAdvance(actions,"R3",spots.homePlate,4);
@@ -432,7 +443,7 @@
     addAction(actions,"throw","ball",cutoffId,target,4,cutoffPoint);
     design.actions=actions;
     setMeta(entry.title,isNoRunnerMiddleFly
-      ?"Center fielder makes the play, right field backs up center, left field backs up third, and catcher moves halfway up the first-base line for a bad throw"
+      ?"Center fielder makes the play, right field backs up center, left field backs up third, and catcher stays home because the ball is not on the first-base side"
       :`${result==="fly"?"Catch and tag read":"Base hit read"}; ${cutoffId} aligns halfway to ${target===spots.homeCover?"home":target===spots.thirdBase?"third":"second"}, every base is covered, and outfielders back up the play`);
   }
   function buildBuntPreset(entry){
@@ -573,13 +584,13 @@
         {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{...spots.secondBase}},
         {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
         {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:53,y:56}},
-        {type:"backup",entity:"C",actor:"C",from:{...spots.catcherStart},to:behindTarget(spots.homePlate,spots.firstBase,.28)},
+        {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
         {type:"throw",entity:"ball",actor:"LF",from:hitPoint,to:cutoffPoint},
         {type:"throw",entity:"ball",actor:"SS",from:cutoffPoint,to:{...spots.secondBase}}
       ];
       design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,3,4][index]);
-      setMeta("Single to Left Field","Shortstop lines up halfway from left to second, second covers the bag, right backs up the throw, center backs left, and catcher backs first");
+      setMeta("Single to Left Field","Shortstop lines up halfway from left to second, second covers the bag, right backs up the throw, center backs left, and catcher stays home on the left-side hit");
     } else if(name==="left-r2") {
       design.positions.R2.active=true; design.positions.BR.active=true;
       const hitPoint={x:20,y:31};
@@ -617,7 +628,7 @@
         {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{...spots.thirdBase}},
         {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
         {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:47,y:56}},
-        {type:"backup",entity:"C",actor:"C",from:{...spots.catcherStart},to:behindTarget(spots.homePlate,spots.firstBase,.28)},
+        {type:"backup",entity:"C",actor:"C",from:{...spots.catcherStart},to:catcherFirstBackup(hitPoint)},
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
         {type:"throw",entity:"ball",actor:"RF",from:hitPoint,to:cutoffPoint},
         {type:"throw",entity:"ball",actor:"2B",from:cutoffPoint,to:{...spots.secondBase}}
