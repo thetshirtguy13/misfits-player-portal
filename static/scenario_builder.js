@@ -57,6 +57,10 @@
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
   function midpoint(from,to) { return point((from.x+to.x)/2,(from.y+to.y)/2); }
   function behindTarget(from,to,ratio=.35) { return point(to.x+(to.x-from.x)*ratio,to.y+(to.y-from.y)*ratio); }
+  function leftFieldBackupForRightField(from,target) {
+    const backupBase=target===spots.thirdBase?spots.thirdBase:spots.secondBase;
+    return behindTarget(from,backupBase,.4);
+  }
   function catcherCanBackFirst(ballPoint) { return ballPoint.x>=spots.firstBase.x; }
   function catcherFirstBackup(ballPoint) {
     return point(
@@ -447,7 +451,8 @@
       const backupPoint=point(hitPoint.x+(50-hitPoint.x)*.22,Math.max(7,hitPoint.y-7));
       if(zone.support!==zone.fielder)addAction(actions,"backup",zone.support,zone.support,backupPoint,2);
       const remainingOutfielders=["LF","CF","RF"].filter(id=>id!==zone.fielder&&id!==zone.support);
-      remainingOutfielders.forEach(id=>addAction(actions,"backup",id,id,behindTarget(hitPoint,target,.32),2));
+      remainingOutfielders.forEach(id=>addAction(actions,"backup",id,id,
+        zone.fielder==="RF"&&id==="LF"?leftFieldBackupForRightField(hitPoint,target):behindTarget(hitPoint,target,.32),2));
     }
     addAction(actions,"cutoff",cutoffId,cutoffId,cutoffPoint,2);
     addAction(actions,"cover",coverSecond,coverSecond,{...spots.secondBase},2);
@@ -485,7 +490,7 @@
     if(outcome==="fielded"){
       addAction(actions,"move","RF","RF",fieldPoint,1);
       addAction(actions,"backup","CF","CF",{x:70,y:24},2);
-      addAction(actions,"backup","LF","LF",behindTarget(fieldPoint,spots.secondBase,.38),2);
+      addAction(actions,"backup","LF","LF",leftFieldBackupForRightField(fieldPoint,spots.secondBase),2);
       addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
       addAction(actions,"cover","2B","2B",{...spots.secondBase},2);
       addAction(actions,"cover","SS","SS",{x:45,y:49},2);
@@ -507,7 +512,7 @@
     addAction(actions,"move","RF","RF",missPoint,1);
     addBallAction(actions,throughPoint,2,fieldPoint,contact.ballStyle);
     addAction(actions,"backup","CF","CF",throughPoint,2);
-    addAction(actions,"backup","LF","LF",{x:54,y:26},2);
+    addAction(actions,"backup","LF","LF",leftFieldBackupForRightField(throughPoint,spots.secondBase),2);
     addAction(actions,"cutoff","2B","2B",cutoffPoint,2);
     addAction(actions,"cover","SS","SS",{...spots.secondBase},2);
     addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
@@ -561,7 +566,8 @@
     const fielder=entry.hitPoint.x<40?"LF":entry.hitPoint.x>60?"RF":"CF";
     addAction(actions,"hit","ball","Batter",entry.hitPoint,1,{...spots.homePlate});addAction(actions,"move",fielder,fielder,entry.hitPoint,2);
     addAction(actions,"cutoff","SS","SS",firstCut,2);addAction(actions,"cutoff","2B","2B",secondCut,2);
-    ["LF","CF","RF"].filter(id=>id!==fielder).forEach((id,index)=>addAction(actions,"backup",id,id,point(entry.hitPoint.x+(index?10:-10),Math.max(5,entry.hitPoint.y-6)),2));
+    ["LF","CF","RF"].filter(id=>id!==fielder).forEach((id,index)=>addAction(actions,"backup",id,id,
+      fielder==="RF"&&id==="LF"?leftFieldBackupForRightField(entry.hitPoint,target):point(entry.hitPoint.x+(index?10:-10),Math.max(5,entry.hitPoint.y-6)),2));
     addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);addAction(actions,"cover","1B","1B",{...spots.firstBase},2);addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",entry.target==="home"?{x:55,y:96}:{x:23,y:72},2);
     runnerAdvance(actions,"BR",spots.firstBase,2);runnerAdvance(actions,"R2",spots.thirdBase,3);if(entry.target==="home")runnerAdvance(actions,"R2",spots.homePlate,5);
     addAction(actions,"throw","ball",fielder,firstCut,3,entry.hitPoint);addAction(actions,"throw","ball","SS",secondCut,4,firstCut);addAction(actions,"throw","ball","2B",target,5,secondCut);
