@@ -57,6 +57,23 @@
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
   function midpoint(from,to) { return point((from.x+to.x)/2,(from.y+to.y)/2); }
   function behindTarget(from,to,ratio=.35) { return point(to.x+(to.x-from.x)*ratio,to.y+(to.y-from.y)*ratio); }
+  function outfieldWallTopAt(x) {
+    const distance=Math.abs(x-50);
+    return distance<=21.6 ? 2.5+(distance/21.6)*3.5 : 6+((distance-21.6)/21.2)*33.7;
+  }
+  function foulLineBottomAt(x) {
+    return x<=50 ? 39.7+((x-7.2)/42.8)*55.6 : 39.7+((92.8-x)/42.8)*55.6;
+  }
+  function keepOutfielderInside(position) {
+    const x=Math.max(9.7,Math.min(90.3,position.x));
+    const top=outfieldWallTopAt(x)+2.5, bottom=foulLineBottomAt(x)-2.5;
+    return point(x,Math.max(top,Math.min(bottom,position.y)));
+  }
+  function keepOutfielderBackupsInPlay(actions) {
+    actions.forEach(action=>{
+      if(action.type==="backup"&&["LF","CF","RF"].includes(action.entity))action.to=keepOutfielderInside(action.to);
+    });
+  }
   function leftFieldBackupForRightField(from,target) {
     const backupBase=target===spots.thirdBase?spots.thirdBase:spots.secondBase;
     return behindTarget(from,backupBase,.4);
@@ -353,6 +370,7 @@
     if(candidate && candidate.positions) Object.entries(candidate.positions).forEach(([id,value])=>{if(clean.positions[id]&&Number.isFinite(value.x)&&Number.isFinite(value.y)) Object.assign(clean.positions[id],point(value.x,value.y),{active:value.active!==false});});
     if(candidate && candidate.ball && Number.isFinite(candidate.ball.x)) clean.ball=point(candidate.ball.x,candidate.ball.y);
     if(candidate && Array.isArray(candidate.actions)) clean.actions=candidate.actions.filter(a=>names[a.type]&&a.from&&a.to&&a.entity).slice(0,100).map((a,index)=>({...a,phase:Number.isFinite(a.phase)?a.phase:index+1,from:point(a.from.x,a.from.y),to:point(a.to.x,a.to.y)}));
+    keepOutfielderBackupsInPlay(clean.actions);
     return clean;
   }
 
@@ -418,7 +436,8 @@
     if(includeBatter) design.positions.BR.active=true;
   }
   function addAction(actions,type,entity,actor,to,phase,from=null){
-    actions.push({type,entity,actor,from:from||copy(entity==="ball"?design.ball:design.positions[entity]),to:copy(to),phase});
+    const destination=type==="backup"&&["LF","CF","RF"].includes(entity)?keepOutfielderInside(to):to;
+    actions.push({type,entity,actor,from:from||copy(entity==="ball"?design.ball:design.positions[entity]),to:copy(destination),phase});
   }
   function addBallAction(actions,to,phase,from,ballStyle,type="hit",actor="Batter"){
     addAction(actions,type,"ball",actor,to,phase,from);
@@ -756,6 +775,7 @@
       design.actions.forEach((action,index)=>action.phase=[1,1,1,1,1,1,1,1,1,2,2,3,3,4,4][index]);
       setMeta("Rundown: Third to Home","Third and catcher close the lane with one throw, short rotates to third, pitcher backs up home, left backs third, and every remaining defender protects a base or backup lane");
     } else setMeta(""," ");
+    keepOutfielderBackupsInPlay(design.actions);
     const picker=document.getElementById("scenario-preset-select"); if(picker) picker.value=name;
     status.textContent=name==="empty" ? "New Scenario" : document.getElementById("scenario-title").value;
     instruction.textContent="Press Play, choose a step, or press Record and drag a marker."; renderAll(0);progressBar.style.width="0%";
