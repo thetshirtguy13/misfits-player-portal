@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Baseball Scenario Builder{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261017i')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017i')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261018k')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261018k')}}">
 <section id="scenario-app" class="scenario-app sport-baseball" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
   <div class="builder-heading">
     <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
@@ -167,5 +167,5 @@
   <button type="button" class="builder-btn play guide-start">Start Building</button>
 </dialog>
 
-<script src="{{url_for('static',filename='scenario_builder.js',v='20261017i')}}" defer></script>
+<script src="{{url_for('static',filename='scenario_builder.js',v='20261018k')}}" defer></script>
 {% endblock %}
