@@ -1,11 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Baseball Scenario Builder{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261017f')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017f')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261017g')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261017g')}}">
 <section id="scenario-app" class="scenario-app sport-baseball" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
   <div class="builder-heading">
     <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
     <div class="playback-controls">
+      <button type="button" class="builder-btn quiet" id="builder-guide-button">How to Build</button>
       <label class="speed-control">Speed<select id="playback-speed"><option value="0.65">Slow</option><option value="1" selected>Game</option><option value="1.35">Fast</option></select></label>
       <button type="button" class="builder-btn quiet" id="restart-button" title="Restart scenario">Restart</button>
       <button type="button" class="builder-btn play" id="play-button">Play Scenario</button>
@@ -108,9 +109,18 @@
         </svg>
         <div id="movement-layer" class="movement-layer"></div>
         <div id="marker-layer" class="marker-layer"></div>
-        <button type="button" class="field-play-button" id="field-play-button" aria-label="Play scenario from the field">Play Scenario</button>
+      </div>
+      <div class="field-control-dock" aria-label="Field controls">
+          <button type="button" id="play-library-button" title="Open plays"><b>&#9654;</b><span>Plays</span></button>
+          {% if editable %}<button type="button" id="record-button" title="Record movements"><b class="record-dot"></b><span>Record</span></button>
+          <button type="button" id="direct-move-button" class="active" title="Drag players to record movement"><b>&#8596;</b><span>Move</span></button>
+          <button type="button" id="field-draw-button" title="Draw an instruction path"><b>&#9998;</b><span>Draw</span></button>
+          <button type="button" id="field-undo-button" title="Undo the last step"><b>&#8630;</b><span>Undo</span></button>{% endif %}
+          <button type="button" id="field-restart-button" title="Return to the start"><b>&#8634;</b><span>Start</span></button>
+          <button type="button" class="field-play-button" id="field-play-button" aria-label="Play scenario from the field"><b>&#9654;</b><span>Play</span></button>
       </div>
       <div class="play-progress"><div id="play-progress-bar"></div></div>
+      <div id="step-chips" class="step-chips" aria-label="Scenario steps"></div>
     </div>
 
     <aside class="builder-side">
@@ -134,5 +144,28 @@
     </aside>
   </div>
 </section>
-<script src="{{url_for('static',filename='scenario_builder.js',v='20261017f')}}" defer></script>
+
+<dialog id="play-library-dialog" class="builder-dialog">
+  <div class="dialog-heading"><div><span>Play Library</span><h2>Choose a situation</h2></div><button type="button" class="dialog-close" aria-label="Close play library">&times;</button></div>
+  <div class="library-tabs" role="tablist"><button type="button" class="active" data-library-tab="built-in">Situation plays</button><button type="button" data-library-tab="team">My team plays</button></div>
+  <div class="library-tab-panel active" data-library-panel="built-in">
+    <section class="play-folder"><h3>No runners</h3><button type="button" data-preset="left-single"><span>Single to Left Field</span><small>Every defender rotates</small></button><button type="button" data-preset="right-single"><span>Single to Right Field</span><small>Cutoff and backup responsibilities</small></button></section>
+    <section class="play-folder"><h3>Runner on first</h3><button type="button" data-preset="ground-r1"><span>Ground Ball + Runner on 1st</span><small>Double-play rotation</small></button><button type="button" data-preset="bunt-r1"><span>Bunt Defense + Runner on 1st</span><small>Corner charge and base coverage</small></button></section>
+    <section class="play-folder"><h3>Runner in scoring position</h3><button type="button" data-preset="fly-r3"><span>Fly Ball + Runner on 3rd</span><small>Tag, relay, and play at home</small></button><button type="button" data-preset="left-r2"><span>Left Field Hit + Runner on 2nd</span><small>Relay home with every defender moving</small></button></section>
+    <section class="play-folder"><h3>Base defense</h3><button type="button" data-preset="pickoff-third"><span>Pickoff Attempt at 3rd</span><small>Tag and backup coverage</small></button><button type="button" data-preset="rundown-third-home"><span>Rundown: 3rd to Home</span><small>Close the lane with one throw</small></button></section>
+  </div>
+  <div class="library-tab-panel" data-library-panel="team">
+    <div class="dialog-team-plays">
+      {% for scenario in scenarios %}<button type="button" data-saved-scenario="{{scenario.id}}"><span>{{scenario.title}}</span><small>{{scenario.situation or 'Team scenario'}}</small></button>{% else %}<p>No team plays saved yet. Record a play and use Save to Team.</p>{% endfor %}
+    </div>
+  </div>
+</dialog>
+
+<dialog id="builder-guide-dialog" class="builder-dialog guide-dialog">
+  <div class="dialog-heading"><div><span>Quick Start</span><h2>Build a play in three moves</h2></div><button type="button" class="dialog-close" aria-label="Close builder guide">&times;</button></div>
+  <ol class="guide-steps"><li><b>1</b><div><strong>Load a situation</strong><span>Open Plays and start from a game situation or an empty field.</span></div></li><li><b>2</b><div><strong>Press Record and drag</strong><span>Move a player or the baseball directly. Every drag becomes the next timeline step.</span></div></li><li><b>3</b><div><strong>Replay and fine-tune</strong><span>Press Play for the full animation or select any numbered step to inspect and edit it.</span></div></li></ol>
+  <button type="button" class="builder-btn play guide-start">Start Building</button>
+</dialog>
+
+<script src="{{url_for('static',filename='scenario_builder.js',v='20261017g')}}" defer></script>
 {% endblock %}
