@@ -585,15 +585,23 @@
   function buildDoubleCutPreset(entry){
     const actions=[],target=entry.target==="home"?spots.homeCover:spots.thirdBase,firstCut=midpoint(entry.hitPoint,target),secondCut=midpoint(firstCut,target);
     design.positions.R2.active=true;design.positions.BR.active=true;
-    const fielder=entry.hitPoint.x<40?"LF":entry.hitPoint.x>60?"RF":"CF";
+    const fielder=entry.hitPoint.x<40?"LF":entry.hitPoint.x>60?"RF":"CF",rightLineHome=entry.id==="double-cut-rf-line-home";
+    const firstRelay=rightLineHome?"2B":"SS",secondRelay=rightLineHome?"1B":"2B";
     addAction(actions,"hit","ball","Batter",entry.hitPoint,1,{...spots.homePlate});addAction(actions,"move",fielder,fielder,entry.hitPoint,2);
-    addAction(actions,"cutoff","SS","SS",firstCut,2);addAction(actions,"cutoff","2B","2B",secondCut,2);
+    addAction(actions,"cutoff",firstRelay,firstRelay,firstCut,2);addAction(actions,"cutoff",secondRelay,secondRelay,secondCut,2);
     ["LF","CF","RF"].filter(id=>id!==fielder).forEach((id,index)=>addAction(actions,"backup",id,id,
       fielder==="RF"&&id==="LF"?leftFieldBackupForRightField(entry.hitPoint,target):point(entry.hitPoint.x+(index?10:-10),Math.max(5,entry.hitPoint.y-6)),2));
-    addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);addAction(actions,"cover","1B","1B",{...spots.firstBase},2);addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",entry.target==="home"?{x:55,y:96}:{x:23,y:72},2);
-    runnerAdvance(actions,"BR",spots.firstBase,2);runnerAdvance(actions,"R2",spots.thirdBase,3);addAction(actions,"cover","1B","1B",{...spots.secondBase},3,{...spots.firstBase});if(entry.target==="home")runnerAdvance(actions,"R2",spots.homePlate,5);
-    addAction(actions,"throw","ball",fielder,firstCut,3,entry.hitPoint);addAction(actions,"throw","ball","SS",secondCut,4,firstCut);addAction(actions,"throw","ball","2B",target,5,secondCut);
-    design.actions=actions;setMeta(entry.title,"Two relays line up between the ball and the target while the corners cover, pitcher backs the final base, and both remaining outfielders protect the gaps");
+    addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
+    if(rightLineHome)addAction(actions,"cover","SS","SS",{...spots.secondBase},2);
+    else addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
+    addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",entry.target==="home"?{x:55,y:96}:{x:23,y:72},2);
+    runnerAdvance(actions,"BR",spots.firstBase,2);runnerAdvance(actions,"R2",spots.thirdBase,3);
+    if(!rightLineHome)addAction(actions,"cover","1B","1B",{...spots.secondBase},3,{...spots.firstBase});
+    if(entry.target==="home")runnerAdvance(actions,"R2",spots.homePlate,5);
+    addAction(actions,"throw","ball",fielder,firstCut,3,entry.hitPoint);addAction(actions,"throw","ball",firstRelay,secondCut,4,firstCut);addAction(actions,"throw","ball",secondRelay,target,5,secondCut);
+    design.actions=actions;setMeta(entry.title,rightLineHome
+      ?"Right fielder throws to 2B as the first cutoff, 1B becomes the second cutoff, shortstop covers second, third covers third, catcher owns home, and pitcher backs the plate"
+      :"Two relays line up between the ball and the target while the corners cover, pitcher backs the final base, and both remaining outfielders protect the gaps");
   }
   function renderScenarioCatalog(){
     const select=document.getElementById("scenario-preset-select"),container=document.getElementById("built-in-scenario-folders");
