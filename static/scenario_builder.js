@@ -396,22 +396,28 @@
   }
   function buildOutfieldPreset(entry){
     const {state,zone,result}=entry, actions=[],hitPoint=zone.point,target=targetForState(state,result);
+    const isNoRunnerMiddleFly=result==="fly"&&state.id==="none"&&zone.id==="cf-middle";
     activateRunners(state,result==="hit");
     const side=hitPoint.x<45?"left":hitPoint.x>55?"right":"center";
     const cutoffId=side==="right"?"2B":"SS",coverSecond=cutoffId==="SS"?"2B":"SS";
     const cutoffPoint=midpoint(hitPoint,target);
     addAction(actions,"hit","ball","Batter",hitPoint,1,{...spots.homePlate});
     addAction(actions,"move",zone.fielder,zone.fielder,hitPoint,2);
-    const backupPoint=point(hitPoint.x+(50-hitPoint.x)*.22,Math.max(7,hitPoint.y-7));
-    if(zone.support!==zone.fielder)addAction(actions,"backup",zone.support,zone.support,backupPoint,2);
-    const remainingOutfielders=["LF","CF","RF"].filter(id=>id!==zone.fielder&&id!==zone.support);
-    remainingOutfielders.forEach(id=>addAction(actions,"backup",id,id,behindTarget(hitPoint,target,.32),2));
+    if(isNoRunnerMiddleFly){
+      addAction(actions,"backup","RF","RF",{x:55,y:10},2);
+      addAction(actions,"backup","LF","LF",{x:23,y:72},2);
+    } else {
+      const backupPoint=point(hitPoint.x+(50-hitPoint.x)*.22,Math.max(7,hitPoint.y-7));
+      if(zone.support!==zone.fielder)addAction(actions,"backup",zone.support,zone.support,backupPoint,2);
+      const remainingOutfielders=["LF","CF","RF"].filter(id=>id!==zone.fielder&&id!==zone.support);
+      remainingOutfielders.forEach(id=>addAction(actions,"backup",id,id,behindTarget(hitPoint,target,.32),2));
+    }
     addAction(actions,"cutoff",cutoffId,cutoffId,cutoffPoint,2);
     addAction(actions,"cover",coverSecond,coverSecond,{...spots.secondBase},2);
     addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
     addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
     if(target===spots.homeCover){addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",{x:55,y:96},2);}
-    else {addAction(actions,"backup","C","C",behindTarget(spots.homePlate,spots.firstBase,.28),2);addAction(actions,"backup","P","P",point((target.x+50)/2,(target.y+68)/2),2);}
+    else {addAction(actions,"backup","C","C",isNoRunnerMiddleFly?midpoint(spots.homePlate,spots.firstBase):behindTarget(spots.homePlate,spots.firstBase,.28),2);addAction(actions,"backup","P","P",point((target.x+50)/2,(target.y+68)/2),2);}
     if(result==="hit"){
       runnerAdvance(actions,"BR",spots.firstBase,2);
       if(state.runners.includes("R3"))runnerAdvance(actions,"R3",spots.homePlate,4);
@@ -425,7 +431,9 @@
     addAction(actions,"throw","ball",zone.fielder,cutoffPoint,3,hitPoint);
     addAction(actions,"throw","ball",cutoffId,target,4,cutoffPoint);
     design.actions=actions;
-    setMeta(entry.title,`${result==="fly"?"Catch and tag read":"Base hit read"}; ${cutoffId} aligns halfway to ${target===spots.homeCover?"home":target===spots.thirdBase?"third":"second"}, every base is covered, and outfielders back up the play`);
+    setMeta(entry.title,isNoRunnerMiddleFly
+      ?"Center fielder makes the play, right field backs up center, left field backs up third, and catcher moves halfway up the first-base line for a bad throw"
+      :`${result==="fly"?"Catch and tag read":"Base hit read"}; ${cutoffId} aligns halfway to ${target===spots.homeCover?"home":target===spots.thirdBase?"third":"second"}, every base is covered, and outfielders back up the play`);
   }
   function buildBuntPreset(entry){
     const actions=[],downFirst=entry.side==="first",fieldPoint=downFirst?{x:57,y:79}:{x:43,y:79},fielder=downFirst?"1B":"3B";
