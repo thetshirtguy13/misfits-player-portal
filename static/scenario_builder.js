@@ -60,8 +60,8 @@
   function catcherCanBackFirst(ballPoint) { return ballPoint.x>=spots.firstBase.x; }
   function catcherFirstBackup(ballPoint) {
     return point(
-      spots.firstBase.x+(spots.firstBase.x-ballPoint.x)*.2,
-      spots.firstBase.y+(spots.firstBase.y-ballPoint.y)*.2
+      spots.firstBase.x+(spots.firstBase.x-ballPoint.x)*.42,
+      spots.firstBase.y+(spots.firstBase.y-ballPoint.y)*.42
     );
   }
   function fieldPoint(event) {
@@ -485,12 +485,13 @@
     if(outcome==="fielded"){
       addAction(actions,"move","RF","RF",fieldPoint,1);
       addAction(actions,"backup","CF","CF",{x:70,y:24},2);
-      addAction(actions,"backup","LF","LF",{x:52,y:29},2);
+      addAction(actions,"backup","LF","LF",behindTarget(fieldPoint,spots.secondBase,.38),2);
       addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
       addAction(actions,"cover","2B","2B",{...spots.secondBase},2);
       addAction(actions,"cover","SS","SS",{x:45,y:49},2);
       addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
-      addAction(actions,"backup","C","C",catcherFirstBackup(fieldPoint),2);
+      if(caught)addAction(actions,"cover","C","C",{...spots.homeCover},2);
+      else addAction(actions,"backup","C","C",catcherFirstBackup(fieldPoint),2);
       addAction(actions,"backup","P","P",{x:60,y:72},2);
       if(!caught){
         addBallAction(actions,spots.firstBase,3,fieldPoint,"line-drive","throw","RF");
@@ -499,7 +500,7 @@
       design.actions=actions;
       setMeta(entry.title,caught
         ?`${contact.label} is caught by right field in front; center backs up the catch, the infield covers every base, and the batter is out`
-        :`${contact.label} is fielded in front by right field; RF throws directly to first in step 3 and the ball arrives before the batter-runner in step 4`);
+        :`${contact.label} is fielded in front by right field; RF throws directly to first in step 3, the ball arrives before the batter-runner in step 4, and left field backs up an alternate throw to second`);
       return;
     }
     const missPoint={x:fieldPoint.x-3,y:fieldPoint.y+3},cutoffPoint=midpoint(throughPoint,spots.secondBase);
