@@ -49,10 +49,12 @@
       if(!group){group={phase,items:[]};groups.push(group);}
       group.items.push({action,index});
     });
-    return groups;
+    return groups.sort((a,b)=>a.phase-b.phase);
   }
   function freshDesign() { return { version:1, positions:copy(defaults), ball:{...spots.homePlate}, actions:[] }; }
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
+  function midpoint(from,to) { return point((from.x+to.x)/2,(from.y+to.y)/2); }
+  function behindTarget(from,to,ratio=.35) { return point(to.x+(to.x-from.x)*ratio,to.y+(to.y-from.y)*ratio); }
   function fieldPoint(event) {
     const box=field.getBoundingClientRect();
     return point(((event.clientX-box.left)/box.width)*100,((event.clientY-box.top)/box.height)*100);
@@ -330,17 +332,25 @@
     stopPlayback(); recording=false;syncRecordUI();design=freshDesign(); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
     if(name==="fly-r3") {
       design.positions.R3.active=true;
+      const catchPoint={x:25,y:28};
+      const cutoffPoint=midpoint(catchPoint,spots.homeCover);
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:24,y:27}},
-        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:25,y:28}},
-        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:36,y:57}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:catchPoint},
+        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:catchPoint},
+        {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:31,y:23}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:61,y:47}},
+        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:cutoffPoint},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{...spots.secondBase}},
+        {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{...spots.thirdBase}},
+        {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:55,y:96}},
         {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
+        {type:"throw",entity:"ball",actor:"LF",from:catchPoint,to:cutoffPoint},
         {type:"tag",entity:"R3",actor:"R3",from:{...spots.thirdBase},to:{...spots.homePlate}},
-        {type:"throw",entity:"ball",actor:"LF",from:{x:25,y:28},to:{x:36,y:57}},
-        {type:"throw",entity:"ball",actor:"SS",from:{x:36,y:57},to:{...spots.homeCover}}
+        {type:"throw",entity:"ball",actor:"SS",from:cutoffPoint,to:{...spots.homeCover}}
       ];
-      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,3,3,4][index]);
-      setMeta("Fly Ball, Runner on Third","Outfield catch, tag-up, cutoff, and play at home");
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,3,4,4][index]);
+      setMeta("Fly Ball, Runner on Third","Center backs up left, right backs up second, short lines up halfway to home, the relay beats the tagging runner, and pitcher backs the plate");
     } else if(name==="ground-r1") {
       design.positions.R1.active=true;
       design.actions=[
@@ -375,63 +385,69 @@
       setMeta("Bunt Defense, Runner on First","Third baseman fields, first baseman charges, second covers first, short covers third, catcher protects home, and all three outfielders back up the rotation");
     } else if(name==="left-single") {
       design.positions.BR.active=true;
+      const hitPoint={x:22,y:33};
+      const cutoffPoint=midpoint(hitPoint,spots.secondBase);
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:22,y:33}},
-        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:22,y:33}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:hitPoint},
+        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:hitPoint},
         {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:29,y:27}},
-        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:58,y:20}},
-        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:34,y:55}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:behindTarget(hitPoint,spots.secondBase,.4)},
+        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:cutoffPoint},
         {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{...spots.thirdBase}},
-        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
+        {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{...spots.secondBase}},
         {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
-        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:23,y:74}},
-        {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:53,y:56}},
+        {type:"backup",entity:"C",actor:"C",from:{...spots.catcherStart},to:behindTarget(spots.homePlate,spots.firstBase,.28)},
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
-        {type:"throw",entity:"ball",actor:"LF",from:{x:22,y:33},to:{x:34,y:55}},
-        {type:"throw",entity:"ball",actor:"SS",from:{x:34,y:55},to:{x:50,y:44}}
+        {type:"throw",entity:"ball",actor:"LF",from:hitPoint,to:cutoffPoint},
+        {type:"throw",entity:"ball",actor:"SS",from:cutoffPoint,to:{...spots.secondBase}}
       ];
       design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,3,4][index]);
-      setMeta("Single to Left Field","Every defender moves: left fields it, center and right back up, short is cutoff, bases are covered, pitcher backs up third, and catcher protects home");
+      setMeta("Single to Left Field","Shortstop lines up halfway from left to second, second covers the bag, right backs up the throw, center backs left, and catcher backs first");
     } else if(name==="left-r2") {
       design.positions.R2.active=true; design.positions.BR.active=true;
+      const hitPoint={x:20,y:31};
+      const cutoffPoint=midpoint(hitPoint,spots.homeCover);
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:20,y:31}},
-        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:20,y:31}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:hitPoint},
+        {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:hitPoint},
         {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:28,y:25}},
-        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:58,y:19}},
-        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:35,y:57}},
+        {type:"backup",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:61,y:47}},
+        {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:cutoffPoint},
         {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{...spots.thirdBase}},
         {type:"cover",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:50,y:44}},
         {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
-        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:50,y:96}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:55,y:96}},
         {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
         {type:"tag",entity:"R2",actor:"R2",from:{...spots.secondBase},to:{...spots.thirdBase}},
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
-        {type:"throw",entity:"ball",actor:"LF",from:{x:20,y:31},to:{x:35,y:57}},
+        {type:"throw",entity:"ball",actor:"LF",from:hitPoint,to:cutoffPoint},
         {type:"tag",entity:"R2",actor:"R2",from:{...spots.thirdBase},to:{...spots.homePlate}},
-        {type:"throw",entity:"ball",actor:"SS",from:{x:35,y:57},to:{...spots.homeCover}}
+        {type:"throw",entity:"ball",actor:"SS",from:cutoffPoint,to:{...spots.homeCover}}
       ];
-      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,2,3,3,4][index]);
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,2,3,4,4][index]);
       setMeta("Left Field Hit, Runner on Second","Left fields the ball, short lines up the throw home, pitcher backs up the plate, every base is covered, and both runners advance");
     } else if(name==="right-single") {
       design.positions.BR.active=true;
+      const hitPoint={x:78,y:33};
+      const cutoffPoint=midpoint(hitPoint,spots.secondBase);
       design.actions=[
-        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:78,y:33}},
-        {type:"move",entity:"RF",actor:"RF",from:{x:76,y:22},to:{x:78,y:33}},
+        {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:hitPoint},
+        {type:"move",entity:"RF",actor:"RF",from:{x:76,y:22},to:hitPoint},
         {type:"backup",entity:"CF",actor:"CF",from:{x:50,y:13},to:{x:71,y:27}},
-        {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:42,y:20}},
-        {type:"cutoff",entity:"2B",actor:"2B",from:{x:59,y:49},to:{x:66,y:55}},
-        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:50,y:44}},
+        {type:"backup",entity:"LF",actor:"LF",from:{x:24,y:22},to:behindTarget(hitPoint,spots.secondBase,.4)},
+        {type:"cutoff",entity:"2B",actor:"2B",from:{x:59,y:49},to:cutoffPoint},
+        {type:"cover",entity:"SS",actor:"SS",from:{x:41,y:49},to:{...spots.secondBase}},
         {type:"cover",entity:"3B",actor:"3B",from:{x:32,y:61},to:{...spots.thirdBase}},
         {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
-        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:58,y:51}},
-        {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
+        {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:47,y:56}},
+        {type:"backup",entity:"C",actor:"C",from:{...spots.catcherStart},to:behindTarget(spots.homePlate,spots.firstBase,.28)},
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
-        {type:"throw",entity:"ball",actor:"RF",from:{x:78,y:33},to:{x:66,y:55}},
-        {type:"throw",entity:"ball",actor:"2B",from:{x:66,y:55},to:{x:50,y:44}}
+        {type:"throw",entity:"ball",actor:"RF",from:hitPoint,to:cutoffPoint},
+        {type:"throw",entity:"ball",actor:"2B",from:cutoffPoint,to:{...spots.secondBase}}
       ];
       design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,3,4][index]);
-      setMeta("Single to Right Field","Right fields it, center and left back up, second is cutoff, short covers second, corner bases are covered, pitcher backs the play, and catcher protects home");
+      setMeta("Single to Right Field","Second baseman lines up halfway from right to second, short covers the bag, left backs up the throw, center backs right, and catcher backs first");
     } else if(name==="pickoff-third") {
       design.positions.R3={x:36,y:74,runner:true,active:true}; design.ball={x:50,y:68};
       design.actions=[
