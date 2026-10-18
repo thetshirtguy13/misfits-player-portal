@@ -41,6 +41,18 @@
 @media(max-width:620px){.field-play-button{bottom:7%;font-size:11px;padding:8px 10px;right:2%}}
 
 .field-marker.dragging,.field-ball.dragging{cursor:grabbing;transition:none!important;z-index:12}
+.ball-style-bar{align-items:center;background:#091526;border:1px solid #2b4664;border-top:0;display:flex;gap:5px;overflow-x:auto;padding:6px 10px}
+.ball-style-bar>span{color:#8da6ba;font-size:10px;font-weight:900;letter-spacing:.7px;margin-right:3px;text-transform:uppercase;white-space:nowrap}
+.ball-style-bar button{background:#12243a;border:1px solid #35516d;border-radius:5px;color:#a9bac7;font-size:11px;font-weight:800;padding:6px 10px;white-space:nowrap}
+.ball-style-bar button.active{background:#4a2016;border-color:#ff8a2a;box-shadow:inset 0 0 0 1px #ff8a2a;color:#ffd8b8}
+.action-path.ball-ground{border-top-style:dotted!important;border-top-width:4px}
+.action-path.ball-bounce{border-top-style:dashed!important}
+.action-path.ball-line-drive{border-top-style:solid!important;border-top-width:5px}
+.action-path.ball-pop-fly{border-top-style:dashed!important;border-top-width:3px;filter:drop-shadow(0 0 8px #ff3b7c)}
+.field-ball[data-flight="ground"]{box-shadow:0 0 0 2px #fff,0 2px 6px #000!important}
+.field-ball[data-flight="bounce"]{box-shadow:0 0 0 2px #fff,0 0 14px #ff8a2a!important}
+.field-ball[data-flight="line-drive"]{box-shadow:0 0 0 2px #fff,0 0 17px #ff3b7c!important}
+.field-ball[data-flight="pop-fly"]{box-shadow:0 0 0 2px #fff,0 0 20px #55d6ff!important}
 .field-control-dock{align-items:center;background:#07111f;border:1px solid #496780;border-top:0;box-shadow:0 12px 34px #0008;box-sizing:border-box;display:flex;gap:4px;justify-content:center;max-width:100%;overflow-x:auto;padding:5px;position:relative;width:100%;z-index:20}
 .field-control-dock button{align-items:center;background:#101f31;border:1px solid transparent;border-radius:5px;color:#dce9ed;display:flex;flex-direction:column;font-size:10px;gap:1px;height:48px;justify-content:center;min-width:54px;padding:4px 8px;white-space:nowrap}
 .field-control-dock button b{align-items:center;display:flex;font-size:17px;height:20px;justify-content:center;line-height:1}.field-control-dock button:hover,.field-control-dock button.active{background:#18344a;border-color:#59ddff;color:#fff}.field-control-dock #record-button.active{background:#4a151b;border-color:#ff6070;color:#fff}.field-control-dock .record-dot{background:#ff4358;border-radius:50%;box-shadow:0 0 0 3px #ff435830;height:11px;width:11px}.scenario-app.recording .record-dot{animation:record-pulse 1s infinite}.field-control-dock .field-play-button{background:linear-gradient(135deg,#1bdba9,#08a97e);border-color:#b7ffe8;bottom:auto;box-shadow:none;color:#001b14;font-size:10px;padding:4px 8px;position:static;right:auto}.field-control-dock .field-play-button:hover{transform:none}

@@ -19,6 +19,7 @@
   const saved = JSON.parse(app.dataset.scenarios || "[]");
   const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9", draw: "#55d6ff" };
   const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run", draw: "Coach drawing" };
+  const ballStyleNames = { ground:"Ground ball", bounce:"Bouncing ball", "line-drive":"Line drive", "pop-fly":"Pop fly" };
   const spots = {
     homePlate:{x:50,y:92.6}, homeCover:{x:47.2,y:89.2}, catcherStart:{x:50,y:94.2}, rightHandedBox:{x:44.2,y:92.2},
     firstBase:{x:69,y:68}, secondBase:{x:50,y:44}, thirdBase:{x:31,y:68}
@@ -38,6 +39,7 @@
   let dragState = null;
   let drawState = null;
   let nextDrawingId = 1;
+  let selectedBallStyle = "ground";
 
   function copy(value) { return JSON.parse(JSON.stringify(value)); }
   function actionPhase(action,index) { return Number.isFinite(action.phase) ? action.phase : index+1; }
@@ -124,7 +126,7 @@
       let action;
       if(current.id==="ball"){
         const hasBallAction=design.actions.some(item=>item.entity==="ball");
-        action={type:hasBallAction?"throw":"hit",entity:"ball",actor:hasBallAction?"Defense":"Batter",from:ballPosition(),to:destination};
+        action={type:hasBallAction?"throw":"hit",entity:"ball",actor:hasBallAction?"Defense":"Batter",from:ballPosition(),to:destination,ballStyle:hasBallAction?"line-drive":selectedBallStyle};
       }else{
         const movementType=["move","cover","backup","cutoff","tag"].includes(tool)?tool:"move";
         action={type:movementType,entity:current.id,actor:current.id,from:activePosition(current.id),to:destination};
@@ -183,14 +185,15 @@
       marker.dataset.action=action && action.actor===id ? action.type : "";
     });
     const ball=markerLayer.querySelector('[data-id="ball"]');
-    if(ball) { setPosition(ball,frame.ball); ball.classList.toggle("selected",selected==="ball"); }
+    if(ball) { setPosition(ball,frame.ball); ball.classList.toggle("selected",selected==="ball"); ball.dataset.flight=action?.entity==="ball" ? (action.ballStyle||"line-drive") : ""; }
   }
   function renderPaths() {
     movementLayer.innerHTML="";
     design.actions.forEach((action,index) => {
       const dx=action.to.x-action.from.x,dy=action.to.y-action.from.y;
       const line=document.createElement("div");
-      line.className=`action-path ${action.type}`; line.dataset.index=index;
+      const ballClass=action.entity==="ball" ? ` ball-${action.ballStyle||"line-drive"}` : "";
+      line.className=`action-path ${action.type}${ballClass}`; line.dataset.index=index;
       line.style.left=`${action.from.x}%`; line.style.top=`${action.from.y}%`;
       line.style.width=`${Math.hypot(dx*field.clientWidth/100,dy*field.clientHeight/100)}px`;
       line.style.transform=`rotate(${Math.atan2(dy*field.clientHeight,dx*field.clientWidth)*180/Math.PI}deg)`;
@@ -199,7 +202,7 @@
     });
   }
   function actionLabel(action) {
-    if(action.type==="hit") return "Ball travels into play";
+    if(action.type==="hit") return `${ballStyleNames[action.ballStyle]||"Ball"} travels into play`;
     if(action.type==="throw") return `${action.actor} throws the ball`;
     if(action.type==="draw") return "Coach draws an instruction path";
     return `${action.actor} ${names[action.type].toLowerCase()}`;
@@ -253,6 +256,10 @@
     document.getElementById("direct-move-button")?.classList.toggle("active",tool==="move"||tool==="setup");
     document.getElementById("field-draw-button")?.classList.toggle("active",tool==="draw");
   }
+  function setBallStyle(next){
+    selectedBallStyle=ballStyleNames[next]?next:"ground";
+    document.querySelectorAll("[data-ball-style]").forEach(button=>button.classList.toggle("active",button.dataset.ballStyle===selectedBallStyle));
+  }
   function syncRecordUI(){
     app.classList.toggle("recording",recording);
     if(recordButton){recordButton.classList.toggle("active",recording);const label=recordButton.querySelector("span");if(label)label.textContent=recording?"Stop":"Record";}
@@ -269,7 +276,7 @@
     const index=actionMode==="replace"&&selectedStep!==null ? selectedStep : actionMode==="insert"&&selectedStep!==null ? selectedStep+1 : design.actions.length;
     let action;
     if(tool==="hit") {
-      action={type:"hit",entity:"ball",actor:"Batter",from:ballPosition(index),to:destination};
+      action={type:"hit",entity:"ball",actor:"Batter",from:ballPosition(index),to:destination,ballStyle:selectedBallStyle};
     } else if(!selected || selected==="ball") {
       instruction.textContent="Select a player or runner first."; return;
     } else if(tool==="throw") {
@@ -307,6 +314,14 @@
       requestAnimationFrame(frame);
     });
   }
+  function ballMotionPosition(action,position,amount){
+    if(action.entity!=="ball"||action.type==="throw")return position;
+    const style=action.ballStyle||"line-drive";
+    if(style==="pop-fly")return {...position,y:position.y-Math.sin(Math.PI*amount)*12};
+    if(style==="line-drive")return {...position,y:position.y-Math.sin(Math.PI*amount)*2};
+    if(style==="bounce")return {...position,y:position.y-Math.abs(Math.sin(Math.PI*amount*4))*3.6*(1-amount*.35)};
+    return {...position,y:position.y-Math.abs(Math.sin(Math.PI*amount*8))*.65};
+  }
   async function play() {
     if(playing || !design.actions.length) return;
     playing=true; selected=null; const token=++playToken; setPlayButtonText("Playing"); fieldPlayButton.disabled=true;
@@ -319,7 +334,8 @@
       const speed=Number(document.getElementById("playback-speed")?.value||1);
       await Promise.all(group.items.map(({action})=>{
         const moving=action.entity==="ball" ? markerLayer.querySelector('[data-id="ball"]') : markerLayer.querySelector(`[data-id="${action.entity}"]`);
-        return tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((groupIndex+amount)/groups.length)*100}%`;},token);
+        if(moving&&action.entity==="ball")moving.dataset.flight=action.ballStyle||"line-drive";
+        return tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,ballMotionPosition(action,position,amount));progressBar.style.width=`${((groupIndex+amount)/groups.length)*100}%`;},token);
       }));
       renderSnapshot(snapshot(last+1));
       await new Promise(resolve=>setTimeout(resolve,180));
@@ -353,6 +369,12 @@
     {id:"cf-right",label:"CF (Right Side)",fielder:"CF",point:{x:61,y:20},support:"RF"},
     {id:"rf",label:"RF",fielder:"RF",point:{x:78,y:31},support:"CF"}
   ];
+  const rfContactTypes = [
+    {id:"ground",label:"Ground Ball",ballStyle:"ground",front:{x:72,y:47},through:{x:82,y:29}},
+    {id:"bounce",label:"Bouncing Ball",ballStyle:"bounce",front:{x:74,y:42},through:{x:84,y:25}},
+    {id:"line-drive",label:"Line Drive",ballStyle:"line-drive",front:{x:75,y:34},through:{x:86,y:21}},
+    {id:"pop-fly",label:"Pop Fly",ballStyle:"pop-fly",front:{x:76,y:29},through:{x:87,y:18}}
+  ];
   const featuredScenarios = [
     {id:"left-single",folder:"Coach Favorites",title:"Single to Left Field",summary:"Every defender rotates"},
     {id:"right-single",folder:"Coach Favorites",title:"Single to Right Field",summary:"Cutoff and backup responsibilities"},
@@ -382,6 +404,10 @@
     ["lf-line","Left Field Line",{x:13,y:28}], ["lf-gap","Left-Center Gap",{x:34,y:15}], ["cf","Deep Center",{x:50,y:8}],
     ["rf-gap","Right-Center Gap",{x:66,y:15}], ["rf-line","Right Field Line",{x:87,y:28}]
   ].forEach(([id,label,hitPoint])=>["third","home"].forEach(target=>scenarioCatalog.push({id:`double-cut-${id}-${target}`,kind:"doubleCut",folder:"Double-Cuts",title:`Double Cut: ${label} to ${target==="third"?"3rd":"Home"}`,summary:"Two aligned relays, trail runner coverage and deep backup",hitPoint,target})));
+  rfContactTypes.forEach(contact=>{
+    scenarioCatalog.push({id:`rf-read-${contact.id}-fielded`,kind:"rfRead",folder:"Right Field Reads",title:`RF Read: ${contact.label} Fielded in Front`,summary:contact.id==="ground"||contact.id==="bounce"?"Charge, secure and throw to first before the batter-runner":"Read the flight and make the catch in front",contact,outcome:"fielded"});
+    scenarioCatalog.push({id:`rf-read-${contact.id}-missed`,kind:"rfRead",folder:"Right Field Reads",title:`RF Read: ${contact.label} Missed`,summary:"Ball continues past right field; center backs up and the defense rotates",contact,outcome:"missed"});
+  });
 
   function activateRunners(state,includeBatter=false){
     state.runners.forEach(id=>design.positions[id].active=true);
@@ -389,6 +415,10 @@
   }
   function addAction(actions,type,entity,actor,to,phase,from=null){
     actions.push({type,entity,actor,from:from||copy(entity==="ball"?design.ball:design.positions[entity]),to:copy(to),phase});
+  }
+  function addBallAction(actions,to,phase,from,ballStyle,type="hit",actor="Batter"){
+    addAction(actions,type,"ball",actor,to,phase,from);
+    actions[actions.length-1].ballStyle=ballStyle;
   }
   function runnerAdvance(actions,id,to,phase){
     const previous=[...actions].reverse().find(action=>action.entity===id);
@@ -445,6 +475,50 @@
     setMeta(entry.title,isNoRunnerMiddleFly
       ?"Center fielder makes the play, right field backs up center, left field backs up third, and catcher stays home because the ball is not on the first-base side"
       :`${result==="fly"?"Catch and tag read":"Base hit read"}; ${cutoffId} aligns halfway to ${target===spots.homeCover?"home":target===spots.thirdBase?"third":"second"}, every base is covered, and outfielders back up the play`);
+  }
+  function buildRfReadPreset(entry){
+    const {contact,outcome}=entry,actions=[],fieldPoint=contact.front,throughPoint=contact.through;
+    setBallStyle(contact.ballStyle);
+    const caught=outcome==="fielded"&&(contact.id==="line-drive"||contact.id==="pop-fly");
+    design.positions.BR.active=!caught;
+    addBallAction(actions,fieldPoint,1,{...spots.homePlate},contact.ballStyle);
+    if(outcome==="fielded"){
+      addAction(actions,"move","RF","RF",fieldPoint,1);
+      addAction(actions,"backup","CF","CF",{x:70,y:24},2);
+      addAction(actions,"backup","LF","LF",{x:52,y:29},2);
+      addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
+      addAction(actions,"cover","2B","2B",{...spots.secondBase},2);
+      addAction(actions,"cover","SS","SS",{x:45,y:49},2);
+      addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
+      addAction(actions,"backup","C","C",catcherFirstBackup(fieldPoint),2);
+      addAction(actions,"backup","P","P",{x:60,y:72},2);
+      if(!caught){
+        addBallAction(actions,spots.firstBase,3,fieldPoint,"line-drive","throw","RF");
+        runnerAdvance(actions,"BR",spots.firstBase,4);
+      }
+      design.actions=actions;
+      setMeta(entry.title,caught
+        ?`${contact.label} is caught by right field in front; center backs up the catch, the infield covers every base, and the batter is out`
+        :`${contact.label} is fielded in front by right field; RF throws directly to first in step 3 and the ball arrives before the batter-runner in step 4`);
+      return;
+    }
+    const missPoint={x:fieldPoint.x-3,y:fieldPoint.y+3},cutoffPoint=midpoint(throughPoint,spots.secondBase);
+    addAction(actions,"move","RF","RF",missPoint,1);
+    addBallAction(actions,throughPoint,2,fieldPoint,contact.ballStyle);
+    addAction(actions,"backup","CF","CF",throughPoint,2);
+    addAction(actions,"backup","LF","LF",{x:54,y:26},2);
+    addAction(actions,"cutoff","2B","2B",cutoffPoint,2);
+    addAction(actions,"cover","SS","SS",{...spots.secondBase},2);
+    addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
+    addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
+    addAction(actions,"backup","C","C",catcherFirstBackup(fieldPoint),2);
+    addAction(actions,"backup","P","P",{x:58,y:73},2);
+    runnerAdvance(actions,"BR",spots.firstBase,2);
+    addBallAction(actions,cutoffPoint,3,throughPoint,"line-drive","throw","CF");
+    addBallAction(actions,spots.secondBase,4,cutoffPoint,"line-drive","throw","2B");
+    runnerAdvance(actions,"BR",spots.secondBase,5);
+    design.actions=actions;
+    setMeta(entry.title,`${contact.label} gets past right field; center field retrieves it, second baseman becomes the cutoff, shortstop covers second, and the batter-runner continues toward second`);
   }
   function buildBuntPreset(entry){
     const actions=[],downFirst=entry.side==="first",fieldPoint=downFirst?{x:57,y:79}:{x:43,y:79},fielder=downFirst?"1B":"3B";
@@ -517,6 +591,7 @@
       else if(catalogEntry.kind==="bunt")buildBuntPreset(catalogEntry);
       else if(catalogEntry.kind==="firstThird")buildFirstThirdPreset(catalogEntry);
       else if(catalogEntry.kind==="doubleCut")buildDoubleCutPreset(catalogEntry);
+      else if(catalogEntry.kind==="rfRead")buildRfReadPreset(catalogEntry);
     } else if(name==="fly-r3") {
       design.positions.R3.active=true;
       const catchPoint={x:25,y:28};
@@ -726,13 +801,14 @@
   document.getElementById("scenario-preset-select")?.addEventListener("change",event=>applyPreset(event.target.value));
   if(editable){
     document.querySelectorAll(".tool-button[data-tool]").forEach(button=>button.addEventListener("click",()=>{setTool(button.dataset.tool);instruction.textContent=tool==="hit" ? "Choose where the ball is hit." : tool==="setup" ? "Drag a marker to set its starting position." : recording ? `Drag a player to record ${names[tool].toLowerCase()}.` : `Select a player, then choose where they ${names[tool].toLowerCase()}.`;}));
+    document.querySelectorAll("[data-ball-style]").forEach(button=>button.addEventListener("click",()=>{setBallStyle(button.dataset.ballStyle);setTool("hit");instruction.textContent=`${ballStyleNames[selectedBallStyle]} selected. Choose where the ball travels.`;}));
     document.querySelectorAll(".runner-toggle").forEach(button=>button.addEventListener("click",()=>{const runner=design.positions[button.dataset.runner];runner.active=!runner.active;renderAll();}));
     recordButton?.addEventListener("click",toggleRecording);
     document.getElementById("direct-move-button")?.addEventListener("click",()=>{setTool(recording?"move":"setup");instruction.textContent=recording?"Drag a player or ball to record the next movement.":"Drag any marker to adjust the starting setup.";});
     document.getElementById("field-draw-button")?.addEventListener("click",()=>{setTool("draw");instruction.textContent="Drag anywhere on the field to draw a coaching path.";});
     document.getElementById("field-undo-button")?.addEventListener("click",undoLast);
     document.getElementById("insert-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}actionMode=actionMode==="insert"?"append":"insert";app.classList.toggle("insert-mode",actionMode==="insert");app.classList.remove("redraw-mode");instruction.textContent=actionMode==="insert"?"The next action will be inserted after the selected step.":"New actions will be added to the end.";});
-    document.getElementById("redraw-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}const action=design.actions[selectedStep];tool=action.type;selected=action.type==="hit"?null:action.actor;actionMode="replace";app.classList.add("redraw-mode");app.classList.remove("insert-mode");document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item.dataset.tool===tool));previewThrough(selectedStep);instruction.textContent=`Choose a new destination for step ${selectedStep+1}.`;});
+    document.getElementById("redraw-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}const action=design.actions[selectedStep];tool=action.type;selected=action.type==="hit"?null:action.actor;if(action.type==="hit")setBallStyle(action.ballStyle||"line-drive");actionMode="replace";app.classList.add("redraw-mode");app.classList.remove("insert-mode");document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item.dataset.tool===tool));previewThrough(selectedStep);instruction.textContent=`Choose a new destination for step ${selectedStep+1}.`;});
     document.getElementById("undo-button").addEventListener("click",undoLast);
     document.getElementById("clear-button").addEventListener("click",()=>{design.actions=[];selectedStep=null;actionMode="append";app.classList.remove("insert-mode","redraw-mode");renderAll();});
     document.getElementById("scenario-form").addEventListener("submit",syncForm);
