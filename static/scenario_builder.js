@@ -74,6 +74,9 @@
       if(action.type==="backup"&&["LF","CF","RF"].includes(action.entity))action.to=keepOutfielderInside(action.to);
     });
   }
+  function orderActionsByPhase(actions) {
+    return actions.map((action,index)=>({action,index})).sort((a,b)=>actionPhase(a.action,a.index)-actionPhase(b.action,b.index)||a.index-b.index).map(item=>item.action);
+  }
   function leftFieldBackupForRightField(from,target) {
     const backupBase=target===spots.thirdBase?spots.thirdBase:spots.secondBase;
     return behindTarget(from,backupBase,.4);
@@ -369,7 +372,7 @@
     const clean=freshDesign();
     if(candidate && candidate.positions) Object.entries(candidate.positions).forEach(([id,value])=>{if(clean.positions[id]&&Number.isFinite(value.x)&&Number.isFinite(value.y)) Object.assign(clean.positions[id],point(value.x,value.y),{active:value.active!==false});});
     if(candidate && candidate.ball && Number.isFinite(candidate.ball.x)) clean.ball=point(candidate.ball.x,candidate.ball.y);
-    if(candidate && Array.isArray(candidate.actions)) clean.actions=candidate.actions.filter(a=>names[a.type]&&a.from&&a.to&&a.entity).slice(0,100).map((a,index)=>({...a,phase:Number.isFinite(a.phase)?a.phase:index+1,from:point(a.from.x,a.from.y),to:point(a.to.x,a.to.y)}));
+    if(candidate && Array.isArray(candidate.actions)) clean.actions=orderActionsByPhase(candidate.actions.filter(a=>names[a.type]&&a.from&&a.to&&a.entity).slice(0,100).map((a,index)=>({...a,phase:Number.isFinite(a.phase)?a.phase:index+1,from:point(a.from.x,a.from.y),to:point(a.to.x,a.to.y)})));
     keepOutfielderBackupsInPlay(clean.actions);
     return clean;
   }
@@ -501,7 +504,7 @@
       :`${result==="fly"?"Catch and tag read":"Base hit read"}; ${cutoffId} aligns halfway to ${target===spots.homeCover?"home":target===spots.thirdBase?"third":"second"}, every base is covered, and outfielders back up the play`);
   }
   function buildRfReadPreset(entry){
-    const {contact,outcome}=entry,actions=[],fieldPoint=contact.front,throughPoint=contact.through;
+    const {contact,outcome}=entry,actions=[],fieldPoint=contact.front,throughPoint=keepOutfielderInside(contact.through);
     setBallStyle(contact.ballStyle);
     const caught=outcome==="fielded"&&(contact.id==="line-drive"||contact.id==="pop-fly");
     design.positions.BR.active=!caught;
@@ -588,7 +591,7 @@
     ["LF","CF","RF"].filter(id=>id!==fielder).forEach((id,index)=>addAction(actions,"backup",id,id,
       fielder==="RF"&&id==="LF"?leftFieldBackupForRightField(entry.hitPoint,target):point(entry.hitPoint.x+(index?10:-10),Math.max(5,entry.hitPoint.y-6)),2));
     addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);addAction(actions,"cover","1B","1B",{...spots.firstBase},2);addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",entry.target==="home"?{x:55,y:96}:{x:23,y:72},2);
-    runnerAdvance(actions,"BR",spots.firstBase,2);runnerAdvance(actions,"R2",spots.thirdBase,3);if(entry.target==="home")runnerAdvance(actions,"R2",spots.homePlate,5);
+    runnerAdvance(actions,"BR",spots.firstBase,2);runnerAdvance(actions,"R2",spots.thirdBase,3);addAction(actions,"cover","1B","1B",{...spots.secondBase},3,{...spots.firstBase});if(entry.target==="home")runnerAdvance(actions,"R2",spots.homePlate,5);
     addAction(actions,"throw","ball",fielder,firstCut,3,entry.hitPoint);addAction(actions,"throw","ball","SS",secondCut,4,firstCut);addAction(actions,"throw","ball","2B",target,5,secondCut);
     design.actions=actions;setMeta(entry.title,"Two relays line up between the ball and the target while the corners cover, pitcher backs the final base, and both remaining outfielders protect the gaps");
   }
@@ -775,6 +778,7 @@
       design.actions.forEach((action,index)=>action.phase=[1,1,1,1,1,1,1,1,1,2,2,3,3,4,4][index]);
       setMeta("Rundown: Third to Home","Third and catcher close the lane with one throw, short rotates to third, pitcher backs up home, left backs third, and every remaining defender protects a base or backup lane");
     } else setMeta(""," ");
+    design.actions=orderActionsByPhase(design.actions);
     keepOutfielderBackupsInPlay(design.actions);
     const picker=document.getElementById("scenario-preset-select"); if(picker) picker.value=name;
     status.textContent=name==="empty" ? "New Scenario" : document.getElementById("scenario-title").value;
