@@ -328,9 +328,177 @@
     if(candidate && Array.isArray(candidate.actions)) clean.actions=candidate.actions.filter(a=>names[a.type]&&a.from&&a.to&&a.entity).slice(0,100).map((a,index)=>({...a,phase:Number.isFinite(a.phase)?a.phase:index+1,from:point(a.from.x,a.from.y),to:point(a.to.x,a.to.y)}));
     return clean;
   }
+
+  const runnerStates = [
+    {id:"none",folder:"No runners",label:"No Runners",runners:[]},
+    {id:"r1",folder:"Runner on First Base",label:"R1",runners:["R1"]},
+    {id:"r2",folder:"Runner on Second Base",label:"R2",runners:["R2"]},
+    {id:"r3",folder:"Runner on Third Base",label:"R3",runners:["R3"]},
+    {id:"r12",folder:"Runners on First & Second",label:"R1 + R2",runners:["R1","R2"]},
+    {id:"r13",folder:"Runners on First & Third",label:"R1 + R3",runners:["R1","R3"]},
+    {id:"r23",folder:"Runners on Second & Third",label:"R2 + R3",runners:["R2","R3"]},
+    {id:"loaded",folder:"Bases Loaded",label:"Bases Loaded",runners:["R1","R2","R3"]}
+  ];
+  const outfieldZones = [
+    {id:"lf",label:"LF",fielder:"LF",point:{x:22,y:31},support:"CF"},
+    {id:"cf-left",label:"CF (Left Side)",fielder:"CF",point:{x:39,y:20},support:"LF"},
+    {id:"cf-middle",label:"CF (Middle)",fielder:"CF",point:{x:50,y:16},support:"LF"},
+    {id:"cf-right",label:"CF (Right Side)",fielder:"CF",point:{x:61,y:20},support:"RF"},
+    {id:"rf",label:"RF",fielder:"RF",point:{x:78,y:31},support:"CF"}
+  ];
+  const featuredScenarios = [
+    {id:"left-single",folder:"Coach Favorites",title:"Single to Left Field",summary:"Every defender rotates"},
+    {id:"right-single",folder:"Coach Favorites",title:"Single to Right Field",summary:"Cutoff and backup responsibilities"},
+    {id:"fly-r3",folder:"Coach Favorites",title:"Fly Ball + Runner on 3rd",summary:"Tag, relay, and play at home"},
+    {id:"left-r2",folder:"Coach Favorites",title:"Left Field Hit + Runner on 2nd",summary:"Relay home with every defender moving"},
+    {id:"ground-r1",folder:"Coach Favorites",title:"Ground Ball + Runner on 1st",summary:"Middle-infield double play"},
+    {id:"bunt-r1",folder:"Coach Favorites",title:"Bunt Defense + Runner on 1st",summary:"Corner charge and base coverage"},
+    {id:"pickoff-third",folder:"Coach Favorites",title:"Pickoff Attempt at 3rd",summary:"Tag and backup coverage"},
+    {id:"rundown-third-home",folder:"Coach Favorites",title:"Rundown: 3rd to Home",summary:"Close the lane with one throw"}
+  ];
+  const scenarioCatalog = [...featuredScenarios];
+  runnerStates.forEach(state=>{
+    outfieldZones.forEach(zone=>{
+      scenarioCatalog.push({id:`fly-${state.id}-${zone.id}`,kind:"outfield",result:"fly",state,zone,folder:state.folder,title:`${state.label}: Fly Ball to ${zone.label}`,summary:"Catch, tag reads, cutoff and complete team rotation"});
+      scenarioCatalog.push({id:`hit-${state.id}-${zone.id}`,kind:"outfield",result:"hit",state,zone,folder:state.folder,title:`${state.label}: Base Hit to ${zone.label}`,summary:"Relay target, base coverage and every backup"});
+    });
+  });
+  [runnerStates[0],runnerStates[1],runnerStates[2],runnerStates[3]].forEach(state=>{
+    ["first","third"].forEach(side=>scenarioCatalog.push({id:`bunt-${state.id}-${side}`,kind:"bunt",state,side,folder:"Bunt Defense",title:`${state.label}: Bunt Down ${side==="first"?"1st":"3rd"}`,summary:"Corners charge while the defense rotates behind the play"}));
+  });
+  [
+    {id:"first-third-through",title:"1st & 3rd: Throw Through Cut",call:"through"},
+    {id:"first-third-third",title:"1st & 3rd: Throw to 3rd",call:"third"},
+    {id:"first-third-pitcher",title:"1st & 3rd: Throw to Pitcher",call:"pitcher"}
+  ].forEach(item=>scenarioCatalog.push({...item,kind:"firstThird",folder:"1st & 3rd Plays",summary:"Catcher, middle infield and corner responsibilities"}));
+  [
+    ["lf-line","Left Field Line",{x:13,y:28}], ["lf-gap","Left-Center Gap",{x:34,y:15}], ["cf","Deep Center",{x:50,y:8}],
+    ["rf-gap","Right-Center Gap",{x:66,y:15}], ["rf-line","Right Field Line",{x:87,y:28}]
+  ].forEach(([id,label,hitPoint])=>["third","home"].forEach(target=>scenarioCatalog.push({id:`double-cut-${id}-${target}`,kind:"doubleCut",folder:"Double-Cuts",title:`Double Cut: ${label} to ${target==="third"?"3rd":"Home"}`,summary:"Two aligned relays, trail runner coverage and deep backup",hitPoint,target})));
+
+  function activateRunners(state,includeBatter=false){
+    state.runners.forEach(id=>design.positions[id].active=true);
+    if(includeBatter) design.positions.BR.active=true;
+  }
+  function addAction(actions,type,entity,actor,to,phase,from=null){
+    actions.push({type,entity,actor,from:from||copy(entity==="ball"?design.ball:design.positions[entity]),to:copy(to),phase});
+  }
+  function runnerAdvance(actions,id,to,phase){
+    const previous=[...actions].reverse().find(action=>action.entity===id);
+    const from=previous?previous.to:id==="R1"?spots.firstBase:id==="R2"?spots.secondBase:id==="R3"?spots.thirdBase:spots.rightHandedBox;
+    addAction(actions,"tag",id,id,to,phase,from);
+  }
+  function targetForState(state,result){
+    if(state.runners.includes("R3"))return spots.homeCover;
+    if(state.runners.includes("R2"))return result==="fly"?spots.thirdBase:spots.homeCover;
+    if(state.runners.includes("R1"))return result==="fly"?spots.secondBase:spots.thirdBase;
+    return spots.secondBase;
+  }
+  function buildOutfieldPreset(entry){
+    const {state,zone,result}=entry, actions=[],hitPoint=zone.point,target=targetForState(state,result);
+    activateRunners(state,result==="hit");
+    const side=hitPoint.x<45?"left":hitPoint.x>55?"right":"center";
+    const cutoffId=side==="right"?"2B":"SS",coverSecond=cutoffId==="SS"?"2B":"SS";
+    const cutoffPoint=midpoint(hitPoint,target);
+    addAction(actions,"hit","ball","Batter",hitPoint,1,{...spots.homePlate});
+    addAction(actions,"move",zone.fielder,zone.fielder,hitPoint,2);
+    const backupPoint=point(hitPoint.x+(50-hitPoint.x)*.22,Math.max(7,hitPoint.y-7));
+    if(zone.support!==zone.fielder)addAction(actions,"backup",zone.support,zone.support,backupPoint,2);
+    const remainingOutfielders=["LF","CF","RF"].filter(id=>id!==zone.fielder&&id!==zone.support);
+    remainingOutfielders.forEach(id=>addAction(actions,"backup",id,id,behindTarget(hitPoint,target,.32),2));
+    addAction(actions,"cutoff",cutoffId,cutoffId,cutoffPoint,2);
+    addAction(actions,"cover",coverSecond,coverSecond,{...spots.secondBase},2);
+    addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);
+    addAction(actions,"cover","1B","1B",{...spots.firstBase},2);
+    if(target===spots.homeCover){addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",{x:55,y:96},2);}
+    else {addAction(actions,"backup","C","C",behindTarget(spots.homePlate,spots.firstBase,.28),2);addAction(actions,"backup","P","P",point((target.x+50)/2,(target.y+68)/2),2);}
+    if(result==="hit"){
+      runnerAdvance(actions,"BR",spots.firstBase,2);
+      if(state.runners.includes("R3"))runnerAdvance(actions,"R3",spots.homePlate,4);
+      if(state.runners.includes("R2")){runnerAdvance(actions,"R2",spots.thirdBase,2);runnerAdvance(actions,"R2",spots.homePlate,4);}
+      if(state.runners.includes("R1"))runnerAdvance(actions,"R1",spots.thirdBase,3);
+    } else {
+      if(state.runners.includes("R3"))runnerAdvance(actions,"R3",spots.homePlate,4);
+      else if(state.runners.includes("R2"))runnerAdvance(actions,"R2",spots.thirdBase,4);
+      else if(state.runners.includes("R1"))runnerAdvance(actions,"R1",spots.secondBase,4);
+    }
+    addAction(actions,"throw","ball",zone.fielder,cutoffPoint,3,hitPoint);
+    addAction(actions,"throw","ball",cutoffId,target,4,cutoffPoint);
+    design.actions=actions;
+    setMeta(entry.title,`${result==="fly"?"Catch and tag read":"Base hit read"}; ${cutoffId} aligns halfway to ${target===spots.homeCover?"home":target===spots.thirdBase?"third":"second"}, every base is covered, and outfielders back up the play`);
+  }
+  function buildBuntPreset(entry){
+    const actions=[],downFirst=entry.side==="first",fieldPoint=downFirst?{x:57,y:79}:{x:43,y:79},fielder=downFirst?"1B":"3B";
+    activateRunners(entry.state,true);
+    addAction(actions,"hit","ball","Batter",fieldPoint,1,{...spots.homePlate});
+    addAction(actions,"move","1B","1B",downFirst?fieldPoint:{x:56,y:77},2);
+    addAction(actions,"move","3B","3B",downFirst?{x:44,y:77}:fieldPoint,2);
+    addAction(actions,"backup","P","P",downFirst?{x:54,y:76}:{x:46,y:76},2);
+    addAction(actions,"cover","2B","2B",{...spots.firstBase},2);
+    addAction(actions,"cover","SS","SS",entry.state.runners.includes("R2")?spots.thirdBase:spots.secondBase,2);
+    addAction(actions,"cover","C","C",{...spots.homeCover},2);
+    addAction(actions,"backup","RF","RF",{x:82,y:68},2); addAction(actions,"backup","LF","LF",{x:18,y:70},2); addAction(actions,"backup","CF","CF",{x:50,y:34},2);
+    entry.state.runners.forEach(id=>runnerAdvance(actions,id,id==="R3"?spots.homePlate:id==="R2"?spots.thirdBase:spots.secondBase,3));
+    runnerAdvance(actions,"BR",spots.firstBase,3);
+    addAction(actions,"throw","ball",fielder,spots.firstBase,4,fieldPoint);
+    design.actions=actions;
+    setMeta(entry.title,`${fielder} fields the bunt, second baseman covers first, shortstop protects the lead base, catcher owns home, and the outfield backs every overthrow lane`);
+  }
+  function buildFirstThirdPreset(entry){
+    design.positions.R1.active=true;design.positions.R3.active=true;design.ball={...spots.homeCover};
+    const actions=[];
+    runnerAdvance(actions,"R1",spots.secondBase,1);
+    addAction(actions,"cover","C","C",{...spots.homeCover},1);
+    addAction(actions,"cover","3B","3B",{...spots.thirdBase},1);
+    addAction(actions,"backup","P","P",{x:54,y:95},1);
+    if(entry.call==="through"){
+      addAction(actions,"cutoff","SS","SS",{x:47,y:55},1);addAction(actions,"cover","2B","2B",{...spots.secondBase},1);
+      addAction(actions,"throw","ball","C",{x:47,y:55},2,spots.homeCover);runnerAdvance(actions,"R3",spots.homePlate,3);addAction(actions,"throw","ball","SS",spots.homeCover,3,{x:47,y:55});
+    } else if(entry.call==="third"){
+      addAction(actions,"cover","SS","SS",{x:26,y:70},1);addAction(actions,"cover","2B","2B",{...spots.secondBase},1);addAction(actions,"throw","ball","C",spots.thirdBase,2,spots.homeCover);
+    } else {
+      addAction(actions,"move","P","P",{x:50,y:72},1);addAction(actions,"cover","SS","SS",{...spots.secondBase},1);addAction(actions,"backup","2B","2B",{x:57,y:50},1);addAction(actions,"throw","ball","C",{x:50,y:72},2,spots.homeCover);
+    }
+    design.actions=actions;setMeta(entry.title,"Control the first-and-third play with a clear catcher call, protect home first, and keep every base and overthrow lane covered");
+  }
+  function buildDoubleCutPreset(entry){
+    const actions=[],target=entry.target==="home"?spots.homeCover:spots.thirdBase,firstCut=midpoint(entry.hitPoint,target),secondCut=midpoint(firstCut,target);
+    design.positions.R2.active=true;design.positions.BR.active=true;
+    const fielder=entry.hitPoint.x<40?"LF":entry.hitPoint.x>60?"RF":"CF";
+    addAction(actions,"hit","ball","Batter",entry.hitPoint,1,{...spots.homePlate});addAction(actions,"move",fielder,fielder,entry.hitPoint,2);
+    addAction(actions,"cutoff","SS","SS",firstCut,2);addAction(actions,"cutoff","2B","2B",secondCut,2);
+    ["LF","CF","RF"].filter(id=>id!==fielder).forEach((id,index)=>addAction(actions,"backup",id,id,point(entry.hitPoint.x+(index?10:-10),Math.max(5,entry.hitPoint.y-6)),2));
+    addAction(actions,"cover","3B","3B",{...spots.thirdBase},2);addAction(actions,"cover","1B","1B",{...spots.firstBase},2);addAction(actions,"cover","C","C",{...spots.homeCover},2);addAction(actions,"backup","P","P",entry.target==="home"?{x:55,y:96}:{x:23,y:72},2);
+    runnerAdvance(actions,"BR",spots.firstBase,2);runnerAdvance(actions,"R2",spots.thirdBase,3);if(entry.target==="home")runnerAdvance(actions,"R2",spots.homePlate,5);
+    addAction(actions,"throw","ball",fielder,firstCut,3,entry.hitPoint);addAction(actions,"throw","ball","SS",secondCut,4,firstCut);addAction(actions,"throw","ball","2B",target,5,secondCut);
+    design.actions=actions;setMeta(entry.title,"Two relays line up between the ball and the target while the corners cover, pitcher backs the final base, and both remaining outfielders protect the gaps");
+  }
+  function renderScenarioCatalog(){
+    const select=document.getElementById("scenario-preset-select"),container=document.getElementById("built-in-scenario-folders");
+    const generated=scenarioCatalog.filter(item=>item.kind);
+    const folders=[...new Set(scenarioCatalog.map(item=>item.folder))];
+    folders.forEach(folder=>{
+      const items=scenarioCatalog.filter(item=>item.folder===folder);
+      if(select&&folder!=="Coach Favorites"){
+        const group=document.createElement("optgroup");group.label=folder;
+        items.forEach(item=>{const option=document.createElement("option");option.value=item.id;option.textContent=item.title;group.appendChild(option);});select.appendChild(group);
+      }
+      if(container){
+        const section=document.createElement("section");section.className="play-folder";const heading=document.createElement("h3");heading.textContent=folder;section.appendChild(heading);
+        items.forEach(item=>{const button=document.createElement("button");button.type="button";button.dataset.preset=item.id;const title=document.createElement("span");title.textContent=item.title;const small=document.createElement("small");small.textContent=item.summary;button.append(title,small);section.appendChild(button);});container.appendChild(section);
+      }
+    });
+    return generated.length;
+  }
   function applyPreset(name) {
     stopPlayback(); recording=false;syncRecordUI();design=freshDesign(); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
-    if(name==="fly-r3") {
+    const catalogEntry=scenarioCatalog.find(item=>item.id===name&&item.kind);
+    if(catalogEntry){
+      if(catalogEntry.kind==="outfield")buildOutfieldPreset(catalogEntry);
+      else if(catalogEntry.kind==="bunt")buildBuntPreset(catalogEntry);
+      else if(catalogEntry.kind==="firstThird")buildFirstThirdPreset(catalogEntry);
+      else if(catalogEntry.kind==="doubleCut")buildDoubleCutPreset(catalogEntry);
+    } else if(name==="fly-r3") {
       design.positions.R3.active=true;
       const catchPoint={x:25,y:28};
       const cutoffPoint=midpoint(catchPoint,spots.homeCover);
@@ -523,6 +691,16 @@
   document.querySelectorAll(".builder-dialog .dialog-close").forEach(button=>button.addEventListener("click",()=>closeDialog(button.closest("dialog"))));
   document.querySelector(".guide-start")?.addEventListener("click",()=>closeDialog(guideDialog));
   document.querySelectorAll("[data-library-tab]").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll("[data-library-tab]").forEach(item=>item.classList.toggle("active",item===button));document.querySelectorAll("[data-library-panel]").forEach(panel=>panel.classList.toggle("active",panel.dataset.libraryPanel===button.dataset.libraryTab));}));
+  renderScenarioCatalog();
+  document.getElementById("scenario-library-search")?.addEventListener("input",event=>{
+    const query=event.target.value.trim().toLowerCase();
+    const terms=query.split(/\s+/).filter(Boolean);
+    document.querySelectorAll("#built-in-scenario-folders .play-folder").forEach(folder=>{
+      let visible=0;
+      folder.querySelectorAll("button[data-preset]").forEach(button=>{const text=button.textContent.toLowerCase();const match=terms.every(term=>text.includes(term));button.hidden=!match;if(match)visible+=1;});
+      folder.hidden=visible===0;
+    });
+  });
   document.querySelectorAll("[data-preset]").forEach(button=>button.addEventListener("click",()=>{applyPreset(button.dataset.preset);closeDialog(libraryDialog);}));
   document.querySelectorAll("[data-saved-scenario]").forEach(button=>button.addEventListener("click",()=>{const row=saved.find(entry=>String(entry.id)===button.dataset.savedScenario);if(row)loadScenario(row);closeDialog(libraryDialog);}));
   window.addEventListener("resize",renderPaths);
