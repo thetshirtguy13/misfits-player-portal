@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Baseball Scenario Builder{% endblock %}
 {% block content %}
-<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261018k')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261018k')}}">
+<link rel="stylesheet" href="{{url_for('static',filename='scenario_builder.css',v='20261018p')}}"><link rel="stylesheet" href="{{url_for('static',filename='scenario_builder_v2.css',v='20261018p')}}">
 <section id="scenario-app" class="scenario-app sport-baseball" data-editable="{{'true' if editable else 'false'}}" data-selected-id="{{selected_id or ''}}" data-scenarios="{{scenario_payload|tojson|forceescape}}">
   <div class="builder-heading">
     <div><p class="eyebrow">Team preparation</p><h1>Baseball Scenario Builder</h1></div>
@@ -148,12 +148,7 @@
 <dialog id="play-library-dialog" class="builder-dialog">
   <div class="dialog-heading"><div><span>Play Library</span><h2>Choose a situation</h2></div><button type="button" class="dialog-close" aria-label="Close play library">&times;</button></div>
   <div class="library-tabs" role="tablist"><button type="button" class="active" data-library-tab="built-in">Situation plays</button><button type="button" data-library-tab="team">My team plays</button></div>
-  <div class="library-tab-panel active" data-library-panel="built-in">
-    <section class="play-folder"><h3>No runners</h3><button type="button" data-preset="left-single"><span>Single to Left Field</span><small>Every defender rotates</small></button><button type="button" data-preset="right-single"><span>Single to Right Field</span><small>Cutoff and backup responsibilities</small></button></section>
-    <section class="play-folder"><h3>Runner on first</h3><button type="button" data-preset="ground-r1"><span>Ground Ball + Runner on 1st</span><small>Double-play rotation</small></button><button type="button" data-preset="bunt-r1"><span>Bunt Defense + Runner on 1st</span><small>Corner charge and base coverage</small></button></section>
-    <section class="play-folder"><h3>Runner in scoring position</h3><button type="button" data-preset="fly-r3"><span>Fly Ball + Runner on 3rd</span><small>Tag, relay, and play at home</small></button><button type="button" data-preset="left-r2"><span>Left Field Hit + Runner on 2nd</span><small>Relay home with every defender moving</small></button></section>
-    <section class="play-folder"><h3>Base defense</h3><button type="button" data-preset="pickoff-third"><span>Pickoff Attempt at 3rd</span><small>Tag and backup coverage</small></button><button type="button" data-preset="rundown-third-home"><span>Rundown: 3rd to Home</span><small>Close the lane with one throw</small></button></section>
-  </div>
+  <div class="library-tab-panel active" data-library-panel="built-in"><label class="scenario-search"><span>Find a situation</span><input id="scenario-library-search" type="search" placeholder="Try: bases loaded, bunt, double cut"></label><div id="built-in-scenario-folders"></div></div>
   <div class="library-tab-panel" data-library-panel="team">
     <div class="dialog-team-plays">
       {% for scenario in scenarios %}<button type="button" data-saved-scenario="{{scenario.id}}"><span>{{scenario.title}}</span><small>{{scenario.situation or 'Team scenario'}}</small></button>{% else %}<p>No team plays saved yet. Record a play and use Save to Team.</p>{% endfor %}
@@ -167,5 +162,5 @@
   <button type="button" class="builder-btn play guide-start">Start Building</button>
 </dialog>
 
-<script src="{{url_for('static',filename='scenario_builder.js',v='20261018k')}}" defer></script>
+<script src="{{url_for('static',filename='scenario_builder.js',v='20261018p')}}" defer></script>
 {% endblock %}
