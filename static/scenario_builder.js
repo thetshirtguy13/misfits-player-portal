@@ -13,10 +13,12 @@
   const instruction = document.getElementById("instruction-text");
   const playButton = document.getElementById("play-button");
   const fieldPlayButton = document.getElementById("field-play-button");
+  const stepChips = document.getElementById("step-chips");
+  const recordButton = document.getElementById("record-button");
   const progressBar = document.getElementById("play-progress-bar");
   const saved = JSON.parse(app.dataset.scenarios || "[]");
-  const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9" };
-  const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run" };
+  const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9", draw: "#55d6ff" };
+  const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run", draw: "Coach drawing" };
   const spots = {
     homePlate:{x:50,y:93}, homeCover:{x:50,y:86}, catcherStart:{x:50,y:95}, rightHandedBox:{x:44.5,y:93},
     firstBase:{x:69,y:68}, secondBase:{x:50,y:44}, thirdBase:{x:31,y:68}
@@ -32,6 +34,10 @@
   let actionMode = "append";
   let playing = false;
   let playToken = 0;
+  let recording = false;
+  let dragState = null;
+  let drawState = null;
+  let nextDrawingId = 1;
 
   function copy(value) { return JSON.parse(JSON.stringify(value)); }
   function freshDesign() { return { version:1, positions:copy(defaults), ball:{...spots.homePlate}, actions:[] }; }
@@ -69,6 +75,70 @@
   function setPosition(element,position) {
     element.style.left=`${position.x}%`; element.style.top=`${position.y}%`;
   }
+  function beginMarkerDrag(event,id) {
+    if(!editable || playing) return;
+    event.preventDefault(); event.stopPropagation();
+    const canDrag=recording || tool==="setup";
+    if(!canDrag){selectMarker(id);return;}
+    const origin=id==="ball" ? ballPosition() : activePosition(id);
+    dragState={id,origin,marker:event.currentTarget,moved:false};
+    event.currentTarget.classList.add("dragging");
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+  function moveDraggedMarker(event) {
+    if(!dragState || playing) return;
+    const destination=fieldPoint(event);
+    dragState.moved=true;
+    setPosition(dragState.marker,destination);
+  }
+  function finishMarkerDrag(event) {
+    if(!dragState) return false;
+    const current=dragState; dragState=null; current.marker.classList.remove("dragging");
+    if(!current.moved){
+      if(!recording) selectMarker(current.id);
+      else instruction.textContent="Drag the marker to record its next movement.";
+      return true;
+    }
+    const destination=fieldPoint(event);
+    if(recording){
+      let action;
+      if(current.id==="ball"){
+        const hasBallAction=design.actions.some(item=>item.entity==="ball");
+        action={type:hasBallAction?"throw":"hit",entity:"ball",actor:hasBallAction?"Defense":"Batter",from:ballPosition(),to:destination};
+      }else{
+        const movementType=["move","cover","backup","cutoff","tag"].includes(tool)?tool:"move";
+        action={type:movementType,entity:current.id,actor:current.id,from:activePosition(current.id),to:destination};
+      }
+      design.actions.push(action); selectedStep=design.actions.length-1;
+      instruction.textContent=`Step ${design.actions.length} recorded. Drag the next player or ball.`;
+    }else if(current.id==="ball") design.ball=destination;
+    else Object.assign(design.positions[current.id],destination);
+    renderAll();
+    return true;
+  }
+  function drawPreview(from,to) {
+    let preview=movementLayer.querySelector(".draw-preview");
+    if(!preview){preview=document.createElement("div");preview.className="action-path draw draw-preview";movementLayer.appendChild(preview);}
+    const dx=to.x-from.x,dy=to.y-from.y;
+    preview.style.left=`${from.x}%`;preview.style.top=`${from.y}%`;
+    preview.style.width=`${Math.hypot(dx*field.clientWidth/100,dy*field.clientHeight/100)}px`;
+    preview.style.transform=`rotate(${Math.atan2(dy*field.clientHeight,dx*field.clientWidth)*180/Math.PI}deg)`;
+    preview.style.setProperty("--path-color",colors.draw);
+  }
+  function beginDrawing(event){
+    if(!editable || playing || tool!=="draw" || event.target.closest(".field-marker,.field-ball,.field-control-dock")) return;
+    event.preventDefault(); drawState={from:fieldPoint(event),to:fieldPoint(event)}; drawPreview(drawState.from,drawState.to);
+  }
+  function moveDrawing(event){if(!drawState)return;drawState.to=fieldPoint(event);drawPreview(drawState.from,drawState.to);}
+  function finishDrawing(event){
+    if(!drawState)return false;
+    drawState.to=fieldPoint(event);
+    if(Math.hypot(drawState.to.x-drawState.from.x,drawState.to.y-drawState.from.y)>1){
+      design.actions.push({type:"draw",entity:`drawing-${nextDrawingId++}`,actor:"Coach",from:drawState.from,to:drawState.to});
+      selectedStep=design.actions.length-1; instruction.textContent="Drawing saved. Add another path or choose Move.";
+    }
+    drawState=null;renderAll();return true;
+  }
   function ensureMarkers() {
     markerLayer.innerHTML="";
     Object.entries(design.positions).forEach(([id,position]) => {
@@ -76,12 +146,12 @@
       const marker=document.createElement("button");
       marker.type="button"; marker.className=`field-marker${position.runner ? " runner" : ""}`;
       marker.dataset.id=id; marker.textContent=id; marker.title=position.runner ? `${id} runner` : id;
-      marker.addEventListener("pointerdown",event => { event.stopPropagation(); if(editable && !playing) selectMarker(id); });
+      marker.addEventListener("pointerdown",event => beginMarkerDrag(event,id));
       markerLayer.appendChild(marker);
     });
     const ball=document.createElement("button");
     ball.type="button"; ball.className="field-ball"; ball.dataset.id="ball"; ball.title="Baseball";
-    ball.addEventListener("pointerdown",event => { event.stopPropagation(); if(editable && !playing && tool==="setup") selectMarker("ball"); });
+    ball.addEventListener("pointerdown",event => beginMarkerDrag(event,"ball"));
     markerLayer.appendChild(ball);
   }
   function renderSnapshot(frame,action=null) {
@@ -111,6 +181,7 @@
   function actionLabel(action) {
     if(action.type==="hit") return "Ball travels into play";
     if(action.type==="throw") return `${action.actor} throws the ball`;
+    if(action.type==="draw") return "Coach draws an instruction path";
     return `${action.actor} ${names[action.type].toLowerCase()}`;
   }
   function renderTimeline(current=-1) {
@@ -135,6 +206,13 @@
     stepCount.textContent=`${design.actions.length} step${design.actions.length===1 ? "" : "s"}`;
     emptyTimeline.hidden=design.actions.length>0;
     document.querySelectorAll(".runner-toggle").forEach(button=>button.classList.toggle("active",Boolean(design.positions[button.dataset.runner]?.active)));
+    renderStepChips(current);
+  }
+  function renderStepChips(current=-1){
+    if(!stepChips)return;
+    stepChips.innerHTML="";
+    const start=document.createElement("button");start.type="button";start.textContent="Start";start.className=current<0?"active":"";start.addEventListener("click",()=>previewThrough(0,-1));stepChips.appendChild(start);
+    design.actions.forEach((action,index)=>{const chip=document.createElement("button");chip.type="button";chip.textContent=String(index+1);chip.title=actionLabel(action);chip.classList.toggle("active",index===current);chip.addEventListener("click",()=>{selectedStep=index;previewThrough(index+1,index);});stepChips.appendChild(chip);});
   }
   function moveStep(index,direction){const target=index+direction;if(target<0||target>=design.actions.length)return;[design.actions[index],design.actions[target]]=[design.actions[target],design.actions[index]];refreshActionOrigins();selectedStep=target;renderAll();}
   function renderAll(through=design.actions.length,current=-1) {
@@ -146,6 +224,24 @@
     if(tool==="setup") instruction.textContent=`Place ${id} anywhere on the field.`;
     else instruction.textContent=`Choose the destination for ${id}.`;
   }
+  function setTool(next){
+    tool=next;selected=null;
+    document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item.dataset.tool===tool));
+    document.getElementById("direct-move-button")?.classList.toggle("active",tool==="move"||tool==="setup");
+    document.getElementById("field-draw-button")?.classList.toggle("active",tool==="draw");
+  }
+  function syncRecordUI(){
+    app.classList.toggle("recording",recording);
+    if(recordButton){recordButton.classList.toggle("active",recording);const label=recordButton.querySelector("span");if(label)label.textContent=recording?"Stop":"Record";}
+  }
+  function toggleRecording(){
+    if(!editable||playing)return;
+    recording=!recording;
+    if(recording){setTool("move");instruction.textContent="Recording: drag a player or the baseball. Each drag becomes the next step.";}
+    else instruction.textContent="Recording stopped. Replay the sequence or choose a step to fine-tune it.";
+    syncRecordUI();
+  }
+  function undoLast(){if(!design.actions.length)return;design.actions.pop();refreshActionOrigins();selectedStep=null;instruction.textContent="Last recorded step removed.";renderAll();}
   function addAction(destination) {
     const index=actionMode==="replace"&&selectedStep!==null ? selectedStep : actionMode==="insert"&&selectedStep!==null ? selectedStep+1 : design.actions.length;
     let action;
@@ -164,7 +260,9 @@
     selected=null; instruction.textContent="Step saved. Select it to insert, redraw, or reorder."; renderAll();
   }
   function handleField(event) {
-    if(!editable || playing || event.target.closest(".field-marker,.field-ball,.field-play-button")) return;
+    if(finishMarkerDrag(event) || finishDrawing(event)) return;
+    if(!editable || playing || event.target.closest(".field-marker,.field-ball,.field-control-dock")) return;
+    if(tool==="draw") return;
     const destination=fieldPoint(event);
     if(tool==="setup") {
       if(!selected){instruction.textContent="Select a marker, then choose its starting position.";return;}
@@ -198,9 +296,9 @@
       await tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((index+amount)/design.actions.length)*100}%`;},token);
       await new Promise(resolve=>setTimeout(resolve,180));
     }
-    if(token===playToken){playing=false;setPlayButtonText("Replay Scenario");fieldPlayButton.disabled=false;renderSnapshot(snapshot());renderTimeline();progressBar.style.width="100%";instruction.textContent="Scenario complete.";}
+    if(token===playToken){playing=false;setPlayButtonText("Replay Scenario");fieldPlayButton.disabled=false;renderSnapshot(snapshot());renderTimeline(design.actions.length-1);progressBar.style.width="100%";instruction.textContent="Scenario complete.";}
   }
-  function setPlayButtonText(text){playButton.textContent=text;if(fieldPlayButton)fieldPlayButton.textContent=text;}
+  function setPlayButtonText(text){playButton.textContent=text;if(fieldPlayButton){const label=fieldPlayButton.querySelector("span");if(label)label.textContent=text==="Playing"?"Playing":text==="Replay Scenario"?"Replay":"Play";}}
   function stopPlayback() { playing=false; playToken+=1; setPlayButtonText("Play Scenario"); if(fieldPlayButton)fieldPlayButton.disabled=false; }
   function normalizeDesign(candidate) {
     const clean=freshDesign();
@@ -210,7 +308,7 @@
     return clean;
   }
   function applyPreset(name) {
-    stopPlayback(); design=freshDesign(); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
+    stopPlayback(); recording=false;syncRecordUI();design=freshDesign(); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
     if(name==="fly-r3") {
       design.positions.R3.active=true;
       design.actions=[
@@ -347,7 +445,7 @@
     } else setMeta(""," ");
     const picker=document.getElementById("scenario-preset-select"); if(picker) picker.value=name;
     status.textContent=name==="empty" ? "New Scenario" : document.getElementById("scenario-title").value;
-    instruction.textContent="Adjust the setup or add the next action."; renderAll();
+    instruction.textContent="Press Play, choose a step, or press Record and drag a marker."; renderAll(0);progressBar.style.width="0%";
   }
   function setMeta(titleValue,situationValue,teamId=null,id="") {
     const title=document.getElementById("scenario-title"),situation=document.getElementById("scenario-situation");
@@ -359,23 +457,42 @@
   }
   function syncForm(){if(editable)document.getElementById("design-json").value=JSON.stringify(design);}
   function loadScenario(row) {
-    stopPlayback(); design=normalizeDesign(row.design); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
+    stopPlayback();recording=false;syncRecordUI();design=normalizeDesign(row.design); selected=null; selectedStep=null; actionMode="append"; app.classList.remove("insert-mode","redraw-mode");
     setMeta(row.title,row.situation,row.team_id,row.id); status.textContent=row.title; instruction.textContent=row.situation||"Press Play Scenario to watch the responsibilities.";
-    renderAll();
+    renderAll(0);progressBar.style.width="0%";
   }
 
+  const libraryDialog=document.getElementById("play-library-dialog");
+  const guideDialog=document.getElementById("builder-guide-dialog");
+  function openDialog(dialog){if(!dialog)return;if(typeof dialog.showModal==="function")dialog.showModal();else dialog.setAttribute("open","");}
+  function closeDialog(dialog){if(!dialog)return;if(typeof dialog.close==="function")dialog.close();else dialog.removeAttribute("open");}
+
+  field.addEventListener("pointerdown",beginDrawing);
+  field.addEventListener("pointermove",event=>{moveDraggedMarker(event);moveDrawing(event);});
   field.addEventListener("pointerup",handleField);
   playButton.addEventListener("click",play);
   fieldPlayButton.addEventListener("click",play);
   document.getElementById("restart-button").addEventListener("click",()=>previewThrough(0));
+  document.getElementById("field-restart-button")?.addEventListener("click",()=>previewThrough(0));
+  document.getElementById("play-library-button")?.addEventListener("click",()=>openDialog(libraryDialog));
+  document.getElementById("builder-guide-button")?.addEventListener("click",()=>openDialog(guideDialog));
+  document.querySelectorAll(".builder-dialog .dialog-close").forEach(button=>button.addEventListener("click",()=>closeDialog(button.closest("dialog"))));
+  document.querySelector(".guide-start")?.addEventListener("click",()=>closeDialog(guideDialog));
+  document.querySelectorAll("[data-library-tab]").forEach(button=>button.addEventListener("click",()=>{document.querySelectorAll("[data-library-tab]").forEach(item=>item.classList.toggle("active",item===button));document.querySelectorAll("[data-library-panel]").forEach(panel=>panel.classList.toggle("active",panel.dataset.libraryPanel===button.dataset.libraryTab));}));
+  document.querySelectorAll("[data-preset]").forEach(button=>button.addEventListener("click",()=>{applyPreset(button.dataset.preset);closeDialog(libraryDialog);}));
+  document.querySelectorAll("[data-saved-scenario]").forEach(button=>button.addEventListener("click",()=>{const row=saved.find(entry=>String(entry.id)===button.dataset.savedScenario);if(row)loadScenario(row);closeDialog(libraryDialog);}));
   window.addEventListener("resize",renderPaths);
   document.getElementById("scenario-preset-select")?.addEventListener("change",event=>applyPreset(event.target.value));
   if(editable){
-    document.querySelectorAll(".tool-button[data-tool]").forEach(button=>button.addEventListener("click",()=>{tool=button.dataset.tool;selected=null;document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item===button));instruction.textContent=tool==="hit" ? "Choose where the ball is hit." : tool==="setup" ? "Select a marker, then choose its starting position." : `Select a player, then choose where they ${names[tool].toLowerCase()}.`;}));
+    document.querySelectorAll(".tool-button[data-tool]").forEach(button=>button.addEventListener("click",()=>{setTool(button.dataset.tool);instruction.textContent=tool==="hit" ? "Choose where the ball is hit." : tool==="setup" ? "Drag a marker to set its starting position." : recording ? `Drag a player to record ${names[tool].toLowerCase()}.` : `Select a player, then choose where they ${names[tool].toLowerCase()}.`;}));
     document.querySelectorAll(".runner-toggle").forEach(button=>button.addEventListener("click",()=>{const runner=design.positions[button.dataset.runner];runner.active=!runner.active;renderAll();}));
+    recordButton?.addEventListener("click",toggleRecording);
+    document.getElementById("direct-move-button")?.addEventListener("click",()=>{setTool(recording?"move":"setup");instruction.textContent=recording?"Drag a player or ball to record the next movement.":"Drag any marker to adjust the starting setup.";});
+    document.getElementById("field-draw-button")?.addEventListener("click",()=>{setTool("draw");instruction.textContent="Drag anywhere on the field to draw a coaching path.";});
+    document.getElementById("field-undo-button")?.addEventListener("click",undoLast);
     document.getElementById("insert-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}actionMode=actionMode==="insert"?"append":"insert";app.classList.toggle("insert-mode",actionMode==="insert");app.classList.remove("redraw-mode");instruction.textContent=actionMode==="insert"?"The next action will be inserted after the selected step.":"New actions will be added to the end.";});
     document.getElementById("redraw-button").addEventListener("click",()=>{if(selectedStep===null){instruction.textContent="Select a timeline step first.";return;}const action=design.actions[selectedStep];tool=action.type;selected=action.type==="hit"?null:action.actor;actionMode="replace";app.classList.add("redraw-mode");app.classList.remove("insert-mode");document.querySelectorAll(".tool-button[data-tool]").forEach(item=>item.classList.toggle("active",item.dataset.tool===tool));previewThrough(selectedStep);instruction.textContent=`Choose a new destination for step ${selectedStep+1}.`;});
-    document.getElementById("undo-button").addEventListener("click",()=>{design.actions.pop();refreshActionOrigins();selectedStep=null;renderAll();});
+    document.getElementById("undo-button").addEventListener("click",undoLast);
     document.getElementById("clear-button").addEventListener("click",()=>{design.actions=[];selectedStep=null;actionMode="append";app.classList.remove("insert-mode","redraw-mode");renderAll();});
     document.getElementById("scenario-form").addEventListener("submit",syncForm);
   } else app.classList.add("viewer");
