@@ -103,8 +103,8 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b'id="insert-button"',response.data)
         self.assertIn(b'id="redraw-button"',response.data)
         self.assertIn(b'data-runner="R1"',response.data)
-        self.assertIn(b"scenario_builder_v2.css?v=20261017h",response.data)
-        self.assertIn(b"scenario_builder.js?v=20261017h",response.data)
+        self.assertIn(b"scenario_builder_v2.css?v=20261017i",response.data)
+        self.assertIn(b"scenario_builder.js?v=20261017i",response.data)
         self.assertIn(b'id="record-button"',response.data)
         self.assertIn(b'id="play-library-dialog"',response.data)
         self.assertIn(b'id="step-chips"',response.data)
@@ -129,6 +129,9 @@ class PortalFlowTests(unittest.TestCase):
         self.assertIn(b'function renderStepChips',script.data)
         self.assertIn(b'function phaseGroups()',script.data)
         self.assertIn(b'await Promise.all(group.items.map',script.data)
+        field_css=self.client.get("/static/scenario_builder.css")
+        self.assertNotIn(b'.baseball-field{aspect-ratio:1/1}',field_css.data)
+        self.assertIn(b'@media(max-width:760px)',field_css.data)
 
     def test_coach_can_save_and_update_team_scenario(self):
         self.login_as(self.coach_id)
