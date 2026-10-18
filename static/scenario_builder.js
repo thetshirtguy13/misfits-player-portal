@@ -20,7 +20,7 @@
   const colors = { move: "#ff8a2a", throw: "#f4fffb", hit: "#ff3b7c", cover: "#24f2c2", backup: "#b78cff", cutoff: "#d9ff46", tag: "#ff5cc9", draw: "#55d6ff" };
   const names = { move: "Move", throw: "Throw", hit: "Ball flight", cover: "Cover", backup: "Back up", cutoff: "Cutoff", tag: "Tag / run", draw: "Coach drawing" };
   const spots = {
-    homePlate:{x:50,y:93}, homeCover:{x:50,y:86}, catcherStart:{x:50,y:95}, rightHandedBox:{x:44.5,y:93},
+    homePlate:{x:50,y:92.6}, homeCover:{x:47.2,y:89.2}, catcherStart:{x:50,y:94.2}, rightHandedBox:{x:44.2,y:92.2},
     firstBase:{x:69,y:68}, secondBase:{x:50,y:44}, thirdBase:{x:31,y:68}
   };
   const defaults = {
@@ -40,6 +40,17 @@
   let nextDrawingId = 1;
 
   function copy(value) { return JSON.parse(JSON.stringify(value)); }
+  function actionPhase(action,index) { return Number.isFinite(action.phase) ? action.phase : index+1; }
+  function phaseGroups() {
+    const groups=[];
+    design.actions.forEach((action,index)=>{
+      const phase=actionPhase(action,index);
+      let group=groups.find(item=>item.phase===phase);
+      if(!group){group={phase,items:[]};groups.push(group);}
+      group.items.push({action,index});
+    });
+    return groups;
+  }
   function freshDesign() { return { version:1, positions:copy(defaults), ball:{...spots.homePlate}, actions:[] }; }
   function point(x,y) { return {x:Math.max(2,Math.min(98,x)),y:Math.max(2,Math.min(98,y))}; }
   function fieldPoint(event) {
@@ -186,9 +197,10 @@
   }
   function renderTimeline(current=-1) {
     timeline.innerHTML="";
+    const currentPhase=current>=0 ? actionPhase(design.actions[current],current) : null;
     design.actions.forEach((action,index) => {
-      const item=document.createElement("li"); if(index===current) item.classList.add("current"); if(index===selectedStep) item.classList.add("selected-step");
-      const number=document.createElement("span"); number.className="step-number"; number.textContent=index+1;
+      const item=document.createElement("li"); if(actionPhase(action,index)===currentPhase) item.classList.add("current"); if(index===selectedStep) item.classList.add("selected-step");
+      const number=document.createElement("span"); number.className="step-number"; number.textContent=actionPhase(action,index);
       const copyBox=document.createElement("button"); copyBox.type="button"; copyBox.className="step-copy text-button";
       const strong=document.createElement("strong"); strong.textContent=actionLabel(action);
       const small=document.createElement("small"); small.textContent=names[action.type];
@@ -203,7 +215,8 @@
       }
       timeline.appendChild(item);
     });
-    stepCount.textContent=`${design.actions.length} step${design.actions.length===1 ? "" : "s"}`;
+    const phases=phaseGroups();
+    stepCount.textContent=`${phases.length} step${phases.length===1 ? "" : "s"}`;
     emptyTimeline.hidden=design.actions.length>0;
     document.querySelectorAll(".runner-toggle").forEach(button=>button.classList.toggle("active",Boolean(design.positions[button.dataset.runner]?.active)));
     renderStepChips(current);
@@ -212,7 +225,8 @@
     if(!stepChips)return;
     stepChips.innerHTML="";
     const start=document.createElement("button");start.type="button";start.textContent="Start";start.className=current<0?"active":"";start.addEventListener("click",()=>previewThrough(0,-1));stepChips.appendChild(start);
-    design.actions.forEach((action,index)=>{const chip=document.createElement("button");chip.type="button";chip.textContent=String(index+1);chip.title=actionLabel(action);chip.classList.toggle("active",index===current);chip.addEventListener("click",()=>{selectedStep=index;previewThrough(index+1,index);});stepChips.appendChild(chip);});
+    const currentPhase=current>=0 ? actionPhase(design.actions[current],current) : null;
+    phaseGroups().forEach(group=>{const last=group.items[group.items.length-1].index;const chip=document.createElement("button");chip.type="button";chip.textContent=String(group.phase);chip.title=group.items.map(item=>actionLabel(item.action)).join(" + ");chip.classList.toggle("active",group.phase===currentPhase);chip.addEventListener("click",()=>{selectedStep=last;previewThrough(last+1,last);});stepChips.appendChild(chip);});
   }
   function moveStep(index,direction){const target=index+direction;if(target<0||target>=design.actions.length)return;[design.actions[index],design.actions[target]]=[design.actions[target],design.actions[index]];refreshActionOrigins();selectedStep=target;renderAll();}
   function renderAll(through=design.actions.length,current=-1) {
@@ -288,12 +302,17 @@
     if(playing || !design.actions.length) return;
     playing=true; selected=null; const token=++playToken; setPlayButtonText("Playing"); fieldPlayButton.disabled=true;
     renderSnapshot(snapshot(0)); progressBar.style.width="0%";
-    for(let index=0;index<design.actions.length;index+=1){
+    const groups=phaseGroups();
+    for(let groupIndex=0;groupIndex<groups.length;groupIndex+=1){
       if(token!==playToken) break;
-      const action=design.actions[index],before=snapshot(index),moving=action.entity==="ball" ? markerLayer.querySelector('[data-id="ball"]') : markerLayer.querySelector(`[data-id="${action.entity}"]`);
-      renderTimeline(index); renderSnapshot(before,action); instruction.textContent=actionLabel(action);
+      const group=groups[groupIndex],first=group.items[0].index,last=group.items[group.items.length-1].index,before=snapshot(first);
+      renderTimeline(first); renderSnapshot(before); instruction.textContent=group.items.map(item=>actionLabel(item.action)).join(" + ");
       const speed=Number(document.getElementById("playback-speed")?.value||1);
-      await tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((index+amount)/design.actions.length)*100}%`;},token);
+      await Promise.all(group.items.map(({action})=>{
+        const moving=action.entity==="ball" ? markerLayer.querySelector('[data-id="ball"]') : markerLayer.querySelector(`[data-id="${action.entity}"]`);
+        return tween(action.from,action.to,(action.type==="throw"||action.type==="hit" ? 700 : 950)/speed,(position,amount)=>{if(moving)setPosition(moving,position);progressBar.style.width=`${((groupIndex+amount)/groups.length)*100}%`;},token);
+      }));
+      renderSnapshot(snapshot(last+1));
       await new Promise(resolve=>setTimeout(resolve,180));
     }
     if(token===playToken){playing=false;setPlayButtonText("Replay Scenario");fieldPlayButton.disabled=false;renderSnapshot(snapshot());renderTimeline(design.actions.length-1);progressBar.style.width="100%";instruction.textContent="Scenario complete.";}
@@ -304,7 +323,7 @@
     const clean=freshDesign();
     if(candidate && candidate.positions) Object.entries(candidate.positions).forEach(([id,value])=>{if(clean.positions[id]&&Number.isFinite(value.x)&&Number.isFinite(value.y)) Object.assign(clean.positions[id],point(value.x,value.y),{active:value.active!==false});});
     if(candidate && candidate.ball && Number.isFinite(candidate.ball.x)) clean.ball=point(candidate.ball.x,candidate.ball.y);
-    if(candidate && Array.isArray(candidate.actions)) clean.actions=candidate.actions.filter(a=>names[a.type]&&a.from&&a.to&&a.entity).slice(0,100).map(a=>({...a,from:point(a.from.x,a.from.y),to:point(a.to.x,a.to.y)}));
+    if(candidate && Array.isArray(candidate.actions)) clean.actions=candidate.actions.filter(a=>names[a.type]&&a.from&&a.to&&a.entity).slice(0,100).map((a,index)=>({...a,phase:Number.isFinite(a.phase)?a.phase:index+1,from:point(a.from.x,a.from.y),to:point(a.to.x,a.to.y)}));
     return clean;
   }
   function applyPreset(name) {
@@ -315,11 +334,12 @@
         {type:"hit",entity:"ball",actor:"Batter",from:{...spots.homePlate},to:{x:24,y:27}},
         {type:"move",entity:"LF",actor:"LF",from:{x:24,y:22},to:{x:25,y:28}},
         {type:"cutoff",entity:"SS",actor:"SS",from:{x:41,y:49},to:{x:36,y:57}},
-        {type:"tag",entity:"R3",actor:"R3",from:{...spots.thirdBase},to:{...spots.homePlate}},
         {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
+        {type:"tag",entity:"R3",actor:"R3",from:{...spots.thirdBase},to:{...spots.homePlate}},
         {type:"throw",entity:"ball",actor:"LF",from:{x:25,y:28},to:{x:36,y:57}},
         {type:"throw",entity:"ball",actor:"SS",from:{x:36,y:57},to:{...spots.homeCover}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,3,3,4][index]);
       setMeta("Fly Ball, Runner on Third","Outfield catch, tag-up, cutoff, and play at home");
     } else if(name==="ground-r1") {
       design.positions.R1.active=true;
@@ -332,6 +352,7 @@
         {type:"throw",entity:"ball",actor:"SS",from:{x:39,y:54},to:{x:50,y:44}},
         {type:"throw",entity:"ball",actor:"2B",from:{...spots.secondBase},to:{...spots.firstBase}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,3,4][index]);
       setMeta("Ground Ball, Runner on First","Middle infield double-play responsibilities");
     } else if(name==="bunt-r1") {
       design.positions.R1.active=true; design.positions.BR.active=true;
@@ -350,6 +371,7 @@
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
         {type:"throw",entity:"ball",actor:"3B",from:{x:44,y:79},to:{...spots.firstBase}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,2,3][index]);
       setMeta("Bunt Defense, Runner on First","Third baseman fields, first baseman charges, second covers first, short covers third, catcher protects home, and all three outfielders back up the rotation");
     } else if(name==="left-single") {
       design.positions.BR.active=true;
@@ -368,6 +390,7 @@
         {type:"throw",entity:"ball",actor:"LF",from:{x:22,y:33},to:{x:34,y:55}},
         {type:"throw",entity:"ball",actor:"SS",from:{x:34,y:55},to:{x:50,y:44}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,3,4][index]);
       setMeta("Single to Left Field","Every defender moves: left fields it, center and right back up, short is cutoff, bases are covered, pitcher backs up third, and catcher protects home");
     } else if(name==="left-r2") {
       design.positions.R2.active=true; design.positions.BR.active=true;
@@ -382,11 +405,13 @@
         {type:"cover",entity:"1B",actor:"1B",from:{x:68,y:61},to:{...spots.firstBase}},
         {type:"backup",entity:"P",actor:"P",from:{x:50,y:68},to:{x:50,y:96}},
         {type:"cover",entity:"C",actor:"C",from:{...spots.catcherStart},to:{...spots.homeCover}},
-        {type:"tag",entity:"R2",actor:"R2",from:{...spots.secondBase},to:{...spots.homePlate}},
+        {type:"tag",entity:"R2",actor:"R2",from:{...spots.secondBase},to:{...spots.thirdBase}},
         {type:"tag",entity:"BR",actor:"BR",from:{...spots.rightHandedBox},to:{...spots.firstBase}},
         {type:"throw",entity:"ball",actor:"LF",from:{x:20,y:31},to:{x:35,y:57}},
+        {type:"tag",entity:"R2",actor:"R2",from:{...spots.thirdBase},to:{...spots.homePlate}},
         {type:"throw",entity:"ball",actor:"SS",from:{x:35,y:57},to:{...spots.homeCover}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,2,3,3,4][index]);
       setMeta("Left Field Hit, Runner on Second","Left fields the ball, short lines up the throw home, pitcher backs up the plate, every base is covered, and both runners advance");
     } else if(name==="right-single") {
       design.positions.BR.active=true;
@@ -405,6 +430,7 @@
         {type:"throw",entity:"ball",actor:"RF",from:{x:78,y:33},to:{x:66,y:55}},
         {type:"throw",entity:"ball",actor:"2B",from:{x:66,y:55},to:{x:50,y:44}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,2,2,2,2,2,2,2,2,2,2,3,4][index]);
       setMeta("Single to Right Field","Right fields it, center and left back up, second is cutoff, short covers second, corner bases are covered, pitcher backs the play, and catcher protects home");
     } else if(name==="pickoff-third") {
       design.positions.R3={x:36,y:74,runner:true,active:true}; design.ball={x:50,y:68};
@@ -421,6 +447,7 @@
         {type:"tag",entity:"R3",actor:"R3",from:{x:36,y:74},to:{...spots.thirdBase}},
         {type:"throw",entity:"ball",actor:"P",from:{x:47,y:70},to:{...spots.thirdBase}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,1,1,1,1,1,1,1,1,2,2][index]);
       setMeta("Pickoff Attempt at Third","Pitcher uses a quick step and throw, third applies the tag, short and left back up third, middle infielders protect their bases, and catcher stays home");
     } else if(name==="rundown-third-home") {
       design.positions.R3={x:40,y:78,runner:true,active:true}; design.ball={x:30,y:68};
@@ -441,6 +468,7 @@
         {type:"throw",entity:"ball",actor:"C",from:{x:39,y:77},to:{...spots.thirdBase}},
         {type:"tag",entity:"SS",actor:"SS",from:{...spots.thirdBase},to:{x:34,y:72}}
       ];
+      design.actions.forEach((action,index)=>action.phase=[1,1,1,1,1,1,1,1,1,2,2,3,3,4,4][index]);
       setMeta("Rundown: Third to Home","Third and catcher close the lane with one throw, short rotates to third, pitcher backs up home, left backs third, and every remaining defender protects a base or backup lane");
     } else setMeta(""," ");
     const picker=document.getElementById("scenario-preset-select"); if(picker) picker.value=name;
